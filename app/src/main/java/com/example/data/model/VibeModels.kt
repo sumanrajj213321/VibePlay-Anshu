@@ -373,6 +373,7 @@ data class RoomMessage(
     @DocumentId val id: String = "",
     val senderId: String = "",
     val senderName: String = "",
+    val senderAvatarUrl: String = "",
     val senderVipLevel: Long = 0L,
     val senderGender: String = "UNSPECIFIED",
     val text: String = "",

@@ -12,6 +12,8 @@ permissions:
 jobs:
   build-debug-apk:
     runs-on: ubuntu-latest
+    env:
+      DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -27,7 +29,12 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
-      - name: Create local debug signing key
+      - name: Restore stable debug signing key
+        if: env.DEBUG_KEYSTORE_BASE64 != ''
+        run: echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > debug.keystore
+
+      - name: Create temporary debug signing key when secret is not configured
+        if: env.DEBUG_KEYSTORE_BASE64 == ''
         run: |
           keytool -genkeypair -v \
             -keystore debug.keystore \

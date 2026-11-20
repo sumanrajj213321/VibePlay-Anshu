@@ -92,12 +92,10 @@ class UserRepository(
                 )
                 userRef.collection("private").document("account").set(privatePayload).await()
             } else {
-                userRef.update(
-                    mapOf(
-                        "online" to true,
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    )
-                ).await()
+                // Do not mutate an existing profile during sign-in.
+                // Older profiles may contain legacy fields that fail the strict
+                // profile-update validator; reading the user's own document is
+                // already allowed by Firestore rules.
             }
             val refreshed = userRef.get().await()
                 .toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)

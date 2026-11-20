@@ -23,6 +23,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -91,14 +93,24 @@ class RoomRepository(
                     .firstOrNull { it.status == "PENDING" }
             }
 
-    fun observeRoomMessages(roomId: String): Flow<List<RoomMessage>> =
-        db.collection("rooms").document(roomId).collection("messages")
-            .whereIn("type", listOf("TEXT", "GIFT", "SYSTEM"))
-            .snapshots()
-            .map { snapshot ->
-                snapshot.toObjects(RoomMessage::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
-                    .sortedBy { it.createdAt?.seconds ?: Long.MAX_VALUE }
-            }
+    fun observeRoomMessages(roomId: String): Flow<List<RoomMessage>> = flow {
+        val uid = requireUserId()
+        val sessionSnapshot = db.collection("rooms").document(roomId)
+            .collection("room_sessions").document(uid)
+            .get().await()
+        val joinedAt = sessionSnapshot.getTimestamp("joinedAt") ?: return@flow
+
+        emitAll(
+            db.collection("rooms").document(roomId).collection("messages")
+                .whereGreaterThan("createdAt", joinedAt)
+                .snapshots()
+                .map { snapshot ->
+                    snapshot.toObjects(RoomMessage::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+                        .filter { it.type in listOf("TEXT", "GIFT", "SYSTEM") }
+                        .sortedBy { it.createdAt?.seconds ?: Long.MAX_VALUE }
+                }
+        )
+    }
 
     fun observeListeners(roomId: String): Flow<List<RoomListener>> =
         db.collection("rooms").document(roomId).collection("listeners")
@@ -372,6 +384,7 @@ class RoomRepository(
             check(uid == user.userId)
             val roomRef = db.collection("rooms").document(room.id)
             val listenerRef = roomRef.collection("listeners").document(uid)
+            val sessionRef = roomRef.collection("room_sessions").document(uid)
             val seat0Ref = roomRef.collection("seats").document("0")
 
             db.runTransaction { tx ->
@@ -383,6 +396,14 @@ class RoomRepository(
                 val seatSnaps = (1..VoiceStage.SPEAKER_SEAT_COUNT).map { idx ->
                     tx.get(roomRef.collection("seats").document(idx.toString()))
                 }
+
+                tx.set(
+                    sessionRef,
+                    mapOf(
+                        "userId" to uid,
+                        "joinedAt" to FieldValue.serverTimestamp()
+                    )
+                )
 
                 if (loadedRoom.isOwner(uid)) {
                     if (listenerSnap.exists()) {
@@ -476,6 +497,7 @@ class RoomRepository(
             check(uid == userId)
             val roomRef = db.collection("rooms").document(room.id)
             val listenerRef = roomRef.collection("listeners").document(uid)
+            val sessionRef = roomRef.collection("room_sessions").document(uid)
             val reqRef = roomRef.collection("speaker_requests").document(uid)
             val seat0Ref = roomRef.collection("seats").document("0")
 
@@ -491,6 +513,8 @@ class RoomRepository(
                 }
 
                 if (loadedRoom.status != "LIVE") return@runTransaction
+
+                tx.delete(sessionRef)
 
                 var updatedListenerCount = loadedRoom.listenerCount
                 var occupiedSpeakers = seatSnaps.count { !(it.getString("occupantId").orEmpty()).isBlank() }

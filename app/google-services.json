@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "540286759542",
+    "project_id": "vibeplay-anshu",
+    "storage_bucket": "vibeplay-anshu.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:540286759542:android:d5c886874377d1572c2557",
+        "android_client_info": {
+          "package_name": "com.aistudio.vibeplay.vqrmkx"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZz6-vWT-cgxpxVoyZNMDjeh2bT6Pehxs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

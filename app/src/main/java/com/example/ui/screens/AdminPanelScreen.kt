@@ -210,7 +210,7 @@ internal fun AdminPanelContent(
                     )
                     OutlinedTextField(
                         value = coinsText,
-                        onValueChange = { coinsText = it.filter(Char::isDigit).take(7) },
+                        onValueChange = { coinsText = it.filter(Char::isDigit).take(12) },
                         label = { Text("Coin Balance") },
                         singleLine = true
                     )

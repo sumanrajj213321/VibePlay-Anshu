@@ -345,7 +345,17 @@ class RoomRepository(
                     )
                 }
 
-                // 6. System welcome chat message
+                // 6. Create the host's room session in this transaction.
+                // The message rule validates this with existsAfter().
+                tx.set(
+                    roomRef.collection("room_sessions").document(uid),
+                    mapOf(
+                        "userId" to uid,
+                        "joinedAt" to FieldValue.serverTimestamp()
+                    )
+                )
+
+                // 7. System welcome chat message
                 tx.set(
                     roomRef.collection("messages").document(),
                     mapOf(

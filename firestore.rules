@@ -286,6 +286,9 @@ service cloud.firestore {
         (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
           (incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
            incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarUrl', 'coverUrl', 'gender', 'age', 'ageRange', 'showAge', 'showGender', 'showOnlineStatus', 'online', 'followingCount', 'followersCount', 'updatedAt'])) ||
+          (incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
+           incoming().followingCount is int && incoming().followingCount >= 0 &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['followingCount', 'updatedAt'])) ||
           ((!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false) &&
            incoming().hasCreatedRoom == true &&
            isValidId(incoming().createdRoomId) &&
@@ -490,7 +493,7 @@ service cloud.firestore {
                          incoming().senderId == request.auth.uid &&
                          isValidRoomMessage(incoming()) &&
                          isValidTs(incoming().createdAt) &&
-                         exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid));
+                         existsAfter(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid));
         allow update, delete: if isAdmin();
       }
 
@@ -518,7 +521,11 @@ service cloud.firestore {
     }
 
     match /conversations/{conversationId} {
-      allow get: if isSignedIn() && isValidId(conversationId) && request.auth.uid in existing().participantIds;
+      // Signed-in users may check whether a deterministic conversation ID exists.
+      // Existing conversations remain readable only by their participants.
+      allow get: if isSignedIn() && isValidId(conversationId) &&
+                   (!exists(/databases/$(database)/documents/conversations/$(conversationId)) ||
+                    request.auth.uid in existing().participantIds);
       allow list: if isSignedIn() && request.auth.uid in existing().participantIds;
       allow create: if isSignedIn() && isValidId(conversationId) &&
                        request.auth.uid in incoming().participantIds &&

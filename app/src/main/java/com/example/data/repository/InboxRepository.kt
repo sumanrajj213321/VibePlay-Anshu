@@ -150,23 +150,28 @@ class InboxRepository(
                     "createdAt" to FieldValue.serverTimestamp()
                 )
             )
-            recipientIds.take(45).forEach { targetId ->
-                batch.set(
-                    db.collection("notifications").document(),
-                    mapOf(
-                        "recipientId" to targetId,
-                        "senderId" to uid,
-                        "senderName" to creator.username,
-                        "type" to "MESSAGE",
-                        "title" to cleanName,
-                        "body" to "${creator.username} added you to group $cleanName",
-                        "targetId" to convRef.id,
-                        "read" to false,
-                        "createdAt" to FieldValue.serverTimestamp()
-                    )
-                )
-            }
+            // Commit the group and its welcome message first. Notifications are
+            // best-effort so a notification-rule failure cannot cancel group creation.
             batch.commit().await()
+            recipientIds.take(45).forEach { targetId ->
+                try {
+                    db.collection("notifications").document().set(
+                        mapOf(
+                            "recipientId" to targetId,
+                            "senderId" to uid,
+                            "senderName" to creator.username.take(60),
+                            "type" to "MESSAGE",
+                            "title" to cleanName,
+                            "body" to "${creator.username.take(60)} added you to group ${cleanName}".take(240),
+                            "targetId" to convRef.id,
+                            "read" to false,
+                            "createdAt" to FieldValue.serverTimestamp()
+                        )
+                    ).await()
+                } catch (_: Exception) {
+                    // Group membership is already saved; inbox notification can be retried later.
+                }
+            }
             Result.success(convRef.id)
         } catch (e: CancellationException) {
             throw e

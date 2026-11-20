@@ -300,7 +300,8 @@ service cloud.firestore {
            (!('lastDailyClaimDay' in existing()) || incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'lastDailyClaimDay', 'xp', 'level', 'updatedAt'])) ||
           (incoming().vipLevel == existing().vipLevel && incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
-           incoming().totalGiftsSent > existing().totalGiftsSent &&
+           incoming().totalGiftsSent is int &&
+           incoming().totalGiftsSent > (('totalGiftsSent' in existing()) ? existing().totalGiftsSent : 0) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'totalGiftsSent', 'xp', 'level', 'updatedAt'])) ||
           (incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
            incoming().vipLevel > existing().vipLevel && incoming().vipLevel <= 5 &&
@@ -309,7 +310,8 @@ service cloud.firestore {
         (request.auth.uid != userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus &&
          incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel && (
           incoming().diff(existing()).affectedKeys().hasOnly(['followersCount', 'updatedAt']) ||
-          (incoming().totalGiftsReceived > existing().totalGiftsReceived &&
+          (incoming().totalGiftsReceived is int &&
+           incoming().totalGiftsReceived > (('totalGiftsReceived' in existing()) ? existing().totalGiftsReceived : 0) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['totalGiftsReceived', 'xp', 'level', 'updatedAt']))
         ))
       );
@@ -484,11 +486,10 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow get: if isSignedIn() && isValidId(messageId) &&
                       exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
-                      existing().createdAt > get(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)).data.joinedAt;
+                      existing().type in ['TEXT', 'GIFT', 'SYSTEM'];
         allow list: if isSignedIn() &&
                        exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
-                       existing().type in ['TEXT', 'GIFT', 'SYSTEM'] &&
-                       existing().createdAt > get(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)).data.joinedAt;
+                       existing().type in ['TEXT', 'GIFT', 'SYSTEM'];
         allow create: if isSignedIn() && isValidId(messageId) &&
                          incoming().senderId == request.auth.uid &&
                          isValidRoomMessage(incoming()) &&
@@ -554,7 +555,7 @@ service cloud.firestore {
         allow get: if isSignedIn() && isValidId(messageId) && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
         allow list: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
         allow create: if isSignedIn() && isValidId(messageId) &&
-                         request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                         request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
                          incoming().senderId == request.auth.uid &&
                          isValidDirectMessage(incoming()) &&
                          isValidTs(incoming().createdAt);

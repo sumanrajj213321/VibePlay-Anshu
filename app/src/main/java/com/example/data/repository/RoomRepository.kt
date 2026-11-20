@@ -522,31 +522,8 @@ class RoomRepository(
                             )
                         )
                     }
-                    if (hasActiveAdmin) {
-                        tx.update(
-                            roomRef,
-                            mapOf(
-                                "ownerOnline" to false,
-                                "status" to "LIVE",
-                                "listenerCount" to updatedListenerCount,
-                                "activeSpeakersCount" to occupiedSpeakers.toLong().coerceIn(0L, 9L),
-                                "activeAdminIds" to remainingActiveAdmins,
-                                "updatedAt" to FieldValue.serverTimestamp()
-                            )
-                        )
-                        tx.set(
-                            roomRef.collection("messages").document(),
-                            mapOf(
-                                "senderId" to uid,
-                                "senderName" to ownerName,
-                                "senderVipLevel" to 0L,
-                                "senderGender" to "UNSPECIFIED",
-                                "text" to "$ownerName stepped away. Room continues with active Room Admin(s).",
-                                "type" to "SYSTEM",
-                                "createdAt" to FieldValue.serverTimestamp()
-                            )
-                        )
-                    } else {
+                    if (!hasActiveAdmin) {
+                        // Keep the permanent owner room LIVE and joinable without an online admin.
                         seatSnaps.forEach { snap ->
                             if (!snap.getString("occupantId").isNullOrBlank()) {
                                 tx.update(
@@ -564,18 +541,30 @@ class RoomRepository(
                                 )
                             }
                         }
-                        tx.update(
-                            roomRef,
-                            mapOf(
-                                "ownerOnline" to false,
-                                "status" to "ENDED",
-                                "listenerCount" to 0L,
-                                "activeSpeakersCount" to 0L,
-                                "activeAdminIds" to emptyList<String>(),
-                                "updatedAt" to FieldValue.serverTimestamp()
-                            )
-                        )
                     }
+                    tx.update(
+                        roomRef,
+                        mapOf(
+                            "ownerOnline" to false,
+                            "status" to "LIVE",
+                            "listenerCount" to updatedListenerCount,
+                            "activeSpeakersCount" to if (hasActiveAdmin) occupiedSpeakers.toLong().coerceIn(0L, 9L) else 0L,
+                            "activeAdminIds" to remainingActiveAdmins,
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                    tx.set(
+                        roomRef.collection("messages").document(),
+                        mapOf(
+                            "senderId" to uid,
+                            "senderName" to ownerName,
+                            "senderVipLevel" to 0L,
+                            "senderGender" to "UNSPECIFIED",
+                            "text" to if (hasActiveAdmin) "$ownerName stepped away. Room continues with active Room Admin(s)." else "$ownerName stepped away. This permanent room remains open.",
+                            "type" to "SYSTEM",
+                            "createdAt" to FieldValue.serverTimestamp()
+                        )
+                    )
                 } else {
                     val myOccupiedSnap = seatSnaps.firstOrNull { it.getString("occupantId") == uid }
                     if (myOccupiedSnap != null) {
@@ -595,8 +584,8 @@ class RoomRepository(
                         occupiedSpeakers = (occupiedSpeakers - 1).coerceAtLeast(0)
                     }
 
-                    val shouldCloseRoom = !loadedRoom.effectiveOwnerOnline && remainingActiveAdmins.isEmpty()
-                    if (shouldCloseRoom && loadedRoom.isRoomAdmin(uid)) {
+                    val noActiveManager = !loadedRoom.effectiveOwnerOnline && remainingActiveAdmins.isEmpty()
+                    if (noActiveManager && loadedRoom.isRoomAdmin(uid)) {
                         seatSnaps.forEach { snap ->
                             if (snap.id != myOccupiedSnap?.id && !snap.getString("occupantId").isNullOrBlank()) {
                                 tx.update(
@@ -620,10 +609,10 @@ class RoomRepository(
                     tx.update(
                         roomRef,
                         mapOf(
-                            "listenerCount" to if (shouldCloseRoom) 0L else updatedListenerCount,
-                            "activeSpeakersCount" to if (shouldCloseRoom) 0L else (hostSeatedCount + occupiedSpeakers).coerceIn(0L, 9L),
+                            "listenerCount" to updatedListenerCount,
+                            "activeSpeakersCount" to (hostSeatedCount + if (noActiveManager && loadedRoom.isRoomAdmin(uid)) 0L else occupiedSpeakers).coerceIn(0L, 9L),
                             "activeAdminIds" to remainingActiveAdmins,
-                            "status" to if (shouldCloseRoom) "ENDED" else "LIVE",
+                            "status" to "LIVE",
                             "updatedAt" to FieldValue.serverTimestamp()
                         )
                     )

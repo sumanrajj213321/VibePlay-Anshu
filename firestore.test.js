@@ -376,19 +376,54 @@ test("Room chat, speaker requests, virtual gift batch, and filtered repository q
     })
   );
 
-  // Bob sends room chat message & queries messages matching RoomRepository
+  // A room session is refreshed on every join and limits chat visibility.
+  const roomRef = bobDb.collection("rooms").doc("room_1");
+  const joinedAt = pastDate(5000);
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await ctx.firestore().collection("rooms").doc("room_1").collection("messages").doc("old_msg").set({
+      senderId: ALICE_UID,
+      senderName: "Alice",
+      text: "Before Bob joined",
+      type: "TEXT",
+      createdAt: pastDate(10000),
+    });
+  });
   await assertSucceeds(
-    bobDb.collection("rooms").doc("room_1").collection("messages").doc("msg_1").set({
+    roomRef.collection("room_sessions").doc(BOB_UID).set({
+      userId: BOB_UID,
+      joinedAt,
+    })
+  );
+
+  // Bob sends a room chat message after joining.
+  await assertSucceeds(
+    roomRef.collection("messages").doc("msg_1").set({
       senderId: BOB_UID,
       senderName: "Bob",
       senderVipLevel: 0,
       text: "Great room!",
       type: "TEXT",
-      createdAt: pastDate(),
+      createdAt: pastDate(1000),
     })
   );
-  await assertSucceeds(
-    bobDb.collection("rooms").doc("room_1").collection("messages").where("type", "in", ["TEXT", "GIFT", "SYSTEM"]).get()
+  const visibleRoomMessages = await assertSucceeds(
+    roomRef.collection("messages")
+      .where("createdAt", ">", joinedAt)
+      .where("type", "in", ["TEXT", "GIFT", "SYSTEM"])
+      .get()
+  );
+  if (visibleRoomMessages.docs.some((doc) => doc.id === "old_msg")) {
+    throw new Error("Messages from before the latest room join must not be visible.");
+  }
+  await assertFails(roomRef.collection("messages").get());
+
+  // Leaving deletes the session, immediately revoking chat history access.
+  await assertSucceeds(roomRef.collection("room_sessions").doc(BOB_UID).delete());
+  await assertFails(
+    roomRef.collection("messages")
+      .where("createdAt", ">", joinedAt)
+      .where("type", "in", ["TEXT", "GIFT", "SYSTEM"])
+      .get()
   );
 
   // Bob sends a virtual gift to Alice (matching RoomRepository.sendVirtualGift)

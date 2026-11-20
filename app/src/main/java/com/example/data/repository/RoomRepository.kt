@@ -98,12 +98,11 @@ class RoomRepository(
         val sessionSnapshot = db.collection("rooms").document(roomId)
             .collection("room_sessions").document(uid)
             .get().await()
-        val joinedAt = sessionSnapshot.getTimestamp("joinedAt") ?: return@flow
+        if (!sessionSnapshot.exists()) return@flow
 
         emitAll(
             db.collection("rooms").document(roomId).collection("messages")
                 .whereIn("type", listOf("TEXT", "GIFT", "SYSTEM"))
-                .whereGreaterThan("createdAt", joinedAt)
                 .snapshots()
                 .map { snapshot ->
                     snapshot.toObjects(RoomMessage::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)

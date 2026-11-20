@@ -102,6 +102,7 @@ class RoomRepository(
 
         emitAll(
             db.collection("rooms").document(roomId).collection("messages")
+                .whereIn("type", listOf("TEXT", "GIFT", "SYSTEM"))
                 .whereGreaterThan("createdAt", joinedAt)
                 .snapshots()
                 .map { snapshot ->

@@ -1461,7 +1461,8 @@ class RoomRepository(
                     }
                 }
                 val updates = mutableMapOf<String, Any>(
-                    "status" to "ENDED",
+                    // Ending a live session must not end the permanent room itself.
+                    "status" to "LIVE",
                     "listenerCount" to 0L,
                     "activeSpeakersCount" to 0L,
                     "activeAdminIds" to emptyList<String>(),

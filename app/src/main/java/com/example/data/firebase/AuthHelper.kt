@@ -49,12 +49,12 @@ object AuthHelper {
             onAuthSuccess()
             return
         }
-        val clientId = try {
-            context.getString(R.string.default_web_client_id)
-        } catch (_: Exception) {
+        val clientIdResId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+        if (clientIdResId == 0) {
             onUnauthenticated()
             return
         }
+        val clientId = context.getString(clientIdResId)
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(true)
             .setServerClientId(clientId)
@@ -88,12 +88,12 @@ object AuthHelper {
         onAuthError: (String) -> Unit,
         onAuthCancelled: () -> Unit = {}
     ) {
-        val clientId = try {
-            context.getString(R.string.default_web_client_id)
-        } catch (_: Exception) {
+        val clientIdResId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+        if (clientIdResId == 0) {
             onAuthError("Google Sign-In configuration missing: default_web_client_id not found")
             return
         }
+        val clientId = context.getString(clientIdResId)
         val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = clientId).build()
         val request = GetCredentialRequest.Builder()
             .addCredentialOption(signInOption)

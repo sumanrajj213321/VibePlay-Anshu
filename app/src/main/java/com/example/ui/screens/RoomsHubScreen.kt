@@ -101,7 +101,9 @@ fun RoomsHubScreen(
     val myCreatedLiveRoom = remember(liveRooms, createdRoomId, currentUser.userId) {
         liveRooms.firstOrNull {
             (createdRoomId.isNotBlank() && it.id == createdRoomId) ||
-                it.creatorId == currentUser.userId
+                it.creatorId == currentUser.userId ||
+                it.ownerId == currentUser.userId ||
+                it.hostId == currentUser.userId
         }
     }
 

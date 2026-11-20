@@ -8,6 +8,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
 import com.example.R
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
@@ -94,11 +95,6 @@ object AuthHelper {
             return
         }
         val clientId = context.getString(clientIdResId)
-        val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = clientId).build()
-        val request = GetCredentialRequest.Builder()
-            .addCredentialOption(signInOption)
-            .build()
-
         scope.launch {
             try {
                 val activity = context as? Activity
@@ -106,7 +102,30 @@ object AuthHelper {
                     onAuthError("Sign-in requires an active screen context.")
                     return@launch
                 }
-                val cred = credentialManager.getCredential(activity, request).credential
+
+                // Use Google's standard Credential Manager account flow first.
+                // This supports both previously authorized and first-time accounts.
+                val googleIdOption = GetGoogleIdOption.Builder()
+                    .setFilterByAuthorizedAccounts(false)
+                    .setServerClientId(clientId)
+                    .build()
+                val googleIdRequest = GetCredentialRequest.Builder()
+                    .addCredentialOption(googleIdOption)
+                    .build()
+
+                val cred = try {
+                    credentialManager.getCredential(activity, googleIdRequest).credential
+                } catch (e: NoCredentialException) {
+                    // If no Google ID credential is available, fall back to the
+                    // dedicated Sign in with Google button flow.
+                    Log.i(TAG, "No Google ID credential available; trying button flow.")
+                    val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = clientId).build()
+                    val fallbackRequest = GetCredentialRequest.Builder()
+                        .addCredentialOption(signInOption)
+                        .build()
+                    credentialManager.getCredential(activity, fallbackRequest).credential
+                }
+
                 if (cred is CustomCredential && cred.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                     val token = GoogleIdTokenCredential.createFrom(cred.data).idToken
                     Firebase.auth.signInWithCredential(GoogleAuthProvider.getCredential(token, null)).await()

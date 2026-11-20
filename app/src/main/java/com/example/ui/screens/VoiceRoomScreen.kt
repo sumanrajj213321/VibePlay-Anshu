@@ -198,7 +198,11 @@ fun VoiceRoomScreen(
         onToggleSeatLock = { seat, locked -> roomViewModel.toggleSeatLock(seat, locked) },
         onMuteAllSpeakers = { roomViewModel.muteAllSpeakers() },
         onRequestToSpeak = { preferredSeat ->
-            roomViewModel.requestToSpeak(currentRoom, currentUser, preferredSeat)
+            if (preferredSeat in 1..VoiceStage.SPEAKER_SEAT_COUNT) {
+                roomViewModel.joinSpeakerSeat(currentRoom, preferredSeat, currentUser)
+            } else {
+                roomViewModel.requestToSpeak(currentRoom, currentUser, preferredSeat)
+            }
         },
         onCancelSpeakerRequest = { roomViewModel.cancelSpeakerRequest(currentUser.userId) },
         onClearGiftBurst = { roomViewModel.clearGiftBurst() },

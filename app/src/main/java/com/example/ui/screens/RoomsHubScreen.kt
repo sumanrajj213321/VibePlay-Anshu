@@ -60,9 +60,7 @@ import com.example.data.model.VoiceRoom
 import com.example.ui.components.VoiceRoomCard
 import com.example.ui.components.coverDrawableRes
 import com.example.ui.state.UiState
-import com.example.ui.theme.VibeCoral
 import com.example.ui.theme.VibeCyan
-import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
 
@@ -115,58 +113,32 @@ fun RoomsHubScreen(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "Launch Voice Room",
+                    text = if (hasCreatedRoom) "My Room" else "Launch Voice Room",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Every VibePlay room includes 1 Host seat + 8 Speaker seats (9 total). Each account can create 1 permanent room.",
+                    text = if (hasCreatedRoom) "Open your permanent room and continue where you left off." else "Every VibePlay room includes 1 Host seat + 8 Speaker seats (9 total).",
                     style = MaterialTheme.typography.bodySmall,
                     color = VibeCyan
                 )
             }
         }
 
-        if (hasCreatedRoom) {
+        if (hasCreatedRoom && myCreatedLiveRoom != null) {
             item {
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = VibeCoral.copy(alpha = 0.14f),
-                    border = BorderStroke(1.dp, VibeCoral.copy(alpha = 0.6f)),
+                OutlinedButton(
+                    onClick = { onOpenRoom(myCreatedLiveRoom) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("one_room_limit_banner")
+                        .testTag("open_my_created_room_button")
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "One-Time Room Privilege Used",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = VibeGold
-                        )
-                        Text(
-                            text = "You have already used your permanent one-room creation privilege for this account. Additional rooms cannot be created even if a previous room is closed, deleted, or transferred.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        if (myCreatedLiveRoom != null) {
-                            OutlinedButton(
-                                onClick = { onOpenRoom(myCreatedLiveRoom) },
-                                modifier = Modifier.testTag("open_my_created_room_button")
-                            ) {
-                                Text("Open My Room (${myCreatedLiveRoom.title})", fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
+                    Text("My Room (${myCreatedLiveRoom.title})", fontWeight = FontWeight.Bold)
                 }
             }
         }
 
+        if (!hasCreatedRoom) {
         item {
             Surface(
                 shape = RoundedCornerShape(24.dp),
@@ -347,17 +319,15 @@ fun RoomsHubScreen(
                             Icon(Icons.Filled.Mic, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (hasCreatedRoom) {
-                                    "One-Time Room Privilege Used"
-                                } else {
-                                    "Launch 9-Seat Stage as ${currentUser.username}"
-                                },
+                                text = "Launch 9-Seat Stage as ${currentUser.username}",
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
                 }
             }
+        }
+
         }
 
         if (liveRooms.isNotEmpty()) {

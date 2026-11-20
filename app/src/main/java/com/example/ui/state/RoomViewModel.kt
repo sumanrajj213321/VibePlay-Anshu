@@ -409,8 +409,13 @@ class RoomViewModel(
             return
         }
         viewModelScope.launch(NonCancellable) {
-            roomRepository.leaveRoom(currentRoom, currentUserId, seats)
-            joinedListenerDone = false
+            val result = roomRepository.leaveRoom(currentRoom, currentUserId, seats)
+            if (result.isSuccess) {
+                joinedListenerDone = false
+            } else {
+                _roomError.value = result.exceptionOrNull()?.localizedMessage
+                    ?: "Could not update your room presence. Please try leaving again."
+            }
             onLeft()
         }
     }

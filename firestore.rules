@@ -405,11 +405,8 @@ service cloud.firestore {
          incoming().diff(existing()).affectedKeys().hasOnly(['listenerCount', 'activeSpeakersCount', 'activeAdminIds', 'status', 'updatedAt']))
       );
 
-      allow delete: if isSignedIn() && isValidId(roomId) && (
-        isRoomOwner(existing()) ||
-        (isRoomAdminUser(existing()) && (!('ownerOnline' in existing()) || existing().ownerOnline == false)) ||
-        isAdmin()
-      );
+      // Permanent owner rooms cannot be deleted through Firestore client access.
+      allow delete: if false;
 
       // Strict 9-Seat Stage: 0 = Host, 1..8 = 8 Regular Speaker Seats
       match /seats/{seatIndex} {

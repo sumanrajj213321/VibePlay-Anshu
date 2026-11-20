@@ -249,9 +249,9 @@ fun AuthScreen(
                                 isLoading = false
                                 errorMessage = msg
                             },
-                            onAuthCancelled = {
+                            onAuthCancelled = { details ->
                                 isLoading = false
-                                errorMessage = "Sign-in cancelled. Tap Continue with Google to try again."
+                                errorMessage = "Google sign-in cancelled: $details"
                             }
                         )
                     },

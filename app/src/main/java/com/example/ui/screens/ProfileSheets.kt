@@ -621,6 +621,20 @@ fun PublicProfileSheet(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(targetUser.username, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        if (targetUser.userId == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = VibeCyan.copy(alpha = 0.16f)
+                            ) {
+                                Text(
+                                    text = "VibePlay Official",
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = VibeCyan,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                         BiologicalGenderBadge(
                             gender = targetUser.gender,
                             showGender = targetUser.showGender,

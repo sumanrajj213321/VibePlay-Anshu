@@ -70,12 +70,8 @@ class RoomViewModel(
         currentRoom?.let { VoiceStage.buildStrictNineSeatStage(it, seats) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
-    val messages: StateFlow<List<RoomMessage>> = roomRepository.observeRoomMessages(roomId)
-        .catch { error ->
-            unwrapFirestoreError(error)
-            emit(emptyList())
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
+    private val _messages = MutableStateFlow<List<RoomMessage>>(emptyList())
+    val messages: StateFlow<List<RoomMessage>> = _messages.asStateFlow()
 
     val listeners: StateFlow<List<RoomListener>> = roomRepository.observeListeners(roomId)
         .catch { error ->
@@ -105,6 +101,7 @@ class RoomViewModel(
     val speakerRequests: StateFlow<List<SpeakerRequest>> = _speakerRequests.asStateFlow()
 
     private var speakerRequestsJob: Job? = null
+    private var roomMessagesJob: Job? = null
     private var joinedListenerDone = false
     private var lastShownGiftMsgId: String? = null
 
@@ -169,15 +166,28 @@ class RoomViewModel(
 
     fun onRoomLoaded(loadedRoom: VoiceRoom, currentUser: UserProfile) {
         if (!joinedListenerDone) {
-            joinedListenerDone = true
             viewModelScope.launch {
                 roomRepository.joinAsListener(loadedRoom, currentUser)
-                voiceEngine.connectToRoom(
-                    roomId = loadedRoom.id,
-                    userId = currentUser.userId,
-                    username = currentUser.username,
-                    canPublish = loadedRoom.isOwner(currentUser.userId)
-                )
+                    .onSuccess {
+                        joinedListenerDone = true
+                        _messages.value = emptyList()
+                        roomMessagesJob?.cancel()
+                        roomMessagesJob = launch {
+                            roomRepository.observeRoomMessages(roomId)
+                                .catch { error ->
+                                    unwrapFirestoreError(error)
+                                    emit(emptyList())
+                                }
+                                .collect { _messages.value = it }
+                        }
+                        voiceEngine.connectToRoom(
+                            roomId = loadedRoom.id,
+                            userId = currentUser.userId,
+                            username = currentUser.username,
+                            canPublish = loadedRoom.isOwner(currentUser.userId)
+                        )
+                    }
+                    .onFailure { _roomError.value = it.localizedMessage ?: "Unable to join room" }
             }
         }
         if (loadedRoom.isManager(currentUserId)) {
@@ -391,12 +401,16 @@ class RoomViewModel(
         val currentRoom = room.value
         val seats = rawSeats.value
         voiceEngine.disconnect()
+        roomMessagesJob?.cancel()
+        roomMessagesJob = null
+        _messages.value = emptyList()
         if (currentRoom == null) {
             onLeft()
             return
         }
         viewModelScope.launch(NonCancellable) {
             roomRepository.leaveRoom(currentRoom, currentUserId, seats)
+            joinedListenerDone = false
             onLeft()
         }
     }

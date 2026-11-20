@@ -610,7 +610,7 @@ class RoomRepository(
                         roomRef,
                         mapOf(
                             "listenerCount" to updatedListenerCount,
-                            "activeSpeakersCount" to (hostSeatedCount + if (noActiveManager && loadedRoom.isRoomAdmin(uid)) 0L else occupiedSpeakers).coerceIn(0L, 9L),
+                            "activeSpeakersCount" to (hostSeatedCount + if (noActiveManager && loadedRoom.isRoomAdmin(uid)) 0L else occupiedSpeakers.toLong()).coerceIn(0L, 9L),
                             "activeAdminIds" to remainingActiveAdmins,
                             "status" to "LIVE",
                             "updatedAt" to FieldValue.serverTimestamp()

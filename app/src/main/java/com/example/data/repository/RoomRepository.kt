@@ -1528,6 +1528,7 @@ class RoomRepository(
                 mapOf(
                     "senderId" to uid,
                     "senderName" to sender.username,
+                    "senderAvatarUrl" to sender.avatarUrl,
                     "senderVipLevel" to sender.vipLevel,
                     "senderGender" to sender.gender,
                     "text" to cleanText,
@@ -1624,6 +1625,7 @@ class RoomRepository(
                     mapOf(
                         "senderId" to uid,
                         "senderName" to sender.username,
+                        "senderAvatarUrl" to sender.avatarUrl,
                         "senderVipLevel" to sender.vipLevel,
                         "senderGender" to sender.gender,
                         "text" to "sent $qtyLabel${gift.emoji} ${gift.name} to $recipientName!",

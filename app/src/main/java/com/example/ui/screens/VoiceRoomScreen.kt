@@ -905,6 +905,14 @@ internal fun VoiceRoomStageContent(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
+                                if (msg.type != "SYSTEM") {
+                                    VibeAvatar(
+                                        avatarUrl = msg.senderAvatarUrl,
+                                        username = msg.senderName,
+                                        size = 24.dp,
+                                        vipLevel = msg.senderVipLevel
+                                    )
+                                }
                                 if (msg.senderVipLevel > 0) {
                                     VipBadgePill(msg.senderVipLevel)
                                 }

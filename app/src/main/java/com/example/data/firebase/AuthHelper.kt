@@ -86,7 +86,7 @@ object AuthHelper {
         scope: CoroutineScope,
         onAuthSuccess: () -> Unit,
         onAuthError: (String) -> Unit,
-        onAuthCancelled: () -> Unit = {}
+        onAuthCancelled: (String) -> Unit = {}
     ) {
         val clientIdResId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
         if (clientIdResId == 0) {
@@ -116,7 +116,7 @@ object AuthHelper {
                 }
             } catch (e: GetCredentialCancellationException) {
                 Log.w(TAG, "Google Sign-In cancelled or dismissed: ${e.message}", e)
-                onAuthCancelled()
+                onAuthCancelled("${e.javaClass.simpleName}: ${e.message ?: "No additional details"}")
             } catch (e: Exception) {
                 Log.e(TAG, "Google Sign-In failed", e)
                 onAuthError(e.localizedMessage ?: "Google Sign-In failed")

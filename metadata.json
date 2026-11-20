@@ -1,0 +1,6 @@
+{
+  "name": "VibePlay",
+  "description": "Social voice chat rooms with 9-seat stages, live text chat, virtual gifts, VIP memberships, private inbox, and community moderation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

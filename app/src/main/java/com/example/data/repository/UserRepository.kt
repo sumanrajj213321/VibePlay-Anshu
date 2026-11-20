@@ -1,0 +1,446 @@
+package com.example.data.repository
+
+import android.content.Context
+import com.example.R
+import com.example.data.firebase.OperationType
+import com.example.data.firebase.handleFirestoreError
+import com.example.data.model.FollowEdge
+import com.example.data.model.PrivateAccount
+import com.example.data.model.RoomCreationLock
+import com.example.data.model.UserProfile
+import com.example.data.model.VibeCatalogDefaults
+import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.auth
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.snapshots
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlin.math.abs
+
+class UserRepository(
+    private val db: FirebaseFirestore,
+    private val auth: FirebaseAuth = Firebase.auth
+) {
+    constructor(context: Context) : this(
+        FirebaseFirestore.getInstance(
+            context.applicationContext.getString(R.string.firestore_database_id)
+        )
+    )
+
+    private fun requireUserId(): String {
+        return auth.currentUser?.uid
+            ?: throw IllegalStateException("User must be signed in with Google before accessing Firestore.")
+    }
+
+    suspend fun ensureCurrentUserProfile(user: FirebaseUser): Result<UserProfile> {
+        val docPath = "users/${user.uid}"
+        return try {
+            val userRef = db.collection("users").document(user.uid)
+            val snap = userRef.get().await()
+            if (!snap.exists()) {
+                val safeName = (user.displayName?.takeIf { it.isNotBlank() } ?: "VibeStar")
+                    .take(30)
+                    .let { if (it.length < 2) "VibeStar" else it }
+                val numericCode = (abs(user.uid.hashCode()) % 900000) + 100000
+                val vibeId = "VP-$numericCode"
+                val payload = mapOf(
+                    "userId" to user.uid,
+                    "vibeId" to vibeId,
+                    "username" to safeName,
+                    "bio" to "Ready to vibe in voice rooms!",
+                    "avatarUrl" to (user.photoUrl?.toString() ?: ""),
+                    "coverUrl" to "",
+                    "gender" to "UNSPECIFIED",
+                    "age" to 0L,
+                    "showAge" to false,
+                    "showGender" to true,
+                    "showOnlineStatus" to true,
+                    "online" to true,
+                    "level" to 1L,
+                    "xp" to 0L,
+                    "vipLevel" to 0L,
+                    "coinBalance" to 500L,
+                    "totalGiftsReceived" to 0L,
+                    "totalGiftsSent" to 0L,
+                    "followersCount" to 0L,
+                    "followingCount" to 0L,
+                    "accountStatus" to "ACTIVE",
+                    "role" to "USER",
+                    "lastDailyClaimDay" to "",
+                    "hasCreatedRoom" to false,
+                    "createdRoomId" to "",
+                    "createdAt" to FieldValue.serverTimestamp(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+                userRef.set(payload).await()
+
+                val privatePayload = mapOf(
+                    "userId" to user.uid,
+                    "email" to (user.email ?: ""),
+                    "blockedUserIds" to emptyList<String>(),
+                    "pinnedConversationIds" to emptyList<String>(),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+                userRef.collection("private").document("account").set(privatePayload).await()
+            } else {
+                userRef.update(
+                    mapOf(
+                        "online" to true,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                ).await()
+            }
+            val refreshed = userRef.get().await()
+                .toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+                ?: UserProfile(userId = user.uid, username = user.displayName ?: "VibeStar")
+            Result.success(refreshed)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.WRITE, docPath)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getUserProfileOnce(userId: String): Result<UserProfile?> {
+        val docPath = "users/$userId"
+        return try {
+            requireUserId()
+            val snap = db.collection("users").document(userId).get().await()
+            val profile = snap.toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+            Result.success(profile)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.GET, docPath)
+            Result.failure(e)
+        }
+    }
+
+    fun observeUserProfile(userId: String): Flow<UserProfile?> =
+        db.collection("users").document(userId)
+            .snapshots()
+            .map { snapshot ->
+                snapshot.toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+            }
+
+    fun observeActiveUsers(): Flow<List<UserProfile>> =
+        db.collection("users")
+            .whereEqualTo("accountStatus", "ACTIVE")
+            .snapshots()
+            .map { snapshot ->
+                snapshot.toObjects(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+                    .sortedByDescending { it.level * 1000L + it.totalGiftsReceived }
+            }
+
+    fun observePrivateAccount(userId: String): Flow<PrivateAccount?> =
+        db.collection("users").document(userId).collection("private").document("account")
+            .snapshots()
+            .map { snap ->
+                snap.toObject(PrivateAccount::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+            }
+
+    fun observeRoomCreationLock(userId: String): Flow<RoomCreationLock?> =
+        db.collection("room_creation_locks").document(userId)
+            .snapshots()
+            .map { snap ->
+                snap.toObject(RoomCreationLock::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+            }
+
+    fun observeFollowing(userId: String): Flow<List<FollowEdge>> =
+        db.collection("users").document(userId).collection("following")
+            .snapshots()
+            .map { snap ->
+                snap.toObjects(FollowEdge::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+            }
+
+    fun observeFollowers(userId: String): Flow<List<FollowEdge>> =
+        db.collection("users").document(userId).collection("followers")
+            .snapshots()
+            .map { snap ->
+                snap.toObjects(FollowEdge::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+            }
+
+    suspend fun updateProfile(
+        username: String,
+        bio: String,
+        avatarUrl: String,
+        coverUrl: String,
+        gender: String,
+        age: Long,
+        showAge: Boolean,
+        showGender: Boolean,
+        showOnlineStatus: Boolean
+    ): Result<Unit> {
+        val uid = auth.currentUser?.uid ?: "unauthenticated"
+        val docPath = "users/$uid"
+        return try {
+            val currentUid = requireUserId()
+            val cleanName = username.trim().take(30)
+            require(cleanName.length >= 2) { "Username must be at least 2 characters." }
+            require(age == 0L || age in 13L..120L) { "Please enter an exact age between 13 and 120 (or leave blank)." }
+            val cleanBio = bio.trim().take(200)
+            db.collection("users").document(currentUid).update(
+                mapOf(
+                    "username" to cleanName,
+                    "bio" to cleanBio,
+                    "avatarUrl" to avatarUrl.take(500),
+                    "coverUrl" to coverUrl.take(500),
+                    "gender" to gender,
+                    "age" to age,
+                    "showAge" to showAge,
+                    "showGender" to showGender,
+                    "showOnlineStatus" to showOnlineStatus,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, docPath)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun setOnlineStatus(online: Boolean): Result<Unit> {
+        val uid = auth.currentUser?.uid ?: return Result.success(Unit)
+        val docPath = "users/$uid"
+        return try {
+            db.collection("users").document(uid).update(
+                mapOf(
+                    "online" to online,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, docPath)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun claimDailyLoginReward(profile: UserProfile): Result<Long> {
+        val docPath = "users/${profile.userId}"
+        return try {
+            val uid = requireUserId()
+            check(uid == profile.userId)
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+            val userRef = db.collection("users").document(uid)
+
+            db.runTransaction { tx ->
+                val snap = tx.get(userRef)
+                val lastClaim = snap.getString("lastDailyClaimDay") ?: ""
+                if (lastClaim == today) {
+                    throw IllegalStateException("Today's daily reward has already been claimed.")
+                }
+                val currentCoins = snap.getLong("coinBalance") ?: profile.coinBalance
+                val currentXp = snap.getLong("xp") ?: profile.xp
+                val newXp = currentXp + 50L
+                val newLevel = 1L + (newXp / 500L)
+                tx.update(
+                    userRef,
+                    mapOf(
+                        "coinBalance" to currentCoins + 150L,
+                        "lastDailyClaimDay" to today,
+                        "xp" to newXp,
+                        "level" to newLevel,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                )
+            }.await()
+            Result.success(150L)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, docPath)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun upgradeVipTier(profile: UserProfile, targetTierLevel: Int): Result<Unit> {
+        val docPath = "users/${profile.userId}"
+        return try {
+            val uid = requireUserId()
+            check(uid == profile.userId)
+            val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == targetTierLevel }
+                ?: throw IllegalArgumentException("Invalid VIP tier")
+            val userRef = db.collection("users").document(uid)
+
+            db.runTransaction { tx ->
+                val snap = tx.get(userRef)
+                val currentVip = snap.getLong("vipLevel") ?: profile.vipLevel
+                val currentCoins = snap.getLong("coinBalance") ?: profile.coinBalance
+                require(targetTierLevel > currentVip) { "You already hold this VIP tier or higher." }
+                require(currentCoins >= tier.coinPrice) { "Insufficient coins. Need ${tier.coinPrice} coins." }
+                tx.update(
+                    userRef,
+                    mapOf(
+                        "coinBalance" to (currentCoins - tier.coinPrice),
+                        "vipLevel" to targetTierLevel.toLong(),
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                )
+            }.await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, docPath)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun toggleFollow(
+        currentUser: UserProfile,
+        targetUser: UserProfile,
+        currentlyFollowing: Boolean
+    ): Result<Unit> {
+        val path = "users/${currentUser.userId}/following/${targetUser.userId}"
+        return try {
+            val uid = requireUserId()
+            check(uid == currentUser.userId && uid != targetUser.userId)
+            val myUserRef = db.collection("users").document(uid)
+            val targetUserRef = db.collection("users").document(targetUser.userId)
+            val myFollowingRef = myUserRef.collection("following").document(targetUser.userId)
+            val theirFollowerRef = targetUserRef.collection("followers").document(uid)
+
+            db.runTransaction { tx ->
+                val mySnap = tx.get(myUserRef)
+                val targetSnap = tx.get(targetUserRef)
+                val myFollowingSnap = tx.get(myFollowingRef)
+                val theirFollowerSnap = tx.get(theirFollowerRef)
+
+                val myFollowingCount = mySnap.getLong("followingCount") ?: currentUser.followingCount
+                val targetFollowersCount = targetSnap.getLong("followersCount") ?: targetUser.followersCount
+                val isActuallyFollowing = myFollowingSnap.exists()
+
+                if (isActuallyFollowing || (currentlyFollowing && theirFollowerSnap.exists())) {
+                    if (myFollowingSnap.exists()) tx.delete(myFollowingRef)
+                    if (theirFollowerSnap.exists()) tx.delete(theirFollowerRef)
+                    if (myFollowingSnap.exists()) {
+                        tx.update(
+                            myUserRef,
+                            mapOf(
+                                "followingCount" to (myFollowingCount - 1L).coerceAtLeast(0L),
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            )
+                        )
+                    }
+                    if (theirFollowerSnap.exists()) {
+                        tx.update(
+                            targetUserRef,
+                            mapOf(
+                                "followersCount" to (targetFollowersCount - 1L).coerceAtLeast(0L),
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            )
+                        )
+                    }
+                } else if (!myFollowingSnap.exists()) {
+                    tx.set(
+                        myFollowingRef,
+                        mapOf(
+                            "peerId" to targetUser.userId,
+                            "peerName" to targetUser.username,
+                            "peerAvatarUrl" to targetUser.avatarUrl,
+                            "peerGender" to targetUser.gender,
+                            "createdAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                    tx.set(
+                        theirFollowerRef,
+                        mapOf(
+                            "peerId" to uid,
+                            "peerName" to currentUser.username,
+                            "peerAvatarUrl" to currentUser.avatarUrl,
+                            "peerGender" to currentUser.gender,
+                            "createdAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                    tx.update(
+                        myUserRef,
+                        mapOf(
+                            "followingCount" to myFollowingCount + 1L,
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                    tx.update(
+                        targetUserRef,
+                        mapOf(
+                            "followersCount" to targetFollowersCount + 1L,
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                    val notifRef = db.collection("notifications").document()
+                    tx.set(
+                        notifRef,
+                        mapOf(
+                            "recipientId" to targetUser.userId,
+                            "senderId" to uid,
+                            "senderName" to currentUser.username,
+                            "type" to "FOLLOW",
+                            "title" to "New Follower",
+                            "body" to "${currentUser.username} started following you.",
+                            "targetId" to uid,
+                            "read" to false,
+                            "createdAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                }
+            }.await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.WRITE, path)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun blockOrUnblockUser(targetUserId: String, block: Boolean, currentBlocked: List<String>): Result<Unit> {
+        val uid = auth.currentUser?.uid ?: "unauthenticated"
+        val path = "users/$uid/private/account"
+        return try {
+            val currentUid = requireUserId()
+            val updated = if (block) {
+                (currentBlocked + targetUserId).distinct().take(200)
+            } else {
+                currentBlocked.filter { it != targetUserId }
+            }
+            val accountRef = db.collection("users").document(currentUid).collection("private").document("account")
+            db.runTransaction { tx ->
+                val snap = tx.get(accountRef)
+                @Suppress("UNCHECKED_CAST")
+                val existingPins = (snap.get("pinnedConversationIds") as? List<String>) ?: emptyList()
+                val existingEmail = snap.getString("email") ?: (auth.currentUser?.email ?: "")
+                tx.set(
+                    accountRef,
+                    mapOf(
+                        "userId" to currentUid,
+                        "email" to existingEmail,
+                        "blockedUserIds" to updated,
+                        "pinnedConversationIds" to existingPins,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                )
+            }.await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, path)
+            Result.failure(e)
+        }
+    }
+}

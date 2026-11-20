@@ -1,0 +1,301 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public social profile for VibePlay users (excludes PII such as email and blocked lists).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "vibeId": { "type": "string" },
+        "username": { "type": "string" },
+        "bio": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "coverUrl": { "type": "string" },
+        "gender": { "type": "string", "enum": ["UNSPECIFIED", "FEMALE", "MALE", "NON_BINARY"] },
+        "age": { "type": "integer" },
+        "showAge": { "type": "boolean" },
+        "showGender": { "type": "boolean" },
+        "showOnlineStatus": { "type": "boolean" },
+        "online": { "type": "boolean" },
+        "level": { "type": "integer" },
+        "xp": { "type": "integer" },
+        "vipLevel": { "type": "integer" },
+        "coinBalance": { "type": "integer" },
+        "totalGiftsReceived": { "type": "integer" },
+        "totalGiftsSent": { "type": "integer" },
+        "followersCount": { "type": "integer" },
+        "followingCount": { "type": "integer" },
+        "accountStatus": { "type": "string", "enum": ["ACTIVE", "SUSPENDED", "BANNED"] },
+        "role": { "type": "string", "enum": ["USER", "ADMIN"] },
+        "lastDailyClaimDay": { "type": "string" },
+        "hasCreatedRoom": { "type": "boolean" },
+        "createdRoomId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "vibeId", "username", "accountStatus", "role", "coinBalance", "vipLevel", "createdAt", "updatedAt"]
+    },
+    "PrivateAccount": {
+      "title": "PrivateAccount",
+      "description": "Private user data including email, blocked user IDs, and pinned conversation IDs.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "blockedUserIds": { "type": "array" },
+        "pinnedConversationIds": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "updatedAt"]
+    },
+    "FollowEdge": {
+      "title": "FollowEdge",
+      "description": "Follow relationship document.",
+      "type": "object",
+      "properties": {
+        "peerId": { "type": "string" },
+        "peerName": { "type": "string" },
+        "peerAvatarUrl": { "type": "string" },
+        "peerGender": { "type": "string", "enum": ["UNSPECIFIED", "FEMALE", "MALE", "NON_BINARY"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["peerId", "peerName", "createdAt"]
+    },
+    "RoomCreationLock": {
+      "title": "RoomCreationLock",
+      "description": "Permanent immutable one-time room creation lock keyed by user UID.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "roomId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "roomId", "createdAt"]
+    },
+    "VoiceRoom": {
+      "title": "VoiceRoom",
+      "description": "Voice chat room with exactly 9 seats (1 Host + 8 Speaker seats).",
+      "type": "object",
+      "properties": {
+        "creatorId": { "type": "string" },
+        "hostId": { "type": "string" },
+        "hostName": { "type": "string" },
+        "hostAvatarUrl": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "ownerOnline": { "type": "boolean" },
+        "adminIds": { "type": "array" },
+        "activeAdminIds": { "type": "array" },
+        "title": { "type": "string" },
+        "announcement": { "type": "string" },
+        "category": { "type": "string", "enum": ["Chill", "Music", "Gaming", "Dating", "Karaoke", "Chat"] },
+        "coverKey": { "type": "string" },
+        "tags": { "type": "array" },
+        "listenerCount": { "type": "integer" },
+        "activeSpeakersCount": { "type": "integer" },
+        "locked": { "type": "boolean" },
+        "hasPassword": { "type": "boolean" },
+        "passcodeHash": { "type": "string" },
+        "status": { "type": "string", "enum": ["LIVE", "ENDED"] },
+        "featured": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["hostId", "hostName", "title", "category", "status", "locked", "hasPassword", "createdAt", "updatedAt"]
+    },
+    "VoiceSeat": {
+      "title": "VoiceSeat",
+      "description": "One of the 9 strict seats (index 0 = Host, indices 1..8 = Speaker).",
+      "type": "object",
+      "properties": {
+        "seatIndex": { "type": "integer" },
+        "role": { "type": "string", "enum": ["HOST", "SPEAKER"] },
+        "occupantId": { "type": "string" },
+        "occupantName": { "type": "string" },
+        "occupantAvatarUrl": { "type": "string" },
+        "occupantVipLevel": { "type": "integer" },
+        "occupantGender": { "type": "string", "enum": ["UNSPECIFIED", "FEMALE", "MALE", "NON_BINARY"] },
+        "muted": { "type": "boolean" },
+        "seatLocked": { "type": "boolean" },
+        "speaking": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["seatIndex", "role", "occupantId", "muted", "seatLocked", "speaking", "updatedAt"]
+    },
+    "SpeakerRequest": {
+      "title": "SpeakerRequest",
+      "description": "Listener request to occupy a speaker seat.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "hostId": { "type": "string" },
+        "username": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "vipLevel": { "type": "integer" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "hostId", "username", "status", "createdAt", "updatedAt"]
+    },
+    "RoomMessage": {
+      "title": "RoomMessage",
+      "description": "Live chat or gift event inside a voice room.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderVipLevel": { "type": "integer" },
+        "senderGender": { "type": "string", "enum": ["UNSPECIFIED", "FEMALE", "MALE", "NON_BINARY"] },
+        "text": { "type": "string" },
+        "type": { "type": "string", "enum": ["TEXT", "GIFT", "SYSTEM"] },
+        "giftId": { "type": "string" },
+        "giftName": { "type": "string" },
+        "giftCoins": { "type": "integer" },
+        "recipientName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "senderName", "text", "type", "createdAt"]
+    },
+    "RoomListener": {
+      "title": "RoomListener",
+      "description": "Listener currently present in a voice room (does not occupy a speaker seat).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "vipLevel": { "type": "integer" },
+        "gender": { "type": "string", "enum": ["UNSPECIFIED", "FEMALE", "MALE", "NON_BINARY"] },
+        "joinedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "username", "joinedAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Private 1-to-1 or Group inbox conversation.",
+      "type": "object",
+      "properties": {
+        "conversationType": { "type": "string", "enum": ["DIRECT", "GROUP"] },
+        "groupName": { "type": "string" },
+        "groupAvatarUrl": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "adminIds": { "type": "array" },
+        "participantIds": { "type": "array" },
+        "participantNames": { "type": "object" },
+        "participantAvatars": { "type": "object" },
+        "lastMessage": { "type": "string" },
+        "lastSenderId": { "type": "string" },
+        "unreadBy": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["participantIds", "lastMessage", "lastSenderId", "createdAt", "updatedAt"]
+    },
+    "DirectMessage": {
+      "title": "DirectMessage",
+      "description": "Private 1-to-1 or Group text/image/system message.",
+      "type": "object",
+      "properties": {
+        "participantIds": { "type": "array" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderAvatarUrl": { "type": "string" },
+        "senderGender": { "type": "string", "enum": ["UNSPECIFIED", "FEMALE", "MALE", "NON_BINARY"] },
+        "type": { "type": "string", "enum": ["TEXT", "IMAGE", "SYSTEM"] },
+        "text": { "type": "string" },
+        "imageUri": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["participantIds", "senderId", "type", "text", "read", "createdAt"]
+    },
+    "GiftTransaction": {
+      "title": "GiftTransaction",
+      "description": "Virtual gift sent inside a voice room.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "recipientId": { "type": "string" },
+        "recipientName": { "type": "string" },
+        "roomId": { "type": "string" },
+        "giftId": { "type": "string" },
+        "giftName": { "type": "string" },
+        "coinCost": { "type": "integer" },
+        "quantity": { "type": "integer" },
+        "participantIds": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "recipientId", "giftId", "giftName", "coinCost", "quantity", "participantIds", "createdAt"]
+    },
+    "AppNotification": {
+      "title": "AppNotification",
+      "description": "In-app user notification.",
+      "type": "object",
+      "properties": {
+        "recipientId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "type": { "type": "string", "enum": ["FOLLOW", "FRIEND_REQUEST", "MESSAGE", "ROOM_INVITE", "GIFT", "SYSTEM"] },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "targetId": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["recipientId", "senderId", "type", "title", "body", "read", "createdAt"]
+    },
+    "ModerationReport": {
+      "title": "ModerationReport",
+      "description": "User or room report for admin review.",
+      "type": "object",
+      "properties": {
+        "reporterId": { "type": "string" },
+        "reporterName": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["USER", "ROOM", "MESSAGE"] },
+        "targetId": { "type": "string" },
+        "targetName": { "type": "string" },
+        "reason": { "type": "string" },
+        "details": { "type": "string" },
+        "status": { "type": "string", "enum": ["OPEN", "REVIEWED", "DISMISSED", "ACTION_TAKEN"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterId", "targetType", "targetId", "reason", "status", "createdAt", "updatedAt"]
+    },
+    "GiftCatalogItem": {
+      "title": "GiftCatalogItem",
+      "description": "Virtual gift item managed in admin panel.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string", "enum": ["Popular", "Luxury", "Romantic", "Party"] },
+        "coinCost": { "type": "integer" },
+        "emoji": { "type": "string" },
+        "accentColorHex": { "type": "string" },
+        "active": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "category", "coinCost", "emoji", "active", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": { "$ref": "#/entities/UserProfile" }, "description": "Public-safe user profiles" },
+    "/users/{userId}/private/{docId}": { "schema": { "$ref": "#/entities/PrivateAccount" }, "description": "Private PII and blocked users" },
+    "/users/{userId}/following/{targetId}": { "schema": { "$ref": "#/entities/FollowEdge" }, "description": "Users followed by userId" },
+    "/users/{userId}/followers/{followerId}": { "schema": { "$ref": "#/entities/FollowEdge" }, "description": "Followers of userId" },
+    "/room_creation_locks/{userId}": { "schema": { "$ref": "#/entities/RoomCreationLock" }, "description": "Permanent immutable one-room-per-user lock" },
+    "/rooms/{roomId}": { "schema": { "$ref": "#/entities/VoiceRoom" }, "description": "Voice chat rooms" },
+    "/rooms/{roomId}/seats/{seatIndex}": { "schema": { "$ref": "#/entities/VoiceSeat" }, "description": "Strict 9-seat stage (0=Host, 1..8=Speakers)" },
+    "/rooms/{roomId}/speaker_requests/{requestId}": { "schema": { "$ref": "#/entities/SpeakerRequest" }, "description": "Requests to speak" },
+    "/rooms/{roomId}/messages/{messageId}": { "schema": { "$ref": "#/entities/RoomMessage" }, "description": "Live room chat and gift events" },
+    "/rooms/{roomId}/listeners/{listenerId}": { "schema": { "$ref": "#/entities/RoomListener" }, "description": "Online listeners in room" },
+    "/conversations/{conversationId}": { "schema": { "$ref": "#/entities/Conversation" }, "description": "Private 1-to-1 conversations" },
+    "/conversations/{conversationId}/messages/{messageId}": { "schema": { "$ref": "#/entities/DirectMessage" }, "description": "Private 1-to-1 messages" },
+    "/gift_transactions/{txId}": { "schema": { "$ref": "#/entities/GiftTransaction" }, "description": "Virtual gift transaction history" },
+    "/notifications/{notificationId}": { "schema": { "$ref": "#/entities/AppNotification" }, "description": "User notifications" },
+    "/reports/{reportId}": { "schema": { "$ref": "#/entities/ModerationReport" }, "description": "Moderation reports" },
+    "/gifts_catalog/{giftId}": { "schema": { "$ref": "#/entities/GiftCatalogItem" }, "description": "Admin-managed virtual gift store catalog" }
+  }
+}

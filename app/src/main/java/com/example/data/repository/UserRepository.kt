@@ -1,6 +1,7 @@
 package com.example.data.repository
 
 import android.content.Context
+import android.net.Uri
 import com.example.R
 import com.example.data.firebase.OperationType
 import com.example.data.firebase.handleFirestoreError
@@ -17,6 +18,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.snapshots
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -187,11 +189,19 @@ class UserRepository(
             require(cleanName.length >= 2) { "Username must be at least 2 characters." }
             require(age == 0L || age in 13L..120L) { "Please enter an exact age between 13 and 120 (or leave blank)." }
             val cleanBio = bio.trim().take(200)
+            val savedAvatarUrl = if (avatarUrl.startsWith("content://")) {
+                val avatarRef = FirebaseStorage.getInstance().reference
+                    .child("avatars/$currentUid/profile_${System.currentTimeMillis()}.jpg")
+                avatarRef.putFile(Uri.parse(avatarUrl)).await()
+                avatarRef.downloadUrl.await().toString()
+            } else {
+                avatarUrl
+            }
             db.collection("users").document(currentUid).update(
                 mapOf(
                     "username" to cleanName,
                     "bio" to cleanBio,
-                    "avatarUrl" to avatarUrl.take(500),
+                    "avatarUrl" to savedAvatarUrl.take(500),
                     "coverUrl" to coverUrl.take(500),
                     "gender" to gender,
                     "age" to age,

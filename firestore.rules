@@ -479,13 +479,30 @@ service cloud.firestore {
       }
 
       match /messages/{messageId} {
-        allow get: if isSignedIn() && isValidId(messageId);
-        allow list: if isSignedIn() && existing().type in ['TEXT', 'GIFT', 'SYSTEM'];
+        allow get: if isSignedIn() && isValidId(messageId) &&
+                      exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
+                      existing().createdAt > get(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)).data.joinedAt;
+        allow list: if isSignedIn() &&
+                       exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
+                       existing().type in ['TEXT', 'GIFT', 'SYSTEM'] &&
+                       existing().createdAt > get(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)).data.joinedAt;
         allow create: if isSignedIn() && isValidId(messageId) &&
                          incoming().senderId == request.auth.uid &&
                          isValidRoomMessage(incoming()) &&
-                         isValidTs(incoming().createdAt);
+                         isValidTs(incoming().createdAt) &&
+                         exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid));
         allow update, delete: if isAdmin();
+      }
+
+      match /room_sessions/{sessionUserId} {
+        allow get: if isSignedIn() && sessionUserId == request.auth.uid;
+        allow list: if false;
+        allow create, update: if isSignedIn() && sessionUserId == request.auth.uid &&
+                                 incoming().userId == request.auth.uid &&
+                                 incoming().joinedAt is timestamp &&
+                                 incoming().joinedAt <= request.time &&
+                                 incoming().keys().hasOnly(['userId', 'joinedAt']);
+        allow delete: if isSignedIn() && sessionUserId == request.auth.uid;
       }
 
       match /listeners/{listenerId} {

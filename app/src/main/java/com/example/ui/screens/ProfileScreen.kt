@@ -192,6 +192,20 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
+                    if (profile.userId == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = VibeCyan.copy(alpha = 0.16f)
+                        ) {
+                            Text(
+                                text = "VibePlay Official",
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = VibeCyan,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                     BiologicalGenderBadge(
                         gender = profile.gender,
                         showGender = profile.showGender

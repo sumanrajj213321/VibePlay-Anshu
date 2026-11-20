@@ -952,12 +952,12 @@ test("Exact age, pinned chats, cross-user followers/following list reads, room o
     })
   );
 
-  // Last active admin Bob leaves when owner is offline -> Room becomes ENDED
+  // Last active admin Bob leaves when owner is offline -> permanent room stays LIVE and joinable
   await assertSucceeds(
     bobDb.collection("rooms").doc("room_admin_test").update({
       activeAdminIds: [],
       listenerCount: 0,
-      status: "ENDED",
+      status: "LIVE",
       updatedAt: pastDate(),
     })
   );

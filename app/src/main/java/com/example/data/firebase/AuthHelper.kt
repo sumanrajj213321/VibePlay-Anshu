@@ -103,28 +103,21 @@ object AuthHelper {
                     return@launch
                 }
 
-                // Use Google's standard Credential Manager account flow first.
-                // This supports both previously authorized and first-time accounts.
-                val googleIdOption = GetGoogleIdOption.Builder()
-                    .setFilterByAuthorizedAccounts(false)
-                    .setServerClientId(clientId)
-                    .build()
-                val googleIdRequest = GetCredentialRequest.Builder()
-                    .addCredentialOption(googleIdOption)
+                // This function is called only after the user taps the
+                // "Continue with Google" button. Use Google's dedicated button
+                // flow here: unlike GetGoogleIdOption's bottom sheet, this flow
+                // supports account re-authentication when Google requires it.
+                val signInOption = GetSignInWithGoogleOption.Builder(
+                    serverClientId = clientId
+                ).build()
+                val signInRequest = GetCredentialRequest.Builder()
+                    .addCredentialOption(signInOption)
                     .build()
 
-                val cred = try {
-                    credentialManager.getCredential(activity, googleIdRequest).credential
-                } catch (e: NoCredentialException) {
-                    // If no Google ID credential is available, fall back to the
-                    // dedicated Sign in with Google button flow.
-                    Log.i(TAG, "No Google ID credential available; trying button flow.")
-                    val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = clientId).build()
-                    val fallbackRequest = GetCredentialRequest.Builder()
-                        .addCredentialOption(signInOption)
-                        .build()
-                    credentialManager.getCredential(activity, fallbackRequest).credential
-                }
+                val cred = credentialManager.getCredential(
+                    activity,
+                    signInRequest
+                ).credential
 
                 if (cred is CustomCredential && cred.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                     val token = GoogleIdTokenCredential.createFrom(cred.data).idToken

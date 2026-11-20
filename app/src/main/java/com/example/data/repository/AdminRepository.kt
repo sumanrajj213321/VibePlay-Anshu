@@ -30,15 +30,18 @@ class AdminRepository(
         )
     )
 
-    private fun requireUserId(): String {
-        return auth.currentUser?.uid
-            ?: throw IllegalStateException("User must be signed in with Google before accessing Firestore.")
+    private fun requireAdminUserId(): String {
+        val uid = auth.currentUser?.uid
+            ?: throw IllegalStateException("User must be signed in before accessing admin tools.")
+        check(uid == OFFICIAL_ADMIN_UID) { "This account is not authorized to use the VibePlay admin panel." }
+        return uid
     }
 
-    fun isCurrentUserAdmin(profile: UserProfile?): Boolean {
-        val user = auth.currentUser
-        val isBootstrappedAdmin = user?.email == "sumanrajj213321@gmail.com" && user.isEmailVerified
-        return profile?.role == "ADMIN" || isBootstrappedAdmin
+    fun isCurrentUserAdmin(profile: UserProfile?): Boolean =
+        auth.currentUser?.uid == OFFICIAL_ADMIN_UID && profile?.userId == OFFICIAL_ADMIN_UID
+
+    private companion object {
+        const val OFFICIAL_ADMIN_UID = "1fLIHgOyAJV6NbHBXNeVg9JR6v1"
     }
 
     fun observeAllUsersForAdmin(): Flow<List<UserProfile>> =
@@ -74,7 +77,7 @@ class AdminRepository(
     suspend fun updateUserAccountStatus(userId: String, status: String): Result<Unit> {
         val path = "users/$userId"
         return try {
-            requireUserId()
+            requireAdminUserId()
             db.collection("users").document(userId).update(
                 mapOf(
                     "accountStatus" to status,
@@ -93,7 +96,7 @@ class AdminRepository(
     suspend fun grantUserVipAndCoins(userId: String, vipLevel: Long, coinBalance: Long): Result<Unit> {
         val path = "users/$userId"
         return try {
-            requireUserId()
+            requireAdminUserId()
             db.collection("users").document(userId).update(
                 mapOf(
                     "vipLevel" to vipLevel.coerceIn(0L, 5L),
@@ -113,7 +116,7 @@ class AdminRepository(
     suspend fun toggleRoomFeatured(roomId: String, featured: Boolean): Result<Unit> {
         val path = "rooms/$roomId"
         return try {
-            requireUserId()
+            requireAdminUserId()
             db.collection("rooms").document(roomId).update(
                 mapOf(
                     "featured" to featured,
@@ -132,7 +135,7 @@ class AdminRepository(
     suspend fun forceCloseRoom(roomId: String): Result<Unit> {
         val path = "rooms/$roomId"
         return try {
-            requireUserId()
+            requireAdminUserId()
             db.collection("rooms").document(roomId).update(
                 mapOf(
                     "status" to "ENDED",
@@ -151,7 +154,7 @@ class AdminRepository(
     suspend fun resolveReport(reportId: String, status: String): Result<Unit> {
         val path = "reports/$reportId"
         return try {
-            requireUserId()
+            requireAdminUserId()
             db.collection("reports").document(reportId).update(
                 mapOf(
                     "status" to status,
@@ -181,7 +184,7 @@ class AdminRepository(
             db.collection("gifts_catalog").document(giftId)
         }
         return try {
-            requireUserId()
+            requireAdminUserId()
             docRef.set(
                 mapOf(
                     "name" to name.trim().take(40),
@@ -205,7 +208,7 @@ class AdminRepository(
     suspend fun seedDefaultGifts(): Result<Int> {
         val path = "gifts_catalog"
         return try {
-            requireUserId()
+            requireAdminUserId()
             val batch = db.batch()
             val items = com.example.data.model.VibeCatalogDefaults.defaultGifts
             items.forEach { gift ->

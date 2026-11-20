@@ -165,6 +165,7 @@ class RoomRepository(
 
             // Handle pre-existing users who created rooms prior to room_creation_locks tracking
             val byHost = db.collection("rooms")
+                .whereEqualTo("status", "LIVE")
                 .whereEqualTo("hostId", userId)
                 .limit(1)
                 .get()
@@ -172,6 +173,7 @@ class RoomRepository(
                 .documents
                 .firstOrNull()
             val preExistingRoomDoc = byHost ?: db.collection("rooms")
+                .whereEqualTo("status", "LIVE")
                 .whereEqualTo("ownerId", userId)
                 .limit(1)
                 .get()

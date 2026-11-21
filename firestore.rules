@@ -434,6 +434,18 @@ service cloud.firestore {
            incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'totalGiftsSent', 'totalGiftCoinsSent', 'xp', 'level', 'updatedAt'])) ||
 
 
+          (incoming().vipLevel == existing().vipLevel &&
+           incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
+           incoming().totalGiftsSent is int &&
+           incoming().totalGiftsSent > (('totalGiftsSent' in existing()) ? existing().totalGiftsSent : 0) &&
+           incoming().totalGiftCoinsSent is int &&
+           incoming().totalGiftCoinsSent > (('totalGiftCoinsSent' in existing()) ? existing().totalGiftCoinsSent : 0) &&
+           incoming().totalGiftsReceived is int &&
+           incoming().totalGiftsReceived > (('totalGiftsReceived' in existing()) ? existing().totalGiftsReceived : 0) &&
+           incoming().totalGiftCoinsReceived is int &&
+           incoming().totalGiftCoinsReceived > (('totalGiftCoinsReceived' in existing()) ? existing().totalGiftCoinsReceived : 0) &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'totalGiftsSent', 'totalGiftCoinsSent', 'totalGiftsReceived', 'totalGiftCoinsReceived', 'xp', 'level', 'updatedAt'])) ||
+
           (incoming().coinBalance == existing().coinBalance &&
            incoming().vipLevel == existing().vipLevel &&
            ((('activeTitleIds' in incoming()) && hasValidEquippedTitles(incoming())) ||

@@ -136,7 +136,7 @@ fun VoiceRoomScreen(
     val messages by roomViewModel.messages.collectAsStateWithLifecycle()
     val listeners by roomViewModel.listeners.collectAsStateWithLifecycle()
     val onlineUsers by roomViewModel.onlineUsers.collectAsStateWithLifecycle()
-    val myPendingRequest by roomViewModel.myPendingSpeakerRequest.collectAsStateWithLifecycle()
+    val mySeatInvitation by roomViewModel.myPendingSpeakerRequest.collectAsStateWithLifecycle()
     val voiceConnection by roomViewModel.voiceConnectionState.collectAsStateWithLifecycle()
     val giftBurst by roomViewModel.giftBurst.collectAsStateWithLifecycle()
     val vipEntrance by roomViewModel.vipEntrance.collectAsStateWithLifecycle()
@@ -195,7 +195,7 @@ fun VoiceRoomScreen(
         onToggleSeatLock = { seat, locked -> roomViewModel.toggleSeatLock(seat, locked) },
         onMuteAllSpeakers = { roomViewModel.muteAllSpeakers() },
         onJoinSpeakerSeat = { seatIndex -> roomViewModel.joinSpeakerSeat(currentRoom, seatIndex, currentUser) },
-        myPendingRequest = myPendingRequest,
+        mySeatInvitation = mySeatInvitation,
         onAcceptSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, true) },
         onRejectSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, false) },
         onClearGiftBurst = { roomViewModel.clearGiftBurst() },
@@ -263,7 +263,7 @@ internal fun VoiceRoomStageContent(
     onToggleSeatLock: (VoiceSeat, Boolean) -> Unit = { _, _ -> },
     onMuteAllSpeakers: () -> Unit = {},
     onJoinSpeakerSeat: (seatIndex: Int) -> Unit,
-    myPendingRequest: SpeakerRequest? = null,
+    mySeatInvitation: SpeakerRequest? = null,
     onAcceptSeatInvitation: (SpeakerRequest) -> Unit = {},
     onRejectSeatInvitation: (SpeakerRequest) -> Unit = {},
     onClearGiftBurst: () -> Unit,
@@ -293,8 +293,8 @@ internal fun VoiceRoomStageContent(
     var showHostSettings by remember { mutableStateOf(false) }
     var showOnlineMembers by remember { mutableStateOf(false) }
     var showInvitationDialog by remember { mutableStateOf(false) }
-    LaunchedEffect(myPendingRequest?.id, myPendingRequest?.status) {
-        if (myPendingRequest?.status == "INVITED") showInvitationDialog = true
+    LaunchedEffect(mySeatInvitation?.id, mySeatInvitation?.status) {
+        if (mySeatInvitation?.status == "INVITED") showInvitationDialog = true
     }
     var showSetupGuide by remember { mutableStateOf(false) }
     var inviteTargetSeatIndex by remember { mutableStateOf<Int?>(null) }
@@ -897,8 +897,8 @@ internal fun VoiceRoomStageContent(
     }
 
     if (showInvitationDialog) {
-        myPendingRequest?.takeIf { it.status == "INVITED" }?.let { invitation ->
-            PendingRequestStatusDialog(
+        mySeatInvitation?.takeIf { it.status == "INVITED" }?.let { invitation ->
+            SeatInvitationDialog(
                 request = invitation,
                 onCancelRequest = {},
                 onAcceptInvitation = { onAcceptSeatInvitation(invitation) },

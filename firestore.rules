@@ -328,7 +328,6 @@ service cloud.firestore {
                        isValidTs(incoming().updatedAt);
 
       allow update: if isSignedIn() && isValidId(userId) &&
-                       isValidUserProfile(incoming()) &&
                        incoming().userId == existing().userId &&
                        incoming().createdAt == existing().createdAt &&
                        isValidTs(incoming().updatedAt) && (
@@ -623,7 +622,7 @@ service cloud.firestore {
              getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.userId == request.auth.uid &&
              getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.hostId == get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId &&
              getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.status == 'ACCEPTED' &&
-             getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == int(seatIndex) &&
+             string(getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex) == seatIndex &&
              incoming().diff(existing()).affectedKeys().hasOnly(['occupantId', 'occupantName', 'occupantAvatarUrl', 'occupantVipLevel', 'occupantGender', 'muted', 'speaking', 'updatedAt']))
           ))
         );

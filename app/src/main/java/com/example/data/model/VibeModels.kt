@@ -71,6 +71,7 @@ data class UserProfile(
     val accountStatus: String = "ACTIVE",
     val role: String = "USER",
     val lastDailyClaimDay: String = "",
+    val lastDailyClaimAt: Timestamp? = null,
     val hasCreatedRoom: Boolean = false,
     val createdRoomId: String = "",
     val createdAt: Timestamp? = null,

@@ -30,7 +30,6 @@ service cloud.firestore {
 
 
     function isNotAlreadyOnAnotherSpeakerSeat(roomId, seatIndex) {
-      let base = /databases/$(database)/documents/rooms/$(roomId)/seats/;
       return (seatIndex == '1' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId != request.auth.uid) &&
              (seatIndex == '2' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/3).data.occupantId != request.auth.uid) &&
              (seatIndex == '3' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/4).data.occupantId != request.auth.uid) &&
@@ -42,14 +41,14 @@ service cloud.firestore {
     }
 
     function isDirectSpeakerSeatJoin(roomId) {
-      return getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId == request.auth.uid ||
-             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId == request.auth.uid ||
-             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/3).data.occupantId == request.auth.uid ||
-             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/4).data.occupantId == request.auth.uid ||
-             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/5).data.occupantId == request.auth.uid ||
-             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/6).data.occupantId == request.auth.uid ||
-             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/7).data.occupantId == request.auth.uid ||
-             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId == request.auth.uid;
+      return (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId == '') ||
+             (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId == '') ||
+             (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/3).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/3).data.occupantId == '') ||
+             (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/4).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/4).data.occupantId == '') ||
+             (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/5).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/5).data.occupantId == '') ||
+             (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/6).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/6).data.occupantId == '') ||
+             (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/7).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/7).data.occupantId == '') ||
+             (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId == '');
     }
 
     // --- Validation Helpers ---
@@ -605,26 +604,18 @@ service cloud.firestore {
                          isValidSpeakerRequest(incoming()) &&
                          incoming().hostId == get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId &&
                          isValidTs(incoming().createdAt) &&
-                         isValidTs(incoming().updatedAt) && (
-          (requestId == request.auth.uid &&
-           incoming().userId == request.auth.uid &&
-           incoming().status == 'PENDING') ||
-          (requestId == incoming().userId &&
-           incoming().status == 'INVITED' &&
-           isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
-           incoming().preferredSeatIndex >= 1 &&
-           incoming().preferredSeatIndex <= 8)
-        );
+                         isValidTs(incoming().updatedAt) &&
+                         requestId == incoming().userId &&
+                         incoming().status == 'INVITED' &&
+                         isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
+                         incoming().preferredSeatIndex >= 1 &&
+                         incoming().preferredSeatIndex <= 8;
         allow update: if isSignedIn() && isValidId(requestId) &&
                          isValidSpeakerRequest(incoming()) &&
                          incoming().userId == existing().userId &&
                          incoming().hostId == existing().hostId &&
                          incoming().createdAt == existing().createdAt &&
                          isValidTs(incoming().updatedAt) && (
-          (existing().status == 'PENDING' &&
-           isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
-           incoming().status in ['INVITED', 'APPROVED', 'REJECTED'] &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'preferredSeatIndex', 'username', 'avatarUrl', 'vipLevel', 'updatedAt'])) ||
           (existing().status == 'INVITED' &&
            isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
            incoming().status == 'INVITED' &&
@@ -641,10 +632,6 @@ service cloud.firestore {
            incoming().preferredSeatIndex >= 1 &&
            incoming().preferredSeatIndex <= 8 &&
            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'preferredSeatIndex', 'username', 'avatarUrl', 'vipLevel', 'updatedAt'])) ||
-          (existing().status != 'PENDING' && existing().status != 'INVITED' &&
-           existing().userId == request.auth.uid &&
-           incoming().status == 'PENDING' &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'preferredSeatIndex', 'username', 'avatarUrl', 'vipLevel', 'updatedAt']))
         );
         allow delete: if isSignedIn() && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
       }

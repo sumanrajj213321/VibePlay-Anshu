@@ -585,7 +585,7 @@ internal fun VoiceRoomStageContent(
                             color = VibeCyan
                         )
                         Text(
-                            text = "ROOM ID · ${currentRoom.id}",
+                            text = "ROOM ID · ${currentRoom.publicRoomId.ifBlank { currentRoom.id }}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,

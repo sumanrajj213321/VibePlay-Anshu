@@ -415,7 +415,7 @@ fun ProfileScreen(
                 )
                 ProfileActionRow(
                     icon = Icons.Filled.CardGiftcard,
-                    title = "Gift In: $giftCoinsIn coins · Gift Out: $giftCoinsOut coins",
+                    title = "Gift In: $giftCoinsIn coins · Gift Out: +$giftCoinsOut coins",
                     subtitle = "${giftHistory.size} transactions recorded",
                     onClick = { showGiftHistory = true }
                 )

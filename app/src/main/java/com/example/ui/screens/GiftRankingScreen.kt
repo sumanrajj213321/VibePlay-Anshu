@@ -104,7 +104,7 @@ fun GiftRankingScreen(
                                 username = user.username,
                                 size = 52.dp,
                                 vipLevel = user.vipLevel,
-                                frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == user.activeFrameId }?.colorArgb
+                                frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == user.activeFrameId && user.isFrameActive(it.id) }?.colorArgb
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(user.username, fontWeight = FontWeight.Bold, maxLines = 1)

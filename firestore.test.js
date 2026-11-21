@@ -401,25 +401,17 @@ test("Room chat, speaker requests, virtual gift batch, and filtered repository q
     });
   });
 
-  // Bob requests to speak in locked room
+  // Host sends a seat invitation directly; users no longer create speak requests.
   await assertSucceeds(
-    bobDb.collection("rooms").doc("room_1").collection("speaker_requests").doc(BOB_UID).set({
+    aliceDb.collection("rooms").doc("room_1").collection("speaker_requests").doc(BOB_UID).set({
       userId: BOB_UID,
       hostId: ALICE_UID,
       username: "Bob",
       avatarUrl: "",
       vipLevel: 0,
-      status: "PENDING",
-      createdAt: pastDate(),
-      updatedAt: pastDate(),
-    })
-  );
-
-  // Host sends a seat invitation; Bob has not accepted it yet.
-  await assertSucceeds(
-    aliceDb.collection("rooms").doc("room_1").collection("speaker_requests").doc(BOB_UID).update({
-      status: "INVITED",
       preferredSeatIndex: 1,
+      status: "INVITED",
+      createdAt: pastDate(),
       updatedAt: pastDate(),
     })
   );

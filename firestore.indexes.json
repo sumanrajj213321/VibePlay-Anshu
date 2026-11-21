@@ -24,7 +24,7 @@
         },
         {
           "fieldPath": "type",
-          "arrayConfig": "CONTAINS"
+          "order": "ASCENDING"
         }
       ]
     }

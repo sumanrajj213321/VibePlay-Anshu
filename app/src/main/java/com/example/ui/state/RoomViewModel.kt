@@ -286,9 +286,19 @@ class RoomViewModel(
         gender: String = "UNSPECIFIED"
     ) {
         viewModelScope.launch {
-            roomRepository.assignUserToSeatByHost(room, seatIndex, userId, username, avatarUrl, vipLevel, gender)
-                .onSuccess { _roomError.value = "$username assigned to Seat $seatIndex." }
-                .onFailure { _roomError.value = it.localizedMessage ?: "Unable to assign user to seat" }
+            roomRepository.sendSeatInvitation(room, seatIndex, userId, username, avatarUrl, vipLevel, gender)
+                .onSuccess { _roomError.value = "Seat $seatIndex invitation sent to $username. They must accept it first." }
+                .onFailure { _roomError.value = it.localizedMessage ?: "Unable to send seat invitation" }
+        }
+    }
+
+    fun respondToSeatInvitation(request: SpeakerRequest, accept: Boolean) {
+        viewModelScope.launch {
+            roomRepository.respondToSeatInvitation(roomId, request, accept)
+                .onSuccess {
+                    _roomError.value = if (accept) "Seat invitation accepted." else "Seat invitation declined."
+                }
+                .onFailure { _roomError.value = it.localizedMessage ?: "Unable to respond to seat invitation" }
         }
     }
 

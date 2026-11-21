@@ -386,7 +386,15 @@ class RoomRepository(
                 val publicIdRef = db.collection("room_public_ids").document(roomId)
                 try {
                     db.runTransaction { tx ->
-                if (tx.get(roomRef).exists() || tx.get(publicIdRef).exists()) throw RoomIdCollisionException()
+                val roomSnap = tx.get(roomRef)
+                val publicIdSnap = tx.get(publicIdRef)
+                val lockSnap = tx.get(lockRef)
+                val userSnap = tx.get(userRef)
+                if (roomSnap.exists() || publicIdSnap.exists()) throw RoomIdCollisionException()
+                if (lockSnap.exists() || userSnap.getBoolean("hasCreatedRoom") == true) {
+                    throw IllegalStateException(ONE_ROOM_PER_USER_MESSAGE)
+                }
+
                 tx.set(
                     publicIdRef,
                     mapOf(
@@ -394,11 +402,6 @@ class RoomRepository(
                         "createdAt" to FieldValue.serverTimestamp()
                     )
                 )
-                val lockSnap = tx.get(lockRef)
-                val userSnap = tx.get(userRef)
-                if (lockSnap.exists() || userSnap.getBoolean("hasCreatedRoom") == true) {
-                    throw IllegalStateException(ONE_ROOM_PER_USER_MESSAGE)
-                }
 
                 // 1. Permanently claim one-time room creation lock keyed by authenticated UID
                 tx.set(

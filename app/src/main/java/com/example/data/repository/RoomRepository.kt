@@ -210,33 +210,38 @@ class RoomRepository(
     }
 
     fun observeListeners(roomId: String): Flow<List<RoomListener>> {
-        val listenersFlow = db.collection("rooms").document(roomId).collection("listeners")
+        val roomRef = db.collection("rooms").document(roomId)
+        val listenersFlow = roomRef.collection("listeners")
             .whereEqualTo("role", "LISTENER")
             .snapshots()
             .map { snapshot ->
                 snapshot.toObjects(RoomListener::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
             }
+        // The room session is the authoritative signal that a listener is currently in this room.
+        // Do not hide valid room members merely because their global users/{uid}.online flag is stale.
+        val sessionsFlow = roomRef.collection("room_sessions")
+            .snapshots()
+            .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
         val onlineFrameColorsFlow = db.collection("users")
             .whereEqualTo("accountStatus", "ACTIVE")
             .whereEqualTo("online", true)
             .snapshots()
             .map { snapshot ->
                 snapshot.documents.mapNotNull { document ->
-                    val profile = document.toObject(UserProfile::class.java) ?: return@mapNotNull null
+                    val profile = runCatching {
+                        document.toObject(UserProfile::class.java)
+                    }.getOrNull() ?: return@mapNotNull null
                     val activeFrame = VibeShopCatalog.frames.firstOrNull {
                         it.id == profile.activeFrameId && profile.isFrameActive(it.id)
                     }
                     document.id to activeFrame?.colorArgb
                 }.toMap()
             }
+            .catch { emit(emptyMap()) }
 
-        val sessionsFlow = db.collection("rooms").document(roomId).collection("room_sessions")
-            .snapshots()
-            .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
-
-        return combine(listenersFlow, onlineFrameColorsFlow, sessionsFlow) { listeners, onlineFrameColors, activeSessionIds ->
+        return combine(listenersFlow, sessionsFlow, onlineFrameColorsFlow) { listeners, activeSessionIds, onlineFrameColors ->
             listeners
-                .filter { it.userId in onlineFrameColors.keys && it.userId in activeSessionIds }
+                .filter { it.userId.isNotBlank() && it.userId in activeSessionIds }
                 .map { listener -> listener.copy(frameColorArgb = onlineFrameColors[listener.userId]) }
         }
     }

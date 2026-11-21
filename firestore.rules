@@ -33,6 +33,7 @@ service cloud.firestore {
     }
     
     function isValidAdminUserUpdate(userId) {
+      let changed = incoming().diff(existing()).affectedKeys();
       return incoming().userId == existing().userId &&
              incoming().createdAt == existing().createdAt &&
              incoming().role == existing().role &&
@@ -40,12 +41,23 @@ service cloud.firestore {
              incoming().accountStatus in ['ACTIVE', 'SUSPENDED', 'BANNED'] &&
              incoming().vipLevel is int && incoming().vipLevel >= 0 && incoming().vipLevel <= 30 &&
              incoming().coinBalance is int && incoming().coinBalance >= 0 &&
-             incoming().diff(existing()).affectedKeys().hasOnly(['accountStatus', 'vipLevel', 'vipExpiresAt', 'coinBalance', 'updatedAt']) &&
-             (!incoming().diff(existing()).affectedKeys().hasAny(['vipLevel', 'vipExpiresAt']) ||
+             changed.hasOnly(['accountStatus', 'vipLevel', 'vipExpiresAt', 'coinBalance', 'updatedAt']) &&
+             (!changed.hasAny(['vipLevel', 'vipExpiresAt']) ||
               (incoming().vipLevel == 0 && !('vipExpiresAt' in incoming())) ||
               (incoming().vipLevel > 0 && incoming().vipExpiresAt is timestamp &&
                incoming().vipExpiresAt > request.time - duration.value(1, 'm') &&
                incoming().vipExpiresAt <= request.time + duration.value(30, 'd') + duration.value(1, 'm')));
+    }
+
+    function isApprovedSpeakerSeatJoin(roomId, seatIndex) {
+      let roomData = get(/databases/$(database)/documents/rooms/$(roomId)).data;
+      let requestData = getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data;
+      return roomData.locked == false &&
+             requestData.userId == request.auth.uid &&
+             requestData.hostId == roomData.hostId &&
+             requestData.status == 'ACCEPTED' &&
+             requestData.preferredSeatIndex is int &&
+             requestData.preferredSeatIndex == int(seatIndex);
     }
 
     // --- Validation Helpers ---
@@ -633,22 +645,10 @@ service cloud.firestore {
              incoming().seatLocked == existing().seatLocked &&
              incoming().diff(existing()).affectedKeys().hasOnly(['occupantId', 'occupantName', 'occupantAvatarUrl', 'occupantVipLevel', 'occupantGender', 'muted', 'speaking', 'updatedAt'])) ||
             (existing().occupantId == '' && existing().seatLocked == false &&
-             get(/databases/$(database)/documents/rooms/$(roomId)).data.locked == false &&
              incoming().occupantId == request.auth.uid &&
              incoming().seatLocked == false &&
              existsAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)) &&
-             getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.userId == request.auth.uid &&
-             getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.hostId == get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId &&
-             getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.status == 'ACCEPTED' &&
-             getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex is int &&
-             ((seatIndex == '1' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 1) ||
-              (seatIndex == '2' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 2) ||
-              (seatIndex == '3' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 3) ||
-              (seatIndex == '4' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 4) ||
-              (seatIndex == '5' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 5) ||
-              (seatIndex == '6' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 6) ||
-              (seatIndex == '7' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 7) ||
-              (seatIndex == '8' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 8)) &&
+             isApprovedSpeakerSeatJoin(roomId, seatIndex) &&
              incoming().diff(existing()).affectedKeys().hasOnly(['occupantId', 'occupantName', 'occupantAvatarUrl', 'occupantVipLevel', 'occupantGender', 'muted', 'speaking', 'updatedAt']))
           ))
         );

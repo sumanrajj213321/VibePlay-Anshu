@@ -879,7 +879,9 @@ class RoomRepository(
                 }
                 val listenerSnap = tx.get(listenerRef)
 
+                check(roomSnap.exists()) { "Room no longer exists." }
                 val loadedRoom = roomSnap.toObject(VoiceRoom::class.java) ?: room
+                check(loadedRoom.status == "LIVE") { "This room is no longer live." }
                 val seats = seatSnaps.mapNotNull { it.toObject(VoiceSeat::class.java) }
                 val stage = VoiceStage.buildStrictNineSeatStage(loadedRoom, seats)
 

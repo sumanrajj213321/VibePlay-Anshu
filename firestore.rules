@@ -348,8 +348,12 @@ service cloud.firestore {
           (incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarUrl', 'coverUrl', 'gender', 'genderChangeCount', 'age', 'ageRange', 'showAge', 'showGender', 'showOnlineStatus', 'online', 'followingCount', 'followersCount', 'updatedAt']) &&
            isValidUserProfile(incoming()) &&
            incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
-           ((incoming().gender == existing().gender && incoming().genderChangeCount == (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0)) ||
-            (incoming().gender != existing().gender && (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0) == 0 && incoming().genderChangeCount == 1))) ||
+           ((incoming().gender == (('gender' in existing()) ? existing().gender : 'UNSPECIFIED') &&
+             incoming().genderChangeCount == (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0)) ||
+            ((('gender' in existing()) ? existing().gender : 'UNSPECIFIED') == 'UNSPECIFIED' &&
+             (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0) == 0 &&
+             incoming().gender in ['FEMALE', 'MALE', 'NON_BINARY'] &&
+             incoming().genderChangeCount == 1))) ||
           (incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
            incoming().followingCount is int && incoming().followingCount >= 0 &&
            incoming().diff(existing()).affectedKeys().hasOnly(['followingCount', 'updatedAt'])) ||

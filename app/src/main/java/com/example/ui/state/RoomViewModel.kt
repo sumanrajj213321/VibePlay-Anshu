@@ -296,6 +296,7 @@ class RoomViewModel(
         viewModelScope.launch {
             roomRepository.respondToSeatInvitation(roomId, request, accept)
                 .onSuccess {
+                    if (accept) voiceEngine.setMicPublished(true)
                     _roomError.value = if (accept) "Seat invitation accepted." else "Seat invitation declined."
                 }
                 .onFailure { _roomError.value = it.localizedMessage ?: "Unable to respond to seat invitation" }

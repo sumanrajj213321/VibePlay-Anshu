@@ -72,12 +72,12 @@ async function main() {
   if (!APPLY) {
     for (const item of pending.slice(0, 30)) console.log(`DRY RUN  ${item.doc.id} -> ${item.code}`);
     if (pending.length > 30) console.log(`... and ${pending.length - 30} more`);
-    console.log("No changes made. Re-run with --apply to write the migration.");
+    console.log("No changes made. Re-run with --apply to write the migration and verify all code reservations.");
     return;
   }
 
   let migrated = 0;
-  for (const item of pending) {
+  for (const item of plan) {
     const roomRef = db.collection("rooms").doc(item.doc.id);
     const reservationRef = db.collection("room_public_ids").doc(item.code);
     await db.runTransaction(async (tx) => {
@@ -105,10 +105,10 @@ async function main() {
       }
     });
     migrated += 1;
-    if (migrated % 50 === 0) console.log(`Migrated ${migrated}/${pending.length}`);
+    if (migrated % 50 === 0) console.log(`Checked/migrated ${migrated}/${plan.length} rooms`);
   }
 
-  console.log(`Migration complete. Updated ${migrated} rooms; room document IDs and subcollections were preserved.`);
+  console.log(`Migration complete. Checked ${migrated} rooms; all valid public codes are reserved. Room document IDs and subcollections were preserved.`);
 }
 
 main().catch((error) => {

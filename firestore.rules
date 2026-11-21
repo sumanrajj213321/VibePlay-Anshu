@@ -72,22 +72,9 @@ service cloud.firestore {
     }
 
     function hasValidEquippedTitles(data) {
-      return (
-        !('activeTitleIds' in data) &&
-        data.activeTitleId is string &&
-        (data.activeTitleId == '' ||
-         (data.ownedTitleIds is list &&
-          data.activeTitleId in data.ownedTitleIds &&
-          data.titleExpiresAt is map &&
-          data.titleExpiresAt[data.activeTitleId] > request.time))
-      ) || (
-        'activeTitleIds' in data &&
-        data.activeTitleIds is list &&
-        data.activeTitleIds.size() <= 4 &&
-        data.ownedTitleIds is list &&
-        data.activeTitleIds.hasOnly(data.ownedTitleIds) &&
-        data.activeTitleId == (data.activeTitleIds.size() > 0 ? data.activeTitleIds[0] : '')
-      );
+      return data.activeTitleIds is list &&
+             data.activeTitleIds.size() <= 4 &&
+             data.activeTitleId == (data.activeTitleIds.size() > 0 ? data.activeTitleIds[0] : '');
     }
 
     function isValidUserProfile(data) {

@@ -154,7 +154,6 @@ class UserRepository(
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
                 userRef.set(payload).await()
-                ensureWelcomeInbox(user.uid, safeName, user.photoUrl?.toString() ?: "")
 
                 val privatePayload = mapOf(
                     "userId" to user.uid,
@@ -170,11 +169,14 @@ class UserRepository(
 
             // Ensure the deterministic official welcome conversation/message exists.
             // Safe to retry after logout, reinstall, or temporary network failure.
-            ensureWelcomeInbox(
-                user.uid,
-                user.displayName?.takeIf { it.isNotBlank() } ?: snap.getString("username") ?: "VibeStar",
-                user.photoUrl?.toString() ?: snap.getString("avatarUrl") ?: ""
-            )
+            val latestProfile = userRef.get().await()
+            if (latestProfile.getBoolean("welcomeBonusGranted") == true) {
+                ensureWelcomeInbox(
+                    user.uid,
+                    user.displayName?.takeIf { it.isNotBlank() } ?: latestProfile.getString("username") ?: "VibeStar",
+                    user.photoUrl?.toString() ?: latestProfile.getString("avatarUrl") ?: ""
+                )
+            }
 
             // One-time automatic coin grant for the official account.
             // Firestore rules restrict this privileged update to the admin UID.

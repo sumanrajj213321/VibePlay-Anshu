@@ -57,6 +57,8 @@ data class UserProfile(
     val coinBalance: Long = 500L,
     val totalGiftsReceived: Long = 0L,
     val totalGiftsSent: Long = 0L,
+    val totalGiftCoinsReceived: Long = 0L,
+    val totalGiftCoinsSent: Long = 0L,
     val followersCount: Long = 0L,
     val followingCount: Long = 0L,
     val accountStatus: String = "ACTIVE",

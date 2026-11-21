@@ -138,13 +138,35 @@ class RoomRepository(
             .catch { emit(emptyMap()) }
         return combine(seatsFlow, sessionsFlow, onlineUsersFlow, observeRoom(roomId)) { seats, sessionIds, onlineFrameColors, room ->
             val activeSessionIds = sessionIds.intersect(onlineFrameColors.keys)
-            seats.filter { seat ->
-                seat.isHostSeat ||
-                    seat.occupantId.isBlank() ||
-                    seat.occupantId in activeSessionIds ||
-                    (room != null && !room.effectiveOwnerOnline && seat.occupantId == room.effectiveOwnerId)
-            }.map { seat ->
-                seat.copy(occupantFrameColorArgb = onlineFrameColors[seat.occupantId] ?: seat.occupantFrameColorArgb)
+            seats.map { seat ->
+                val isOfflineOwnerSeat = room != null &&
+                    !room.effectiveOwnerOnline &&
+                    seat.occupantId == room.effectiveOwnerId
+                val hasStaleOccupant = !seat.isHostSeat &&
+                    seat.occupantId.isNotBlank() &&
+                    seat.occupantId !in activeSessionIds &&
+                    !isOfflineOwnerSeat
+
+                if (hasStaleOccupant) {
+                    // Clear stale occupant details without dropping the seat document.
+                    // The same document also stores seatLocked, which must remain visible
+                    // even when its previous occupant is no longer active.
+                    seat.copy(
+                        occupantId = "",
+                        occupantName = "",
+                        occupantAvatarUrl = "",
+                        occupantFrameColorArgb = null,
+                        occupantVipLevel = 0L,
+                        occupantGender = "UNSPECIFIED",
+                        muted = true,
+                        speaking = false
+                    )
+                } else {
+                    seat.copy(
+                        occupantFrameColorArgb = onlineFrameColors[seat.occupantId]
+                            ?: seat.occupantFrameColorArgb
+                    )
+                }
             }
         }
     }

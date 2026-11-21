@@ -22,6 +22,17 @@ function pastDate(msOffset = 2000) {
   return new Date(Date.now() - msOffset);
 }
 
+function indiaDay() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 function makeUserPayload(uid, username, vibeId) {
   const ts = pastDate(5000);
   return {
@@ -126,9 +137,21 @@ test("User profile creation, private subcollection isolation, daily reward, and 
   await assertSucceeds(
     aliceDb.collection("users").doc(ALICE_UID).update({
       coinBalance: 650,
-      lastDailyClaimDay: "2026-11-18",
-      lastDailyClaimAt: pastDate(2 * 24 * 60 * 60 * 1000),
+      lastDailyClaimDay: indiaDay(),
+      lastDailyClaimAt: pastDate(1000),
       xp: 50,
+      level: 1,
+      updatedAt: pastDate(),
+    })
+  );
+
+  // A second claim on the same India calendar day must fail, even if the client changes the day string.
+  await assertFails(
+    aliceDb.collection("users").doc(ALICE_UID).update({
+      coinBalance: 800,
+      lastDailyClaimDay: "2099-01-01",
+      lastDailyClaimAt: pastDate(1000),
+      xp: 100,
       level: 1,
       updatedAt: pastDate(),
     })

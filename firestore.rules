@@ -499,8 +499,7 @@ service cloud.firestore {
       allow list: if false;
       allow create: if isSignedIn() &&
                        publicRoomId.matches('^[0-9]{6}$') &&
-                       incoming().roomId is string &&
-                       incoming().roomId == publicRoomId &&
+                       isValidId(incoming().roomId) &&
                        isValidTs(incoming().createdAt) &&
                        existsAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)) &&
                        getAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)).data.publicRoomId == publicRoomId &&
@@ -527,8 +526,9 @@ service cloud.firestore {
                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hasCreatedRoom == false) &&
                        existsAfter(/databases/$(database)/documents/room_creation_locks/$(request.auth.uid)) &&
                        getAfter(/databases/$(database)/documents/room_creation_locks/$(request.auth.uid)).data.roomId == roomId &&
-                       existsAfter(/databases/$(database)/documents/room_public_ids/$(roomId)) &&
-                       getAfter(/databases/$(database)/documents/room_public_ids/$(roomId)).data.roomId == roomId;
+                       (!('publicRoomId' in incoming()) ||
+                        (existsAfter(/databases/$(database)/documents/room_public_ids/$(incoming().publicRoomId)) &&
+                         getAfter(/databases/$(database)/documents/room_public_ids/$(incoming().publicRoomId)).data.roomId == roomId));
 
       allow update: if isSignedIn() && isValidId(roomId) &&
                        isValidRoom(incoming()) &&

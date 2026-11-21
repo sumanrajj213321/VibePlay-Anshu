@@ -557,7 +557,7 @@ service cloud.firestore {
 
       allow delete: if isSignedIn() && isValidId(roomId) && (
         isRoomOwner(existing()) ||
-        (isRoomAdminUser(existing()) && (!('ownerOnline' in existing()) || existing().ownerOnline == false)) ||
+        (isRoomAdminUser(existing()) && (!('ownerOnline' in existing()) || existing().ownerOnline == false))
       );
 
       // Strict 9-Seat Stage: 0 = Host, 1..8 = 8 Regular Speaker Seats
@@ -701,8 +701,7 @@ service cloud.firestore {
                     request.auth.uid in existing().participantIds);
       allow list: if isSignedIn() && request.auth.uid in existing().participantIds;
       allow create: if isSignedIn() && isValidId(conversationId) &&
-                       (request.auth.uid in incoming().participantIds ||
-                        ) &&
+                       request.auth.uid in incoming().participantIds &&
                        (!('conversationType' in incoming()) || incoming().conversationType == 'DIRECT' || incoming().ownerId == request.auth.uid) &&
                        isValidConversation(incoming()) &&
                        isValidTs(incoming().createdAt) &&

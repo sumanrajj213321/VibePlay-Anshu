@@ -127,6 +127,7 @@ test("User profile creation, private subcollection isolation, daily reward, and 
     aliceDb.collection("users").doc(ALICE_UID).update({
       coinBalance: 650,
       lastDailyClaimDay: "2026-11-18",
+      lastDailyClaimAt: pastDate(2 * 24 * 60 * 60 * 1000),
       xp: 50,
       level: 1,
       updatedAt: pastDate(),
@@ -138,6 +139,7 @@ test("User profile creation, private subcollection isolation, daily reward, and 
     aliceDb.collection("users").doc(ALICE_UID).update({
       coinBalance: 450,
       vipLevel: 1,
+      vipExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       updatedAt: pastDate(),
     })
   );

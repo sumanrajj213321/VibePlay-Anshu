@@ -63,6 +63,7 @@ import coil.compose.AsyncImage
 import com.example.R
 import com.example.data.model.FollowEdge
 import com.example.data.model.GiftTransaction
+import com.example.data.model.LevelProgression
 import com.example.data.model.UserProfile
 import com.example.ui.components.BackendIntegrationGuideSheet
 import com.example.ui.components.BiologicalGenderBadge
@@ -105,7 +106,8 @@ fun ProfileScreen(
     var socialInitialTab by remember { mutableStateOf(0) }
     var showSetupGuide by remember { mutableStateOf(false) }
 
-    val xpProgress = ((profile.xp % 500L).toFloat() / 500f).coerceIn(0f, 1f)
+    val (xpInLevel, xpNeededForNextLevel) = LevelProgression.progressInLevel(profile.xp)
+    val xpProgress = (xpInLevel.toFloat() / xpNeededForNextLevel.toFloat()).coerceIn(0f, 1f)
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -251,7 +253,7 @@ fun ProfileScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text("Level ${profile.level} XP", style = MaterialTheme.typography.labelSmall)
-                        Text("${profile.xp % 500}/500 XP", style = MaterialTheme.typography.labelSmall, color = VibeCyan)
+                        Text("$xpInLevel/$xpNeededForNextLevel XP", style = MaterialTheme.typography.labelSmall, color = VibeCyan)
                     }
                     LinearProgressIndicator(
                         progress = { xpProgress },

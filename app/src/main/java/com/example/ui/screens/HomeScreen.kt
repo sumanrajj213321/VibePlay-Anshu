@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.data.model.RoomCategory
 import com.example.data.model.UserProfile
+import com.example.data.model.VibeShopCatalog
 import com.example.data.model.VoiceRoom
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.VoiceRoomCard
@@ -467,7 +468,8 @@ fun HomeScreen(
                                     username = user.username,
                                     size = 54.dp,
                                     vipLevel = user.vipLevel,
-                                    online = true
+                                    online = true,
+                                    frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == user.activeFrameId }?.colorArgb
                                 )
                                 Spacer(modifier = Modifier.height(5.dp))
                                 Text(

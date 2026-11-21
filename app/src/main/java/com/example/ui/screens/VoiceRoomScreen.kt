@@ -198,11 +198,7 @@ fun VoiceRoomScreen(
         onToggleSeatLock = { seat, locked -> roomViewModel.toggleSeatLock(seat, locked) },
         onMuteAllSpeakers = { roomViewModel.muteAllSpeakers() },
         onRequestToSpeak = { preferredSeat ->
-            if (preferredSeat in 1..VoiceStage.SPEAKER_SEAT_COUNT) {
-                roomViewModel.joinSpeakerSeat(currentRoom, preferredSeat, currentUser)
-            } else {
-                roomViewModel.requestToSpeak(currentRoom, currentUser, preferredSeat)
-            }
+            roomViewModel.requestToSpeak(currentRoom, currentUser, preferredSeat)
         },
         onCancelSpeakerRequest = { roomViewModel.cancelSpeakerRequest(currentUser.userId) },
         onAcceptSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, true) },

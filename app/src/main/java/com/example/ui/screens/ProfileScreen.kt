@@ -195,7 +195,7 @@ fun ProfileScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(9.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
                         text = profile.username,
@@ -205,17 +205,40 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     if (profile.isVipActive) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = VibePink.copy(alpha = 0.18f),
-                            border = BorderStroke(1.dp, VibePink.copy(alpha = 0.85f))
+                        VipBadgePill(profile.vipLevel)
+                    }
+                }
+
+                if (equippedTitle != null) {
+                    val titleColor = Color(equippedTitle.colorArgb)
+                    Surface(
+                        shape = RoundedCornerShape(9.dp),
+                        color = titleColor.copy(alpha = 0.13f),
+                        border = BorderStroke(
+                            1.dp,
+                            Brush.linearGradient(
+                                listOf(titleColor.copy(alpha = 0.95f), Color.White.copy(alpha = 0.45f), titleColor.copy(alpha = 0.75f))
+                            )
+                        ),
+                        shadowElevation = 2.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
+                            Icon(
+                                imageVector = Icons.Filled.WorkspacePremium,
+                                contentDescription = null,
+                                tint = titleColor,
+                                modifier = Modifier.size(15.dp)
+                            )
                             Text(
-                                text = "💎 VIP ${profile.vipLevel}",
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = VibePink,
-                                fontWeight = FontWeight.ExtraBold
+                                text = equippedTitle.title.uppercase(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = titleColor,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 0.65.sp
                             )
                         }
                     }
@@ -307,33 +330,7 @@ fun ProfileScreen(
                         }
                     }
 
-                    Surface(
-                        modifier = Modifier.weight(1.45f),
-                        shape = RoundedCornerShape(13.dp),
-                        color = (equippedTitle?.let { Color(it.colorArgb) } ?: VibeViolet).copy(alpha = 0.13f),
-                        border = BorderStroke(
-                            1.dp,
-                            (equippedTitle?.let { Color(it.colorArgb) } ?: VibeViolet).copy(alpha = 0.72f)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Text(
-                                text = "EQUIPPED TITLE",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = equippedTitle?.let { Color(it.colorArgb) } ?: VibeViolet,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = equippedTitle?.title ?: "No title equipped",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = equippedTitle?.let { Color(it.colorArgb) } ?: MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-                        }
-                    }
+
                 }
 
                 // Stats Row

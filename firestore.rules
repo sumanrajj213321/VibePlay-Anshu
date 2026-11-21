@@ -63,6 +63,22 @@ service cloud.firestore {
              itemId == 'royal_star' ? 80000 : -1;
     }
 
+    function isValidTitlePurchase(data, oldData, itemId, price) {
+      return data.vipLevel == oldData.vipLevel &&
+             data.coinBalance is int &&
+             data.coinBalance >= 0 &&
+             data.coinBalance == oldData.coinBalance - price &&
+             data.ownedTitleIds is list &&
+             data.ownedTitleIds.hasAll(('ownedTitleIds' in oldData) ? oldData.ownedTitleIds : []) &&
+             data.ownedTitleIds.size() == (('ownedTitleIds' in oldData) ? oldData.ownedTitleIds.size() : 0) + 1 &&
+             itemId in data.ownedTitleIds &&
+             data.titleExpiresAt is map &&
+             data.titleExpiresAt[itemId] is timestamp &&
+             data.titleExpiresAt[itemId] > request.time - duration.value(1, 'm') &&
+             data.titleExpiresAt[itemId] <= request.time + duration.value(15, 'd') + duration.value(1, 'm') &&
+             data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'titleExpiresAt', 'updatedAt']);
+    }
+
     function shopFramePrice(itemId) {
       return itemId == 'neon_cyan' ? 15000 :
              itemId == 'rose_gold' ? 25000 :
@@ -392,22 +408,16 @@ service cloud.firestore {
            incoming().totalGiftCoinsSent is int &&
            incoming().totalGiftCoinsSent > (('totalGiftCoinsSent' in existing()) ? existing().totalGiftCoinsSent : 0) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'totalGiftsSent', 'totalGiftCoinsSent', 'xp', 'level', 'updatedAt'])) ||
-          (incoming().vipLevel == existing().vipLevel &&
-           incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
-           incoming().ownedTitleIds is list &&
-           incoming().ownedTitleIds.hasAll(('ownedTitleIds' in existing()) ? existing().ownedTitleIds : []) &&
-           incoming().ownedTitleIds.size() >= (('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0) &&
-           incoming().ownedTitleIds.size() <= (('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0) + 1 &&
-           incoming().activeTitleId is string &&
-           incoming().activeTitleId in incoming().ownedTitleIds &&
-           (!('activeTitleIds' in incoming()) || hasValidEquippedTitles(incoming())) &&
-           incoming().titleExpiresAt is map &&
-           incoming().titleExpiresAt[incoming().activeTitleId] is timestamp &&
-           incoming().titleExpiresAt[incoming().activeTitleId] > request.time - duration.value(1, 'm') &&
-           incoming().titleExpiresAt[incoming().activeTitleId] <= request.time + duration.value(15, 'd') + duration.value(1, 'm') &&
-           shopTitlePrice(incoming().activeTitleId) >= 0 &&
-           incoming().coinBalance == existing().coinBalance - shopTitlePrice(incoming().activeTitleId) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'activeTitleId', 'activeTitleIds', 'titleExpiresAt', 'updatedAt'])) ||
+          (isValidTitlePurchase(incoming(), existing(), 'singer', 12000) ||
+           isValidTitlePurchase(incoming(), existing(), 'charming', 15000) ||
+           isValidTitlePurchase(incoming(), existing(), 'princess', 18000) ||
+           isValidTitlePurchase(incoming(), existing(), 'prince', 18000) ||
+           isValidTitlePurchase(incoming(), existing(), 'queen', 25000) ||
+           isValidTitlePurchase(incoming(), existing(), 'king', 25000) ||
+           isValidTitlePurchase(incoming(), existing(), 'boss', 30000) ||
+           isValidTitlePurchase(incoming(), existing(), 'filthy_rich', 50000) ||
+           isValidTitlePurchase(incoming(), existing(), 'legend', 65000) ||
+           isValidTitlePurchase(incoming(), existing(), 'royal_star', 80000)) ||
           (incoming().vipLevel == existing().vipLevel &&
            incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
            incoming().ownedFrameIds is list &&

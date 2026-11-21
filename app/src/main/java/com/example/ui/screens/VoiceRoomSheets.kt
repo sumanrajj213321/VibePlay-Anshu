@@ -36,7 +36,6 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.MonetizationOn
-import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.PersonRemove
@@ -412,7 +411,7 @@ fun HostSettingsSheet(
                         Icon(Icons.Filled.Lock, contentDescription = null, tint = VibePink)
                         Column {
                             Text("Lock Room Stage", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                            Text("Listeners must request to speak", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Passcode required to enter this room", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     Switch(checked = locked, onCheckedChange = { locked = it })
@@ -1178,7 +1177,7 @@ fun SeatInvitationDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Filled.PanTool, contentDescription = null, tint = VibeGold)
+                Icon(Icons.Filled.PersonAdd, contentDescription = null, tint = VibeGold)
                 Text("Seat Invitation", fontWeight = FontWeight.Bold)
             }
         },

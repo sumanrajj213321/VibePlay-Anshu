@@ -21,7 +21,6 @@ import com.google.firebase.auth.auth
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.CancellationException
@@ -79,36 +78,6 @@ class UserRepository(
         }
     }
 
-    private suspend fun grantWelcomeBonusToExistingUsers() {
-        var cursor: String? = null
-        do {
-            var query = db.collection("users").orderBy(FieldPath.documentId()).limit(200)
-            if (!cursor.isNullOrBlank()) query = query.startAfter(cursor)
-            val page = query.get().await()
-            for (item in page.documents) {
-                val uid = item.id
-                val ref = db.collection("users").document(uid)
-                val shouldCreateInbox = db.runTransaction { tx ->
-                    val snap = tx.get(ref)
-                    if (!snap.exists()) false
-                    else if (snap.getBoolean("welcomeBonusGranted") == true) true
-                    else {
-                        val balance = snap.getLong("coinBalance") ?: 0L
-                        require(balance >= 0L && balance <= Long.MAX_VALUE - 1_000_000L)
-                        tx.update(ref, mapOf(
-                            "coinBalance" to balance + 1_000_000L,
-                            "welcomeBonusGranted" to true,
-                            "welcomeBonusGrantedAt" to FieldValue.serverTimestamp(),
-                            "updatedAt" to FieldValue.serverTimestamp()
-                        ))
-                        true
-                    }
-                }.await()
-                if (shouldCreateInbox) ensureWelcomeInbox(uid, item.getString("username") ?: "VibeStar", item.getString("avatarUrl") ?: "")
-            }
-            cursor = page.documents.lastOrNull()?.id
-        } while (page.size() == 200)
-    }
 
     suspend fun ensureCurrentUserProfile(user: FirebaseUser): Result<UserProfile> {
         val docPath = "users/${user.uid}"
@@ -182,33 +151,6 @@ class UserRepository(
                     user.displayName?.takeIf { it.isNotBlank() } ?: latestProfile.getString("username") ?: "VibeStar",
                     user.photoUrl?.toString() ?: latestProfile.getString("avatarUrl") ?: ""
                 )
-            }
-
-            // One-time automatic coin grant for the official account.
-            // Firestore rules restrict this privileged update to the admin UID.
-            if (user.uid == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
-                db.runTransaction { transaction ->
-                    val officialSnapshot = transaction.get(userRef)
-                    if (officialSnapshot.exists() &&
-                        officialSnapshot.getBoolean("officialCoinsGranted") != true
-                    ) {
-                        transaction.update(
-                            userRef,
-                            mapOf(
-                                "coinBalance" to 1_000_000_000L,
-                                "officialCoinsGranted" to true,
-                                "updatedAt" to FieldValue.serverTimestamp()
-                            )
-                        )
-                    }
-                }.await()
-            }
-
-            // Spark-plan migration: the official account grants each existing user once.
-            if (user.uid == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
-                try { grantWelcomeBonusToExistingUsers() } catch (_: Exception) {
-                    // Retry safely on the next official-account sign-in.
-                }
             }
 
             val refreshed = userRef.get().await()

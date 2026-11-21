@@ -71,7 +71,8 @@ service cloud.firestore {
              data.coinBalance == oldData.coinBalance - price &&
              data.ownedTitleIds is list &&
              data.ownedTitleIds.hasAll(('ownedTitleIds' in oldData) ? oldData.ownedTitleIds : []) &&
-             data.ownedTitleIds.size() == (('ownedTitleIds' in oldData) ? oldData.ownedTitleIds.size() : 0) + 1 &&
+             data.ownedTitleIds.size() == (('ownedTitleIds' in oldData) ? oldData.ownedTitleIds.size() : 0) +
+               (('ownedTitleIds' in oldData && itemId in oldData.ownedTitleIds) ? 0 : 1) &&
              itemId in data.ownedTitleIds &&
              data.titleExpiresAt is map &&
              data.titleExpiresAt[itemId] is timestamp &&

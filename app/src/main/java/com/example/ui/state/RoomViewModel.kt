@@ -102,7 +102,9 @@ class RoomViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
     private var roomMessagesJob: Job? = null
+    private var roomJoinJob: Job? = null
     private var joinedListenerDone = false
+    private var roomJoinInProgress = false
     private var lastShownGiftMsgId: String? = null
 
     init {
@@ -165,33 +167,42 @@ class RoomViewModel(
     }
 
     fun onRoomLoaded(loadedRoom: VoiceRoom, currentUser: UserProfile) {
-        if (!joinedListenerDone) {
-            viewModelScope.launch {
-                roomRepository.joinAsListener(loadedRoom, currentUser)
-                    .onSuccess {
-                        joinedListenerDone = true
-                        _messages.value = emptyList()
-                        roomMessagesJob?.cancel()
-                        roomMessagesJob = launch {
-                            roomRepository.observeRoomMessages(roomId)
-                                .catch { error ->
-                                    val root = unwrapFirestoreError(error)
-                                    Log.w(TAG, "Room chat stream failed", root)
-                                    _roomError.value = root.localizedMessage
-                                        ?: "Room messages could not be loaded. Please check room access and Firestore index."
-                                    emit(emptyList())
-                                }
-                                .collect { _messages.value = it }
-                        }
-                        voiceEngine.connectToRoom(
-                            roomId = loadedRoom.id,
-                            userId = currentUser.userId,
-                            username = currentUser.username,
-                            canPublish = loadedRoom.isOwner(currentUser.userId)
-                        )
+        if (joinedListenerDone || roomJoinInProgress) return
+
+        // Clear any previous visit's chat before starting a new room session.
+        // The repository then reads this visit's fresh room_sessions/{uid}.joinedAt
+        // and only subscribes to messages from that boundary onward.
+        roomJoinInProgress = true
+        _messages.value = emptyList()
+        _giftBurst.value = null
+        roomMessagesJob?.cancel()
+        roomMessagesJob = null
+
+        roomJoinJob = viewModelScope.launch {
+            roomRepository.joinAsListener(loadedRoom, currentUser)
+                .onSuccess {
+                    joinedListenerDone = true
+                    roomMessagesJob?.cancel()
+                    roomMessagesJob = launch {
+                        roomRepository.observeRoomMessages(roomId)
+                            .catch { error ->
+                                val root = unwrapFirestoreError(error)
+                                Log.w(TAG, "Room chat stream failed", root)
+                                _roomError.value = root.localizedMessage
+                                    ?: "Room messages could not be loaded. Please check room access and Firestore index."
+                                emit(emptyList())
+                            }
+                            .collect { _messages.value = it }
                     }
-                    .onFailure { _roomError.value = it.localizedMessage ?: "Unable to join room" }
-            }
+                    voiceEngine.connectToRoom(
+                        roomId = loadedRoom.id,
+                        userId = currentUser.userId,
+                        username = currentUser.username,
+                        canPublish = loadedRoom.isOwner(currentUser.userId)
+                    )
+                }
+                .onFailure { _roomError.value = it.localizedMessage ?: "Unable to join room" }
+            roomJoinInProgress = false
         }
     }
 
@@ -385,19 +396,25 @@ class RoomViewModel(
     fun leaveRoom(onLeft: () -> Unit) {
         val currentRoom = room.value
         val seats = rawSeats.value
+
+        // Stop the previous visit immediately, even if the presence cleanup later fails.
+        joinedListenerDone = false
+        roomJoinInProgress = false
+        roomJoinJob?.cancel()
+        roomJoinJob = null
         voiceEngine.disconnect()
         roomMessagesJob?.cancel()
         roomMessagesJob = null
         _messages.value = emptyList()
+        _giftBurst.value = null
+
         if (currentRoom == null) {
             onLeft()
             return
         }
         viewModelScope.launch(NonCancellable) {
             val result = roomRepository.leaveRoom(currentRoom, currentUserId, seats)
-            if (result.isSuccess) {
-                joinedListenerDone = false
-            } else {
+            if (result.isFailure) {
                 _roomError.value = result.exceptionOrNull()?.localizedMessage
                     ?: "Could not update your room presence. Please try leaving again."
             }

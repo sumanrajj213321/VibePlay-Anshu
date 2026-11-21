@@ -287,7 +287,7 @@ class UserRepository(
             require(cleanName.length >= 2) { "Username must be at least 2 characters." }
             require(age == 0L || age in 13L..120L) { "Please enter an exact age between 13 and 120 (or leave blank)." }
             val cleanBio = bio.trim().take(200)
-            val savedAvatarUrl = if (avatarUrl.startsWith("content://")) {
+            val savedAvatarUrl = if (avatarUrl.startsWith("content://") || avatarUrl.startsWith("file://")) {
                 saveAvatarToFirestore(currentUid, Uri.parse(avatarUrl))
                 "firestore-avatar://$currentUid"
             } else {

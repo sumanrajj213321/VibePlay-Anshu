@@ -302,23 +302,24 @@ test("Strict 9-seat Voice Room batch creation, seat 9 rejection, seat 0 protecti
     })
   );
 
-  // Bob requests a seat, receives an invitation, and accepts it transactionally.
+  // Host issues a seat invitation; Bob accepts it transactionally.
   const bobRoomRef = bobDb.collection("rooms").doc("room_alpha");
   const bobRequestRef = bobRoomRef.collection("speaker_requests").doc(BOB_UID);
-  await assertSucceeds(bobRequestRef.set({
+  await assertSucceeds(
+    bobRoomRef.collection("room_sessions").doc(BOB_UID).set({
+      userId: BOB_UID,
+      joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    })
+  );
+  await assertSucceeds(roomRef.collection("speaker_requests").doc(BOB_UID).set({
     userId: BOB_UID,
     hostId: ALICE_UID,
     username: "Bob",
     avatarUrl: "",
     vipLevel: 0,
     preferredSeatIndex: 1,
-    status: "PENDING",
-    createdAt: pastDate(),
-    updatedAt: pastDate(),
-  }));
-  await assertSucceeds(roomRef.collection("speaker_requests").doc(BOB_UID).update({
     status: "INVITED",
-    preferredSeatIndex: 1,
+    createdAt: pastDate(),
     updatedAt: pastDate(),
   }));
   const acceptSeatBatch = bobDb.batch();
@@ -337,6 +338,8 @@ test("Strict 9-seat Voice Room batch creation, seat 9 rejection, seat 0 protecti
   acceptSeatBatch.update(bobRoomRef, {
     listenerCount: 0,
     activeSpeakersCount: 2,
+    lastSpeakerSeatJoinUserId: BOB_UID,
+    lastSpeakerSeatJoinSeatIndex: 1,
     updatedAt: pastDate(),
   });
   await assertSucceeds(acceptSeatBatch.commit());

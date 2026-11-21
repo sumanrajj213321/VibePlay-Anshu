@@ -919,6 +919,8 @@ class RoomRepository(
                     mapOf(
                         "listenerCount" to nextListenerCount,
                         "activeSpeakersCount" to nextActiveSpeakers,
+                        "lastSpeakerSeatJoinUserId" to uid,
+                        "lastSpeakerSeatJoinSeatIndex" to seatIndex.toLong(),
                         "updatedAt" to FieldValue.serverTimestamp()
                     )
                 )
@@ -1035,6 +1037,8 @@ class RoomRepository(
                     tx.update(roomRef, mapOf(
                         "listenerCount" to (currentListeners - if (listenerSnap.exists()) 1L else 0L).coerceAtLeast(0L),
                         "activeSpeakersCount" to (currentSpeakers + 1L).coerceAtMost(9L),
+                        "lastSpeakerSeatJoinUserId" to uid,
+                        "lastSpeakerSeatJoinSeatIndex" to seatIndex.toLong(),
                         "updatedAt" to FieldValue.serverTimestamp()
                     ))
                     tx.update(requestRef, mapOf("status" to "ACCEPTED", "updatedAt" to FieldValue.serverTimestamp()))

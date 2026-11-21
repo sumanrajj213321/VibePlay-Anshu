@@ -138,6 +138,22 @@ fun HomeScreen(
         }.sortedByDescending { it.userId in followingIds }.take(15)
     }
 
+    // The same home search supports room IDs and public Vibe IDs (VP-xxxxxx),
+    // including users who are not currently online.
+    val matchingUsers = remember(activeUsers, searchQuery, currentUser.userId, blockedUserIds) {
+        val query = searchQuery.trim()
+        if (query.isBlank()) emptyList() else {
+            val normalizedId = query.removePrefix("ID-").removePrefix("id-")
+            activeUsers.filter { user ->
+                user.userId != currentUser.userId &&
+                    user.userId !in blockedUserIds &&
+                    (user.userId.equals(query, ignoreCase = true) ||
+                     user.vibeId.equals(normalizedId, ignoreCase = true) ||
+                     user.vibeId.substringAfterLast("-").equals(normalizedId, ignoreCase = true))
+            }.take(8)
+        }
+    }
+
     val handleRoomTap: (VoiceRoom) -> Unit = { room ->
         if (room.hasPassword && !room.isOwner(currentUser.userId)) {
             enteredPin = ""
@@ -449,7 +465,7 @@ fun HomeScreen(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search voice rooms or hosts...") },
+                    placeholder = { Text("Search room ID, user ID or room name...") },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     trailingIcon = {
                         if (searchQuery.isNotBlank()) {
@@ -480,6 +496,41 @@ fun HomeScreen(
                             ),
                             modifier = Modifier.testTag("home_cat_${cat.name.lowercase()}")
                         )
+                    }
+                }
+            }
+        }
+
+        // Exact user-ID results from the shared search box.
+        if (matchingUsers.isNotEmpty()) {
+            item {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Matching Users", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(matchingUsers, key = { "search_user_${it.userId}" }) { user ->
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .clickable { onOpenUserProfile(user) }
+                                    .padding(6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                VibeAvatar(
+                                    avatarUrl = user.avatarUrl,
+                                    username = user.username,
+                                    size = 42.dp,
+                                    vipLevel = if (user.isVipActive) user.vipLevel else 0L
+                                )
+                                Column {
+                                    Text(user.username, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                    Text("ID-${user.vibeId}", style = MaterialTheme.typography.labelSmall, color = VibeCyan)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -583,7 +634,9 @@ fun HomeScreen(
                         (searchQuery.isBlank() ||
                             room.title.contains(searchQuery, ignoreCase = true) ||
                             room.hostName.contains(searchQuery, ignoreCase = true) ||
-                            room.category.contains(searchQuery, ignoreCase = true))
+                            room.category.contains(searchQuery, ignoreCase = true) ||
+                            room.id.equals(searchQuery.trim(), ignoreCase = true) ||
+                            room.publicRoomId.equals(searchQuery.trim(), ignoreCase = true))
                 }
 
                 val recentlyJoined = filteredRooms.filter { it.id in recentRoomIds }
@@ -591,9 +644,18 @@ fun HomeScreen(
                 val trendingRooms = filteredRooms.sortedByDescending { (if (it.featured) 50 else 0) + it.activeSpeakersCount }
                 val recommendedRooms = filteredRooms.filter { it.hostId != currentUser.userId }.ifEmpty { filteredRooms }
 
-                if (filteredRooms.isEmpty()) {
+                if (filteredRooms.isEmpty() && matchingUsers.isEmpty()) {
                     item {
                         EmptyRoomsPrompt(onCreateRoomClick = onCreateRoomClick)
+                    }
+                } else if (filteredRooms.isEmpty()) {
+                    item {
+                        Text(
+                            "No live rooms match this search.",
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 } else {
                     if (recentlyJoined.isNotEmpty()) {

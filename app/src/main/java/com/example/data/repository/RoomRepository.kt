@@ -418,6 +418,7 @@ class RoomRepository(
                 tx.set(
                     roomRef,
                     mapOf(
+                        "publicRoomId" to roomId,
                         "creatorId" to uid,
                         "hostId" to uid,
                         "hostName" to host.username,

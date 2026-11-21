@@ -208,8 +208,8 @@ fun VoiceRoomScreen(
         onSendGift = { recId, recName, gift, qty ->
             roomViewModel.sendGift(currentUser, recId, recName, gift, qty)
         },
-        onUpdateRoomSettings = { t, ann, cat, lock, pwd ->
-            roomViewModel.updateRoomSettings(t, ann, cat, lock, pwd)
+        onUpdateRoomSettings = { t, ann, cat, cover, lock, pwd ->
+            roomViewModel.updateRoomSettings(t, ann, cat, cover, lock, pwd)
         },
         onTransferOwnership = { targetSeat ->
             roomViewModel.transferOwnership(currentRoom, targetSeat)
@@ -278,7 +278,7 @@ internal fun VoiceRoomStageContent(
     onClearGiftBurst: () -> Unit,
     onClearVipEntrance: () -> Unit = {},
     onSendGift: (recipientId: String, recipientName: String, gift: GiftCatalogItem, quantity: Long) -> Unit,
-    onUpdateRoomSettings: (title: String, announcement: String, category: String, locked: Boolean, passcode: String?) -> Unit,
+    onUpdateRoomSettings: (title: String, announcement: String, category: String, coverKey: String, locked: Boolean, passcode: String?) -> Unit,
     onTransferOwnership: (VoiceSeat) -> Unit,
     onPromoteOrDemoteAdmin: (userId: String, username: String, promote: Boolean) -> Unit = { _, _, _ -> },
     onEndRoom: () -> Unit,
@@ -932,8 +932,8 @@ internal fun VoiceRoomStageContent(
             stage = currentStage,
             isOwner = isOwner,
             onDismiss = { showHostSettings = false },
-            onSaveSettings = { t, ann, cat, lock, pwd ->
-                onUpdateRoomSettings(t, ann, cat, lock, pwd)
+            onSaveSettings = { t, ann, cat, cover, lock, pwd ->
+                onUpdateRoomSettings(t, ann, cat, cover, lock, pwd)
             },
             onMuteAllSpeakers = onMuteAllSpeakers,
             onTransferOwnership = { targetSeat ->

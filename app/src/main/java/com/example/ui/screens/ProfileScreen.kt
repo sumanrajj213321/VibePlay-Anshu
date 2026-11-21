@@ -326,7 +326,7 @@ fun ProfileScreen(
                     border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.42f))
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(9.dp)
                     ) {
@@ -339,7 +339,7 @@ fun ProfileScreen(
                             )
                             Text(
                                 text = profile.vibeId,
-                                style = MaterialTheme.typography.labelLarge,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold
                             )
@@ -365,7 +365,7 @@ fun ProfileScreen(
                         border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.65f))
                     ) {
                         Column(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Text(
@@ -376,9 +376,9 @@ fun ProfileScreen(
                             )
                             Text(
                                 text = "LEVEL ${profile.level}",
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.labelMedium,
                                 color = VibeGold,
-                                fontWeight = FontWeight.Black
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }

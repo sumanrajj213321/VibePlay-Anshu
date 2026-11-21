@@ -421,6 +421,9 @@ class UserRepository(
                 val expiryField = if (category == "TITLE") "titleExpiresAt" else "frameExpiresAt"
                 val activeField = if (category == "TITLE") "activeTitleId" else "activeFrameId"
                 val owned = (snap.get(ownedField) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                val activeTitles = ((snap.get("activeTitleIds") as? List<*>)?.filterIsInstance<String>()
+                    ?: listOfNotNull(snap.getString("activeTitleId")?.takeIf { it.isNotBlank() }))
+                    .distinct().take(4)
                 val expiries = (snap.get(expiryField) as? Map<*, *>)?.entries
                     ?.associate { it.key.toString() to (it.value as? Timestamp) } ?: emptyMap()
                 val currentExpiry = expiries[itemId]?.toDate()?.time ?: 0L
@@ -431,13 +434,18 @@ class UserRepository(
                 val expiresAt = Timestamp(java.util.Date(System.currentTimeMillis() + durationDays * 24L * 60L * 60L * 1000L))
                 val updatedExpiries = expiries.filterValues { it != null }.mapValues { it.value!! }.toMutableMap()
                 updatedExpiries[itemId] = expiresAt
-                tx.update(userRef, mapOf(
+                val update = mutableMapOf<String, Any>(
                     "coinBalance" to coins - item.coinPrice,
                     ownedField to if (itemId in owned) owned else FieldValue.arrayUnion(itemId),
                     expiryField to updatedExpiries,
                     activeField to itemId,
                     "updatedAt" to FieldValue.serverTimestamp()
-                ))
+                )
+                if (category == "TITLE") {
+                    update["activeTitleIds"] = if (itemId in activeTitles) activeTitles
+                        else if (activeTitles.size < 4) activeTitles + itemId else activeTitles
+                }
+                tx.update(userRef, update)
             }.await()
             Result.success(Unit)
         } catch (e: CancellationException) {
@@ -463,10 +471,27 @@ class UserRepository(
                 val expiryMap = (snap.get(expiryField) as? Map<*, *>) ?: emptyMap<Any, Any>()
                 val expiry = itemId?.let { expiryMap[it] as? Timestamp }
                 require(itemId.isNullOrBlank() || (itemId in owned && expiry?.toDate()?.after(java.util.Date()) == true)) { "This item has expired. Purchase it again." }
-                tx.update(userRef, mapOf(
-                    activeField to (itemId ?: ""),
-                    "updatedAt" to FieldValue.serverTimestamp()
-                ))
+                if (category == "TITLE") {
+                    val current = ((snap.get("activeTitleIds") as? List<*>)?.filterIsInstance<String>()
+                        ?: listOfNotNull(snap.getString("activeTitleId")?.takeIf { it.isNotBlank() }))
+                        .distinct().filter { titleId ->
+                            val titleExpiry = expiryMap[titleId] as? Timestamp
+                            titleId in owned && titleExpiry?.toDate()?.after(java.util.Date()) == true
+                        }.take(4)
+                    val next = when {
+                        itemId.isNullOrBlank() -> emptyList()
+                        itemId in current -> current - itemId
+                        current.size < 4 -> current + itemId
+                        else -> throw IllegalStateException("You can equip up to 4 titles. Unequip one first.")
+                    }
+                    tx.update(userRef, mapOf(
+                        "activeTitleIds" to next,
+                        "activeTitleId" to (next.firstOrNull() ?: ""),
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    ))
+                } else {
+                    tx.update(userRef, mapOf(activeField to (itemId ?: ""), "updatedAt" to FieldValue.serverTimestamp()))
+                }
             }.await()
             Result.success(Unit)
         } catch (e: CancellationException) {

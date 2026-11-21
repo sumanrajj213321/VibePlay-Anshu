@@ -22,6 +22,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.snapshots
+import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -125,6 +126,19 @@ class UserRepository(
                         )
                     }
                 }.await()
+            }
+
+            // Run the one-time legacy-user welcome grant only from the official admin account.
+            // The callable is idempotent and the server verifies the admin UID.
+            if (user.uid == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
+                try {
+                    FirebaseFunctions.getInstance("asia-south1")
+                        .getHttpsCallable("grantWelcomeBonusToExistingUsers")
+                        .call()
+                        .await()
+                } catch (_: Exception) {
+                    // Keep sign-in available if Functions has not been deployed yet.
+                }
             }
 
             val refreshed = userRef.get().await()

@@ -1457,6 +1457,7 @@ class RoomRepository(
                 "announcement" to announcement.trim().take(200),
                 "locked" to locked,
                 "coverKey" to coverKey,
+                "coverUrl" to "",
                 "updatedAt" to FieldValue.serverTimestamp()
             )
             if (!category.isNullOrBlank()) {

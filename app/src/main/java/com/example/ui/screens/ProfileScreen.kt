@@ -167,7 +167,7 @@ fun ProfileScreen(
                         avatarUrl = profile.avatarUrl,
                         username = profile.username,
                         size = 86.dp,
-                        vipLevel = profile.vipLevel,
+                        vipLevel = if (profile.isVipActive) profile.vipLevel else 0L,
                         online = profile.online && profile.showOnlineStatus,
                         frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == profile.activeFrameId && profile.isFrameActive(it.id) }?.colorArgb
                     )

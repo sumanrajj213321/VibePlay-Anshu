@@ -12,8 +12,7 @@ let testEnv;
 const PROJECT_ID = process.env.GCP_PROJECT || "demo-no-project";
 const ALICE_UID = "alice_uid_1";
 const BOB_UID = "bob_uid_2";
-const ADMIN_UID = "1fLIHgOyAJV6NbHBXNeVg9JR6v1";
-const ADMIN_EMAIL = "sumanrajj213321@gmail.com";
+const LEGACY_ADMIN_UID = "former_admin_uid";
 
 const [emulatorHost, emulatorPortStr] = (
   process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8085"
@@ -593,39 +592,26 @@ test("Private 1-to-1 conversations, images, notifications, and unfiltered query 
   await assertFails(aliceDb.collection("reports").get());
 });
 
-test("Hard-coded admin UID blocks spoofing and permits admin actions", async () => {
-  const spoofedAdminDb = testEnv
-    .authenticatedContext("spoof_uid", { email: ADMIN_EMAIL, email_verified: false })
-    .firestore();
-  const realAdminDb = testEnv
-    .authenticatedContext(ADMIN_UID, { email: ADMIN_EMAIL, email_verified: true })
-    .firestore();
+test("No global admin account or moderation bypass exists", async () => {
+  const legacyAdminDb = testEnv.authenticatedContext(LEGACY_ADMIN_UID).firestore();
 
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    await ctx.firestore().collection("users").doc(BOB_UID).set(makeUserPayload(BOB_UID, "Bob", "VP-200002"));
+    await ctx.firestore().collection("users").doc(BOB_UID).set({
+      ...makeUserPayload(BOB_UID, "Bob", "VP-200002"),
+      accountStatus: "SUSPENDED",
+    });
   });
 
-  // Unverified email claim MUST fail admin actions
+  await assertFails(legacyAdminDb.collection("users").doc(BOB_UID).get());
   await assertFails(
-    spoofedAdminDb.collection("users").doc(BOB_UID).update({
+    legacyAdminDb.collection("users").doc(BOB_UID).update({
       accountStatus: "BANNED",
       updatedAt: pastDate(),
     })
   );
-  await assertFails(spoofedAdminDb.collection("reports").get());
-
-  // Verified bootstrapped admin succeeds in moderating user & adding catalog gift
-  await assertSucceeds(
-    realAdminDb.collection("users").doc(BOB_UID).update({
-      accountStatus: "SUSPENDED",
-      vipLevel: 3,
-      vipExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      coinBalance: 2000,
-      updatedAt: pastDate(),
-    })
-  );
-  await assertSucceeds(
-    realAdminDb.collection("gifts_catalog").doc("gift_custom").set({
+  await assertFails(legacyAdminDb.collection("users").doc(BOB_UID).delete());
+  await assertFails(
+    legacyAdminDb.collection("gifts_catalog").doc("gift_custom").set({
       name: "Diamond Mic",
       category: "Luxury",
       coinCost: 800,
@@ -1082,7 +1068,7 @@ test("One permanent room per user: enforces lifetime lock across close, delete, 
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
   const adminDb = testEnv
-    .authenticatedContext(ADMIN_UID, { email: ADMIN_EMAIL, email_verified: true })
+    .authenticatedContext(LEGACY_ADMIN_UID, { email: ADMIN_EMAIL, email_verified: true })
     .firestore();
   const ts = pastDate(5000);
 

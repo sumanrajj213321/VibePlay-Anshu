@@ -188,6 +188,43 @@ fun EditProfileSheet(
                 }
             }
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    VibeAvatar(
+                        avatarUrl = avatarUrl,
+                        username = username,
+                        size = 76.dp,
+                        vipLevel = if (profile.isVipActive) profile.vipLevel else 0L
+                    )
+                    Text("Profile DP", style = MaterialTheme.typography.labelSmall)
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Cover Preview", style = MaterialTheme.typography.labelSmall)
+                    if (coverUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = coverUrl,
+                            contentDescription = "Selected cover photo preview",
+                            modifier = Modifier.fillMaxWidth().height(76.dp).clip(RoundedCornerShape(12.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().height(76.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("No cover selected", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+            }
+
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it.take(30) },

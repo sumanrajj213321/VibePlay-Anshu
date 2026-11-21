@@ -576,13 +576,6 @@ fun ProfileScreen(
                     }
                 }
 
-                ProfileActionRow(
-                    icon = Icons.Filled.CloudQueue,
-                    title = "LiveKit & Backend Setup Guide",
-                    subtitle = "Check Secrets & Firebase Console integration status",
-                    onClick = { showSetupGuide = true }
-                )
-
                 Spacer(modifier = Modifier.height(6.dp))
                 Button(
                     onClick = onSignOut,

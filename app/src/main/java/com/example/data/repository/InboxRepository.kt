@@ -6,6 +6,8 @@ import com.example.data.firebase.OperationType
 import com.example.data.firebase.handleFirestoreError
 import com.example.data.model.Conversation
 import com.example.data.model.DirectMessage
+import com.example.data.model.GiftCatalogItem
+import com.example.data.model.LevelProgression
 import com.example.data.model.UserProfile
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
@@ -255,6 +257,113 @@ class InboxRepository(
                 )
             }
             batch.commit().await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.CREATE, path)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun sendInboxGift(
+        conversation: Conversation,
+        sender: UserProfile,
+        gift: GiftCatalogItem,
+        quantity: Long = 1L
+    ): Result<Unit> {
+        val path = "conversations/${conversation.id}/messages"
+        return try {
+            val uid = requireUserId()
+            check(uid == sender.userId)
+            require(!conversation.isGroupChat) { "Gifts are currently available in direct chats only." }
+            val recipientId = conversation.participantIds.firstOrNull { it != uid }
+                ?: throw IllegalArgumentException("Recipient not found.")
+            val recipientName = conversation.participantNames[recipientId].orEmpty().ifBlank { "VibeUser" }
+            val safeQty = quantity.coerceIn(1L, 999L)
+            require(gift.coinCost > 0L && gift.coinCost <= Long.MAX_VALUE / safeQty) { "Invalid gift price." }
+            val totalCost = gift.coinCost * safeQty
+            val senderRef = db.collection("users").document(uid)
+            val recipientRef = db.collection("users").document(recipientId)
+            val conversationRef = db.collection("conversations").document(conversation.id)
+            val messageRef = conversationRef.collection("messages").document()
+            val giftRef = db.collection("gift_transactions").document()
+            val notificationRef = db.collection("notifications").document()
+
+            db.runTransaction { tx ->
+                val senderSnap = tx.get(senderRef)
+                val recipientSnap = tx.get(recipientRef)
+                val conversationSnap = tx.get(conversationRef)
+                check(senderSnap.exists() && recipientSnap.exists() && conversationSnap.exists()) {
+                    "Chat or recipient profile is unavailable."
+                }
+                val participants = conversationSnap.get("participantIds") as? List<*>
+                check(participants?.contains(uid) == true && participants.contains(recipientId)) {
+                    "You are no longer a member of this chat."
+                }
+                val liveCoins = senderSnap.getLong("coinBalance") ?: sender.coinBalance
+                require(liveCoins >= totalCost) { "Not enough coins. Need $totalCost coins." }
+                val senderXp = senderSnap.getLong("xp") ?: sender.xp
+                val recipientXp = recipientSnap.getLong("xp") ?: 0L
+                val senderNewXp = senderXp + totalCost / 5L
+                val recipientNewXp = recipientXp + totalCost / 5L
+                tx.update(senderRef, mapOf(
+                    "coinBalance" to (liveCoins - totalCost),
+                    "totalGiftsSent" to ((senderSnap.getLong("totalGiftsSent") ?: 0L) + safeQty),
+                    "xp" to senderNewXp,
+                    "level" to LevelProgression.levelForXp(senderNewXp),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ))
+                tx.update(recipientRef, mapOf(
+                    "totalGiftsReceived" to ((recipientSnap.getLong("totalGiftsReceived") ?: 0L) + safeQty),
+                    "xp" to recipientNewXp,
+                    "level" to LevelProgression.levelForXp(recipientNewXp),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ))
+                val giftLabel = if (safeQty > 1L) "${safeQty}x " else ""
+                val messageText = "🎁 Sent $giftLabel${gift.emoji} ${gift.name} to $recipientName!"
+                tx.set(giftRef, mapOf(
+                    "senderId" to uid,
+                    "senderName" to sender.username,
+                    "recipientId" to recipientId,
+                    "recipientName" to recipientName,
+                    "roomId" to "",
+                    "giftId" to gift.id,
+                    "giftName" to "${giftLabel}${gift.name}",
+                    "coinCost" to totalCost,
+                    "quantity" to safeQty,
+                    "participantIds" to listOf(uid, recipientId),
+                    "createdAt" to FieldValue.serverTimestamp()
+                ))
+                tx.set(messageRef, mapOf(
+                    "participantIds" to conversation.participantIds,
+                    "senderId" to uid,
+                    "senderName" to sender.username,
+                    "senderAvatarUrl" to sender.avatarUrl,
+                    "senderGender" to sender.gender,
+                    "type" to "TEXT",
+                    "text" to messageText,
+                    "read" to false,
+                    "createdAt" to FieldValue.serverTimestamp()
+                ))
+                tx.update(conversationRef, mapOf(
+                    "lastMessage" to messageText.take(120),
+                    "lastSenderId" to uid,
+                    "unreadBy" to listOf(recipientId),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ))
+                tx.set(notificationRef, mapOf(
+                    "recipientId" to recipientId,
+                    "senderId" to uid,
+                    "senderName" to sender.username.take(60),
+                    "type" to "GIFT",
+                    "title" to "You received a gift",
+                    "body" to messageText.take(240),
+                    "targetId" to conversation.id,
+                    "read" to false,
+                    "createdAt" to FieldValue.serverTimestamp()
+                ))
+            }.await()
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e

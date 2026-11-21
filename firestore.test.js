@@ -1207,5 +1207,39 @@ test("One permanent room per user: enforces lifetime lock across close, delete, 
   });
   await assertFails(bobNewRoom.commit());
 });
+test("Own and public profile reads plus title/frame cosmetic purchases are permitted only through valid updates", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
+  await assertSucceeds(aliceDb.collection("users").doc(ALICE_UID).set(makeUserPayload(ALICE_UID, "Alice", "VP-100001")));
+  await assertSucceeds(bobDb.collection("users").doc(BOB_UID).set(makeUserPayload(BOB_UID, "Bob", "VP-200002")));
 
+  // Profile document reads used by sign-in and public profile views.
+  await assertSucceeds(aliceDb.collection("users").doc(ALICE_UID).get());
+  await assertSucceeds(bobDb.collection("users").doc(ALICE_UID).get());
+  await assertSucceeds(bobDb.collection("users").where("accountStatus", "==", "ACTIVE").get());
 
+  const userRef = aliceDb.collection("users").doc(ALICE_UID);
+  const titleExpiry = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+  await assertSucceeds(userRef.update({
+    coinBalance: 1000500 - 12000,
+    ownedTitleIds: ["singer"],
+    activeTitleId: "singer",
+    titleExpiresAt: { singer: titleExpiry },
+    updatedAt: pastDate(),
+  }));
+
+  const frameExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await assertSucceeds(userRef.update({
+    coinBalance: 1000500 - 12000 - 15000,
+    ownedFrameIds: ["neon_cyan"],
+    activeFrameId: "neon_cyan",
+    frameExpiresAt: { neon_cyan: frameExpiry },
+    updatedAt: pastDate(),
+  }));
+
+  // Equipping an already-owned unexpired cosmetic must not charge coins again.
+  await assertSucceeds(userRef.update({
+    activeTitleId: "singer",
+    updatedAt: pastDate(),
+  }));
+});

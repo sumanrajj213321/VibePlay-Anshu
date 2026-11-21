@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Password
@@ -68,6 +69,7 @@ import com.example.ui.theme.VibeViolet
 fun RoomsHubScreen(
     currentUser: UserProfile,
     roomsState: UiState<List<VoiceRoom>>,
+    recentRoomIds: List<String> = emptyList(),
     hasCreatedRoom: Boolean = currentUser.hasCreatedRoom,
     createdRoomId: String = currentUser.createdRoomId,
     isCreatingRoom: Boolean = false,
@@ -95,6 +97,13 @@ fun RoomsHubScreen(
     val filteredLiveRooms = remember(liveRooms, selectedListCategory) {
         if (selectedListCategory == RoomCategory.ALL) liveRooms
         else liveRooms.filter { it.category.equals(selectedListCategory.label, ignoreCase = true) }
+    }
+    val recentlyJoinedRooms = remember(liveRooms, recentRoomIds, selectedListCategory) {
+        recentRoomIds.mapNotNull { roomId -> liveRooms.firstOrNull { it.id == roomId } }
+            .filter { room ->
+                selectedListCategory == RoomCategory.ALL ||
+                    room.category.equals(selectedListCategory.label, ignoreCase = true)
+            }
     }
     val myCreatedLiveRoom = remember(liveRooms, createdRoomId, currentUser.userId) {
         liveRooms.firstOrNull {
@@ -341,6 +350,21 @@ fun RoomsHubScreen(
 
         }
 
+        if (recentlyJoinedRooms.isNotEmpty()) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Filled.History, contentDescription = null, tint = VibePink)
+                        Text(text = "Recently Joined (${recentlyJoinedRooms.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(recentlyJoinedRooms, key = { "hub_recent_" + it.id }) { room ->
+                            VoiceRoomCard(room = room, onClick = { onOpenRoom(room) })
+                        }
+                    }
+                }
+            }
+        }
         if (liveRooms.isNotEmpty()) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

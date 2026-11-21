@@ -499,6 +499,7 @@ fun InboxScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChatDetailScreen(
     currentUser: UserProfile,

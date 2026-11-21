@@ -76,6 +76,9 @@ service cloud.firestore {
              (!('activeTitleId' in data) || (data.activeTitleId is string && data.activeTitleId.size() <= 40)) &&
              (!('ownedFrameIds' in data) || (data.ownedFrameIds is list && data.ownedFrameIds.size() <= 20)) &&
              (!('activeFrameId' in data) || (data.activeFrameId is string && data.activeFrameId.size() <= 40)) &&
+             (!('vipExpiresAt' in data) || data.vipExpiresAt is timestamp) &&
+             (!('titleExpiresAt' in data) || data.titleExpiresAt is map) &&
+             (!('frameExpiresAt' in data) || data.frameExpiresAt is map) &&
              data.coinBalance is int && data.coinBalance >= 0 &&
              (!('welcomeBonusGranted' in data) || data.welcomeBonusGranted is bool) &&
              (!('welcomeBonusGrantedAt' in data) || data.welcomeBonusGrantedAt is timestamp) &&
@@ -339,58 +342,46 @@ service cloud.firestore {
           (incoming().vipLevel == existing().vipLevel &&
            incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
            incoming().ownedTitleIds is list &&
-           incoming().ownedTitleIds.size() == (('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0) + 1 &&
            incoming().ownedTitleIds.hasAll(('ownedTitleIds' in existing()) ? existing().ownedTitleIds : []) &&
-           incoming().activeTitleId == (('activeTitleId' in existing()) ? existing().activeTitleId : '') &&
-           shopTitlePrice(incoming().ownedTitleIds[(('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0)]) >= 0 &&
-           incoming().coinBalance == existing().coinBalance - shopTitlePrice(incoming().ownedTitleIds[(('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0)]) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'activeTitleId', 'updatedAt'])) ||
+           incoming().ownedTitleIds.size() >= (('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0) &&
+           incoming().ownedTitleIds.size() <= (('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0) + 1 &&
+           incoming().activeTitleId is string &&
+           incoming().activeTitleId in incoming().ownedTitleIds &&
+           incoming().titleExpiresAt is map &&
+           incoming().titleExpiresAt[incoming().activeTitleId] is timestamp &&
+           incoming().titleExpiresAt[incoming().activeTitleId] > request.time &&
+           incoming().titleExpiresAt[incoming().activeTitleId] <= request.time + duration.value(15, 'd') &&
+           shopTitlePrice(incoming().activeTitleId) >= 0 &&
+           incoming().coinBalance == existing().coinBalance - shopTitlePrice(incoming().activeTitleId) &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'activeTitleId', 'titleExpiresAt', 'updatedAt'])) ||
           (incoming().vipLevel == existing().vipLevel &&
            incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
            incoming().ownedFrameIds is list &&
-           incoming().ownedFrameIds.size() == (('ownedFrameIds' in existing()) ? existing().ownedFrameIds.size() : 0) + 1 &&
            incoming().ownedFrameIds.hasAll(('ownedFrameIds' in existing()) ? existing().ownedFrameIds : []) &&
-           incoming().activeFrameId == (('activeFrameId' in existing()) ? existing().activeFrameId : '') &&
-           shopFramePrice(incoming().ownedFrameIds[(('ownedFrameIds' in existing()) ? existing().ownedFrameIds.size() : 0)]) >= 0 &&
-           incoming().coinBalance == existing().coinBalance - shopFramePrice(incoming().ownedFrameIds[(('ownedFrameIds' in existing()) ? existing().ownedFrameIds.size() : 0)]) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'updatedAt'])) ||
+           incoming().ownedFrameIds.size() >= (('ownedFrameIds' in existing()) ? existing().ownedFrameIds.size() : 0) &&
+           incoming().ownedFrameIds.size() <= (('ownedFrameIds' in existing()) ? existing().ownedFrameIds.size() : 0) + 1 &&
+           incoming().activeFrameId is string &&
+           incoming().activeFrameId in incoming().ownedFrameIds &&
+           incoming().frameExpiresAt is map &&
+           incoming().frameExpiresAt[incoming().activeFrameId] is timestamp &&
+           incoming().frameExpiresAt[incoming().activeFrameId] > request.time &&
+           incoming().frameExpiresAt[incoming().activeFrameId] <= request.time + duration.value(7, 'd') &&
+           shopFramePrice(incoming().activeFrameId) >= 0 &&
+           incoming().coinBalance == existing().coinBalance - shopFramePrice(incoming().activeFrameId) &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'updatedAt'])) ||
           (incoming().coinBalance == existing().coinBalance &&
            incoming().vipLevel == existing().vipLevel &&
            incoming().activeTitleId is string &&
-           (incoming().activeTitleId == '' || (incoming().ownedTitleIds is list && incoming().activeTitleId in incoming().ownedTitleIds)) &&
+           (incoming().activeTitleId == '' ||
+            (incoming().ownedTitleIds is list && incoming().activeTitleId in incoming().ownedTitleIds &&
+             incoming().titleExpiresAt is map && incoming().titleExpiresAt[incoming().activeTitleId] > request.time)) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['activeTitleId', 'updatedAt'])) ||
           (incoming().coinBalance == existing().coinBalance &&
            incoming().vipLevel == existing().vipLevel &&
            incoming().activeFrameId is string &&
-           (incoming().activeFrameId == '' || (incoming().ownedFrameIds is list && incoming().activeFrameId in incoming().ownedFrameIds)) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['activeFrameId', 'updatedAt'])) ||
-          (incoming().vipLevel == existing().vipLevel &&
-           incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
-           incoming().ownedTitleIds is list &&
-           incoming().ownedTitleIds.size() == (('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0) + 1 &&
-           incoming().ownedTitleIds.hasAll(('ownedTitleIds' in existing()) ? existing().ownedTitleIds : []) &&
-           incoming().activeTitleId == (('activeTitleId' in existing()) ? existing().activeTitleId : '') &&
-           shopTitlePrice(incoming().ownedTitleIds[(('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0)]) >= 0 &&
-           incoming().coinBalance == existing().coinBalance - shopTitlePrice(incoming().ownedTitleIds[(('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0)]) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'activeTitleId', 'updatedAt'])) ||
-          (incoming().vipLevel == existing().vipLevel &&
-           incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
-           incoming().ownedFrameIds is list &&
-           incoming().ownedFrameIds.size() == (('ownedFrameIds' in existing()) ? existing().ownedFrameIds.size() : 0) + 1 &&
-           incoming().ownedFrameIds.hasAll(('ownedFrameIds' in existing()) ? existing().ownedFrameIds : []) &&
-           incoming().activeFrameId == (('activeFrameId' in existing()) ? existing().activeFrameId : '') &&
-           shopFramePrice(incoming().ownedFrameIds[(('ownedFrameIds' in existing()) ? existing().ownedFrameIds.size() : 0)]) >= 0 &&
-           incoming().coinBalance == existing().coinBalance - shopFramePrice(incoming().ownedFrameIds[(('ownedFrameIds' in existing()) ? existing().ownedFrameIds.size() : 0)]) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'updatedAt'])) ||
-          (incoming().coinBalance == existing().coinBalance &&
-           incoming().vipLevel == existing().vipLevel &&
-           incoming().activeTitleId is string &&
-           (incoming().activeTitleId == '' || (incoming().ownedTitleIds is list && incoming().activeTitleId in incoming().ownedTitleIds)) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['activeTitleId', 'updatedAt'])) ||
-          (incoming().coinBalance == existing().coinBalance &&
-           incoming().vipLevel == existing().vipLevel &&
-           incoming().activeFrameId is string &&
-           (incoming().activeFrameId == '' || (incoming().ownedFrameIds is list && incoming().activeFrameId in incoming().ownedFrameIds)) &&
+           (incoming().activeFrameId == '' ||
+            (incoming().ownedFrameIds is list && incoming().activeFrameId in incoming().ownedFrameIds &&
+             incoming().frameExpiresAt is map && incoming().frameExpiresAt[incoming().activeFrameId] > request.time)) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['activeFrameId', 'updatedAt'])) ||
           (incoming().vipLevel == existing().vipLevel && incoming().coinBalance == existing().coinBalance + 150 &&
            (!('lastDailyClaimDay' in existing()) || incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&

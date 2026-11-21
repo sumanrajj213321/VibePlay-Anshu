@@ -447,6 +447,8 @@ class UserRepository(
                 tx.update(userRef, mapOf(
                     "coinBalance" to coins - item.coinPrice,
                     ownedField to FieldValue.arrayUnion(itemId),
+                    (if (category == "TITLE") "activeTitleId" else "activeFrameId") to
+                        (snap.getString(if (category == "TITLE") "activeTitleId" else "activeFrameId") ?: ""),
                     "updatedAt" to FieldValue.serverTimestamp()
                 ))
             }.await()

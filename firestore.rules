@@ -71,6 +71,17 @@ service cloud.firestore {
              itemId == 'aurora' ? 80000 : -1;
     }
 
+    function hasValidEquippedTitles(data) {
+      return data.activeTitleIds is list &&
+             data.activeTitleIds.size() <= 4 &&
+             data.activeTitleIds.hasOnly(data.ownedTitleIds) &&
+             data.activeTitleId == ((data.activeTitleIds.size() > 0) ? data.activeTitleIds[0] : '') &&
+             (data.activeTitleIds.size() < 1 || data.titleExpiresAt[data.activeTitleIds[0]] > request.time) &&
+             (data.activeTitleIds.size() < 2 || data.titleExpiresAt[data.activeTitleIds[1]] > request.time) &&
+             (data.activeTitleIds.size() < 3 || data.titleExpiresAt[data.activeTitleIds[2]] > request.time) &&
+             (data.activeTitleIds.size() < 4 || data.titleExpiresAt[data.activeTitleIds[3]] > request.time);
+    }
+
     function isValidUserProfile(data) {
       return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
              data.vibeId is string && data.vibeId.size() >= 3 && data.vibeId.size() <= 24 &&
@@ -354,69 +365,10 @@ service cloud.firestore {
              (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0) == 0 &&
              incoming().gender in ['FEMALE', 'MALE', 'NON_BINARY'] &&
              incoming().genderChangeCount == 1))) ||
-          (incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
-           incoming().followingCount is int && incoming().followingCount >= 0 &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['followingCount', 'updatedAt'])) ||
-          ((!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false) &&
-           incoming().hasCreatedRoom == true &&
-           isValidId(incoming().createdRoomId) &&
-           incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
-           existsAfter(/databases/$(database)/documents/room_creation_locks/$(userId)) &&
-           getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
-          (incoming().vipLevel == existing().vipLevel && incoming().coinBalance == existing().coinBalance + 150 &&
-           incoming().lastDailyClaimDay is string &&
-           (!('lastDailyClaimDay' in existing()) || incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&
-           incoming().lastDailyClaimAt is timestamp &&
-           incoming().lastDailyClaimAt > request.time - duration.value(1, 'm') &&
-           incoming().lastDailyClaimAt <= request.time &&
-           (!('lastDailyClaimAt' in existing()) ||
-            (existing().lastDailyClaimAt + duration.value(330, 'm')).date() !=
-            (request.time + duration.value(330, 'm')).date()) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'lastDailyClaimDay', 'lastDailyClaimAt', 'xp', 'level', 'updatedAt'])) ||
-          (incoming().vipLevel == existing().vipLevel && incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
-           incoming().totalGiftsSent is int &&
-           incoming().totalGiftsSent > (('totalGiftsSent' in existing()) ? existing().totalGiftsSent : 0) &&
-           incoming().totalGiftCoinsSent is int &&
-           incoming().totalGiftCoinsSent > (('totalGiftCoinsSent' in existing()) ? existing().totalGiftCoinsSent : 0) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'totalGiftsSent', 'totalGiftCoinsSent', 'xp', 'level', 'updatedAt'])) ||
-          (incoming().vipLevel == existing().vipLevel &&
-           incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
-           incoming().ownedTitleIds is list &&
-           incoming().ownedTitleIds.hasAll(('ownedTitleIds' in existing()) ? existing().ownedTitleIds : []) &&
-           incoming().ownedTitleIds.size() >= (('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0) &&
-           incoming().ownedTitleIds.size() <= (('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0) + 1 &&
-           incoming().activeTitleId is string &&
-           incoming().activeTitleId in incoming().ownedTitleIds &&
-           incoming().titleExpiresAt is map &&
-           incoming().titleExpiresAt[incoming().activeTitleId] is timestamp &&
-           incoming().titleExpiresAt[incoming().activeTitleId] > request.time - duration.value(1, 'm') &&
-           incoming().titleExpiresAt[incoming().activeTitleId] <= request.time + duration.value(15, 'd') + duration.value(1, 'm') &&
-           shopTitlePrice(incoming().activeTitleId) >= 0 &&
-           incoming().coinBalance == existing().coinBalance - shopTitlePrice(incoming().activeTitleId) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'activeTitleId', 'titleExpiresAt', 'updatedAt'])) ||
-          (incoming().vipLevel == existing().vipLevel &&
-           incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
-           incoming().ownedFrameIds is list &&
-           incoming().ownedFrameIds.hasAll(('ownedFrameIds' in existing()) ? existing().ownedFrameIds : []) &&
-           incoming().ownedFrameIds.size() >= (('ownedFrameIds' in existing()) ? existing().ownedFrameIds.size() : 0) &&
-           incoming().ownedFrameIds.size() <= (('ownedFrameIds' in existing()) ? existing().ownedFrameIds.size() : 0) + 1 &&
-           incoming().activeFrameId is string &&
-           incoming().activeFrameId in incoming().ownedFrameIds &&
-           incoming().frameExpiresAt is map &&
-           incoming().frameExpiresAt[incoming().activeFrameId] is timestamp &&
-           incoming().frameExpiresAt[incoming().activeFrameId] > request.time - duration.value(1, 'm') &&
-           incoming().frameExpiresAt[incoming().activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(1, 'm') &&
-           shopFramePrice(incoming().activeFrameId) >= 0 &&
-           incoming().coinBalance == existing().coinBalance - shopFramePrice(incoming().activeFrameId) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'updatedAt'])) ||
           (incoming().coinBalance == existing().coinBalance &&
            incoming().vipLevel == existing().vipLevel &&
-           incoming().activeTitleId is string &&
-           (incoming().activeTitleId == '' ||
-            (incoming().ownedTitleIds is list && incoming().activeTitleId in incoming().ownedTitleIds &&
-             incoming().titleExpiresAt is map && incoming().titleExpiresAt[incoming().activeTitleId] > request.time)) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['activeTitleId', 'updatedAt'])) ||
+           hasValidEquippedTitles(incoming()) &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['activeTitleId', 'activeTitleIds', 'updatedAt'])) ||
           (incoming().coinBalance == existing().coinBalance &&
            incoming().vipLevel == existing().vipLevel &&
            incoming().activeFrameId is string &&

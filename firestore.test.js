@@ -455,14 +455,16 @@ test("Room chat, speaker requests, virtual gift batch, and filtered repository q
   // Bob sends a virtual gift to Alice (matching RoomRepository.sendVirtualGift)
   const giftBatch = bobDb.batch();
   giftBatch.update(bobDb.collection("users").doc(BOB_UID), {
-    coinBalance: 450,
+    coinBalance: 1000450,
     totalGiftsSent: 1,
+    totalGiftCoinsSent: 50,
     xp: 25,
     level: 1,
     updatedAt: pastDate(),
   });
   giftBatch.update(bobDb.collection("users").doc(ALICE_UID), {
     totalGiftsReceived: 1,
+    totalGiftCoinsReceived: 50,
     xp: 50,
     level: 1,
     updatedAt: pastDate(),

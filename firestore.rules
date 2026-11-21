@@ -328,7 +328,6 @@ service cloud.firestore {
                        isValidTs(incoming().updatedAt);
 
       allow update: if isSignedIn() && isValidId(userId) &&
-                       isValidUserProfile(incoming()) &&
                        incoming().userId == existing().userId &&
                        incoming().createdAt == existing().createdAt &&
                        isValidTs(incoming().updatedAt) && (

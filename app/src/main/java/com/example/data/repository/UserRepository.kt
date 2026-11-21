@@ -66,6 +66,7 @@ class UserRepository(
                     "avatarUrl" to (user.photoUrl?.toString() ?: ""),
                     "coverUrl" to "",
                     "gender" to "UNSPECIFIED",
+                    "genderChangeCount" to 0L,
                     "age" to 0L,
                     "showAge" to false,
                     "showGender" to true,
@@ -222,20 +223,30 @@ class UserRepository(
             } else {
                 avatarUrl
             }
-            db.collection("users").document(currentUid).update(
-                mapOf(
+            val profileRef = db.collection("users").document(currentUid)
+            db.runTransaction { transaction ->
+                val snapshot = transaction.get(profileRef)
+                require(snapshot.exists()) { "Profile not found." }
+                val oldGender = snapshot.getString("gender") ?: "UNSPECIFIED"
+                val genderChanges = snapshot.getLong("genderChangeCount") ?: 0L
+                require(oldGender == gender || genderChanges < 1L) {
+                    "Gender can only be changed once in a lifetime. This change has already been used."
+                }
+                val updates = mutableMapOf<String, Any>(
                     "username" to cleanName,
                     "bio" to cleanBio,
                     "avatarUrl" to savedAvatarUrl.take(500),
                     "coverUrl" to coverUrl.take(500),
-                    "gender" to gender,
                     "age" to age,
                     "showAge" to showAge,
                     "showGender" to showGender,
                     "showOnlineStatus" to showOnlineStatus,
+                    "genderChangeCount" to if (oldGender == gender) genderChanges else genderChanges + 1L,
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
-            ).await()
+                if (oldGender != gender) updates["gender"] = gender
+                transaction.update(profileRef, updates)
+            }.await()
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e

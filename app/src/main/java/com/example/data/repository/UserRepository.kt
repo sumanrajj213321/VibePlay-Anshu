@@ -166,10 +166,15 @@ class UserRepository(
                 userRef.collection("private").document("account").set(privatePayload).await()
             } else {
                 // Do not mutate an existing profile during sign-in.
-                // Older profiles may contain legacy fields that fail the strict
-                // profile-update validator; reading the user's own document is
-                // already allowed by Firestore rules.
             }
+
+            // Ensure the deterministic official welcome conversation/message exists.
+            // Safe to retry after logout, reinstall, or temporary network failure.
+            ensureWelcomeInbox(
+                user.uid,
+                user.displayName?.takeIf { it.isNotBlank() } ?: snap.getString("username") ?: "VibeStar",
+                user.photoUrl?.toString() ?: snap.getString("avatarUrl") ?: ""
+            )
 
             // One-time automatic coin grant for the official account.
             // Firestore rules restrict this privileged update to the admin UID.

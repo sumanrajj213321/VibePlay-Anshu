@@ -27,7 +27,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.CloudQueue
@@ -88,7 +87,6 @@ import com.example.ui.theme.VibeViolet
 @Composable
 fun ProfileScreen(
     profile: UserProfile,
-    isAdmin: Boolean,
     darkTheme: Boolean,
     roomEffectsEnabled: Boolean = true,
     followingList: List<FollowEdge>,
@@ -104,7 +102,6 @@ fun ProfileScreen(
     onCopyVibeId: ((String) -> Unit)? = null,
     onUnblockUser: (String) -> Unit,
     onOpenNotifications: () -> Unit,
-    onOpenAdminPanel: () -> Unit,
     onSignOut: () -> Unit,
     onOpenShop: () -> Unit = {}
 ) {
@@ -613,16 +610,6 @@ fun ProfileScreen(
                     subtitle = "Check Secrets & Firebase Console integration status",
                     onClick = { showSetupGuide = true }
                 )
-
-                if (isAdmin) {
-                    ProfileActionRow(
-                        icon = Icons.Filled.AdminPanelSettings,
-                        title = "Admin Moderation Panel",
-                        subtitle = "Manage users, rooms, reports, gifts & VIP",
-                        accentTint = VibeGold,
-                        onClick = onOpenAdminPanel
-                    )
-                }
 
                 Spacer(modifier = Modifier.height(6.dp))
                 Button(

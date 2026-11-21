@@ -64,6 +64,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawscope.Stroke
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -161,7 +165,39 @@ fun VibeAvatar(
     }
 
     Box(
-        modifier = modifier.size(size),
+        modifier = modifier
+            .size(size)
+            .drawBehind {
+                if (frameColorArgb != null) {
+                    val frameColor = Color(frameColorArgb)
+                    val centerX = this.size.width / 2f
+                    val centerY = this.size.height / 2f
+                    val radius = this.size.minDimension / 2f - 2.dp.toPx()
+                    // Premium double halo and four animated jewel glints.
+                    drawCircle(
+                        color = frameColor.copy(alpha = 0.72f * pulseAlpha),
+                        radius = radius,
+                        center = androidx.compose.ui.geometry.Offset(centerX, centerY),
+                        style = Stroke(width = 1.6.dp.toPx())
+                    )
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.62f * pulseAlpha),
+                        radius = radius - 3.dp.toPx(),
+                        center = androidx.compose.ui.geometry.Offset(centerX, centerY),
+                        style = Stroke(width = 0.8.dp.toPx())
+                    )
+                    for (angle in listOf(-135.0, -45.0, 45.0, 135.0)) {
+                        val radians = Math.toRadians(angle)
+                        val x = centerX + cos(radians).toFloat() * radius
+                        val y = centerY + sin(radians).toFloat() * radius
+                        drawCircle(
+                            color = Color.White.copy(alpha = pulseAlpha),
+                            radius = 2.1.dp.toPx(),
+                            center = androidx.compose.ui.geometry.Offset(x, y)
+                        )
+                    }
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         Box(

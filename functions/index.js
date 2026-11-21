@@ -70,14 +70,14 @@ async function grantOne(uid) {
 }
 
 // Newly-created account: grant once and then send its official Inbox message.
-exports.grantWelcomeBonusOnNewUser = onDocumentCreated("users/{uid}", async (event) => {
+exports.grantWelcomeBonusOnNewUser = onDocumentCreated({ document: "users/{uid}", region: "asia-south1" }, async (event) => {
   await grantOne(event.params.uid);
 });
 
 // Existing-user migration. Only the configured official admin account can invoke it.
 // Call repeatedly with nextCursor until hasMore is false.
 exports.grantWelcomeBonusToExistingUsers = onCall(
-  { timeoutSeconds: 540, memory: "512MiB" },
+  { timeoutSeconds: 540, memory: "512MiB", region: "asia-south1" },
   async (request) => {
     if (!request.auth || request.auth.uid !== ADMIN_UID) {
       throw new HttpsError("permission-denied", "Only VibePlay Official can run this migration.");

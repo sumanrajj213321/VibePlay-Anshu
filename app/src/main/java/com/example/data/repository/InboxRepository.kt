@@ -310,12 +310,14 @@ class InboxRepository(
                 tx.update(senderRef, mapOf(
                     "coinBalance" to (liveCoins - totalCost),
                     "totalGiftsSent" to ((senderSnap.getLong("totalGiftsSent") ?: 0L) + safeQty),
+                    "totalGiftCoinsSent" to ((senderSnap.getLong("totalGiftCoinsSent") ?: 0L) + totalCost),
                     "xp" to senderNewXp,
                     "level" to LevelProgression.levelForXp(senderNewXp),
                     "updatedAt" to FieldValue.serverTimestamp()
                 ))
                 tx.update(recipientRef, mapOf(
                     "totalGiftsReceived" to ((recipientSnap.getLong("totalGiftsReceived") ?: 0L) + safeQty),
+                    "totalGiftCoinsReceived" to ((recipientSnap.getLong("totalGiftCoinsReceived") ?: 0L) + totalCost),
                     "xp" to recipientNewXp,
                     "level" to LevelProgression.levelForXp(recipientNewXp),
                     "updatedAt" to FieldValue.serverTimestamp()

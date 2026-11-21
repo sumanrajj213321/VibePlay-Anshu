@@ -98,6 +98,8 @@ import kotlinx.coroutines.flow.Flow
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+private const val OFFICIAL_BOT_UID = "VIBEPLAY_OFFICIAL_BOT"
+
 @Composable
 fun InboxScreen(
     currentUser: UserProfile,
@@ -298,6 +300,7 @@ fun InboxScreen(
                     val isPinned = conv.id in pinnedSet
                     val isUnread = conv.unreadBy.contains(currentUser.userId)
                     val peerId = conv.participantIds.firstOrNull { it != currentUser.userId } ?: ""
+                    val isOfficialBot = !conv.isGroupChat && peerId == OFFICIAL_BOT_UID
                     val peerProfile = activeUsers.firstOrNull { it.userId == peerId }
                     val displayName = if (conv.isGroupChat) {
                         conv.groupName.ifBlank { "Group Chat" }
@@ -309,7 +312,7 @@ fun InboxScreen(
                     } else {
                         peerProfile?.avatarUrl ?: conv.participantAvatars[peerId] ?: ""
                     }
-                    val isOnline = if (conv.isGroupChat) false else (peerProfile?.let { it.online && it.showOnlineStatus } ?: false)
+                    val isOnline = if (conv.isGroupChat || isOfficialBot) false else (peerProfile?.let { it.online && it.showOnlineStatus } ?: false)
 
                     Surface(
                         shape = RoundedCornerShape(18.dp),
@@ -382,6 +385,22 @@ fun InboxScreen(
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f, fill = false)
                                     )
+                                    if (isOfficialBot) {
+                                        Surface(
+                                            shape = RoundedCornerShape(50),
+                                            color = VibeGold.copy(alpha = 0.18f)
+                                        ) {
+                                            Text(
+                                                text = "BOT",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = VibeGold,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                modifier = Modifier
+                                                    .padding(horizontal = 7.dp, vertical = 2.dp)
+                                                    .testTag("official_bot_badge_${conv.id}")
+                                            )
+                                        }
+                                    }
                                     if (conv.isGroupChat) {
                                         Surface(
                                             shape = RoundedCornerShape(50),
@@ -529,6 +548,7 @@ private fun ChatDetailScreen(
 
     val isGroup = conversation.isGroupChat
     val peerId = conversation.participantIds.firstOrNull { it != currentUser.userId } ?: ""
+    val isOfficialBot = !isGroup && peerId == OFFICIAL_BOT_UID
     val peerProfile = activeUsers.firstOrNull { it.userId == peerId }
     val headerTitle = if (isGroup) {
         conversation.groupName.ifBlank { "Group Chat" }
@@ -589,7 +609,7 @@ private fun ChatDetailScreen(
                         .clickable {
                             if (isGroup) {
                                 showGroupInfoSheet = true
-                            } else if (peerId.isNotBlank()) {
+                            } else if (!isOfficialBot && peerId.isNotBlank()) {
                                 onInspectPeer(peerId)
                             }
                         }
@@ -614,16 +634,16 @@ private fun ChatDetailScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = if (isGroup) {
-                                "${conversation.participantIds.size} members · Tap for info"
-                            } else if (peerProfile?.online == true && peerProfile.showOnlineStatus) {
-                                "Online"
-                            } else {
-                                "Offline"
+                            text = when {
+                                isGroup -> "${conversation.participantIds.size} members · Tap for info"
+                                isOfficialBot -> "BOT"
+                                peerProfile?.online == true && peerProfile.showOnlineStatus -> "Online"
+                                else -> "Offline"
                             },
                             style = MaterialTheme.typography.labelSmall,
                             color = when {
                                 isGroup -> VibeCyan
+                                isOfficialBot -> VibeGold
                                 peerProfile?.online == true && peerProfile.showOnlineStatus -> VibeEmerald
                                 else -> MaterialTheme.colorScheme.onSurfaceVariant
                             }
@@ -672,7 +692,8 @@ private fun ChatDetailScreen(
                 messages,
                 key = { index, msg -> msg.id.ifBlank { "dm_${index}_${msg.senderId}_${msg.text.hashCode()}" } }
             ) { _, msg ->
-                if (msg.type == "SYSTEM") {
+                val isOfficialBotMessage = msg.senderId == OFFICIAL_BOT_UID
+                if (msg.type == "SYSTEM" && !isOfficialBotMessage) {
                     Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.Center
@@ -724,7 +745,7 @@ private fun ChatDetailScreen(
                         Box(
                             modifier = Modifier
                                 .padding(end = 6.dp)
-                                .clickable { onInspectPeer(msg.senderId) }
+                                .then(if (isOfficialBotMessage) Modifier else Modifier.clickable { onInspectPeer(msg.senderId) })
                                 .testTag("dm_sender_avatar_${msg.id}")
                         ) {
                             VibeAvatar(
@@ -736,7 +757,11 @@ private fun ChatDetailScreen(
                     }
                     Surface(
                         shape = RoundedCornerShape(18.dp),
-                        color = if (isMine) VibeViolet else MaterialTheme.colorScheme.surfaceVariant,
+                        color = when {
+                            isMine -> VibeViolet
+                            isOfficialBotMessage -> VibeGold.copy(alpha = 0.10f)
+                            else -> MaterialTheme.colorScheme.surfaceVariant
+                        },
                         modifier = Modifier.widthIn(max = 280.dp)
                     ) {
                         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -745,14 +770,18 @@ private fun ChatDetailScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     modifier = Modifier
-                                        .clickable { onInspectPeer(msg.senderId) }
+                                        .then(if (isOfficialBotMessage) Modifier else Modifier.clickable { onInspectPeer(msg.senderId) })
                                         .testTag("dm_sender_name_${msg.id}")
                                 ) {
                                     Text(
                                         text = senderName,
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isMine) Color.White.copy(alpha = 0.9f) else VibeCyan
+                                        color = when {
+                                            isMine -> Color.White.copy(alpha = 0.9f)
+                                            isOfficialBotMessage -> VibeGold
+                                            else -> VibeCyan
+                                        }
                                     )
                                 }
                             }

@@ -54,6 +54,10 @@ data class UserProfile(
     val level: Long = 1L,
     val xp: Long = 0L,
     val vipLevel: Long = 0L,
+    val ownedTitleIds: List<String> = emptyList(),
+    val activeTitleId: String = "",
+    val ownedFrameIds: List<String> = emptyList(),
+    val activeFrameId: String = "",
     val coinBalance: Long = 500L,
     val totalGiftsReceived: Long = 0L,
     val totalGiftsSent: Long = 0L,
@@ -550,6 +554,37 @@ data class VipTier(
     val entranceEffect: String,
     val perks: List<String>
 )
+
+
+data class ShopCosmeticItem(
+    val id: String,
+    val title: String,
+    val coinPrice: Long,
+    val colorArgb: Long,
+    val subtitle: String
+)
+
+object VibeShopCatalog {
+    val titles = listOf(
+        ShopCosmeticItem("singer", "Singer", 12_000L, 0xFF22D3EE, "The voice of VibePlay"),
+        ShopCosmeticItem("charming", "Charming", 15_000L, 0xFFF472B6, "A little sparkle, a lot of charm"),
+        ShopCosmeticItem("princess", "Princess", 18_000L, 0xFFC084FC, "A royal profile identity"),
+        ShopCosmeticItem("prince", "Prince", 18_000L, 0xFF60A5FA, "A royal profile identity"),
+        ShopCosmeticItem("queen", "Queen", 25_000L, 0xFFFF72B6, "Own your crown"),
+        ShopCosmeticItem("king", "King", 25_000L, 0xFFFBBF24, "Rule your own stage"),
+        ShopCosmeticItem("boss", "Boss", 30_000L, 0xFFFB923C, "Confident. Bold. Unmissable."),
+        ShopCosmeticItem("filthy_rich", "Filthy Rich", 50_000L, 0xFFFFD700, "Luxury looks good on you"),
+        ShopCosmeticItem("legend", "Legend", 65_000L, 0xFF34D399, "A name worth remembering"),
+        ShopCosmeticItem("royal_star", "Royal Star", 80_000L, 0xFFA78BFA, "A premium royal signature")
+    )
+    val frames = listOf(
+        ShopCosmeticItem("neon_cyan", "Neon Cyan", 15_000L, 0xFF22D3EE, "Electric cyan avatar frame"),
+        ShopCosmeticItem("rose_gold", "Rose Gold", 25_000L, 0xFFF472B6, "Soft rose-gold shimmer"),
+        ShopCosmeticItem("royal_gold", "Royal Gold", 40_000L, 0xFFFBBF24, "A golden royal outline"),
+        ShopCosmeticItem("galaxy", "Galaxy", 60_000L, 0xFFA78BFA, "Deep-space violet frame"),
+        ShopCosmeticItem("aurora", "Aurora", 80_000L, 0xFF34D399, "Aurora-inspired premium frame")
+    )
+}
 
 object VibeCatalogDefaults {
     val defaultGifts = listOf(

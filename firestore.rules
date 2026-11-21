@@ -34,7 +34,6 @@ service cloud.firestore {
 
     // --- Validation Helpers ---
 
-
     function shopTitlePrice(itemId) {
       return itemId == 'singer' ? 12000 :
              itemId == 'charming' ? 15000 :
@@ -47,6 +46,7 @@ service cloud.firestore {
              itemId == 'legend' ? 65000 :
              itemId == 'royal_star' ? 80000 : -1;
     }
+
     function shopFramePrice(itemId) {
       return itemId == 'neon_cyan' ? 15000 :
              itemId == 'rose_gold' ? 25000 :
@@ -80,8 +80,6 @@ service cloud.firestore {
              (!('titleExpiresAt' in data) || data.titleExpiresAt is map) &&
              (!('frameExpiresAt' in data) || data.frameExpiresAt is map) &&
              data.coinBalance is int && data.coinBalance >= 0 &&
-             (!('welcomeBonusGranted' in data) || data.welcomeBonusGranted is bool) &&
-             (!('welcomeBonusGrantedAt' in data) || data.welcomeBonusGrantedAt is timestamp) &&
              (!('totalGiftsReceived' in data) || (data.totalGiftsReceived is int && data.totalGiftsReceived >= 0)) &&
              (!('totalGiftsSent' in data) || (data.totalGiftsSent is int && data.totalGiftsSent >= 0)) &&
              (!('totalGiftCoinsSent' in data) || (data.totalGiftCoinsSent is int && data.totalGiftCoinsSent >= 0)) &&
@@ -317,12 +315,12 @@ service cloud.firestore {
            incoming().officialCoinsGranted == true &&
            incoming().coinBalance == 1000000000 &&
            incoming().vipLevel == existing().vipLevel &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'officialCoinsGranted', 'updatedAt']))
-          || ((!('welcomeBonusGranted' in existing()) || existing().welcomeBonusGranted == false) &&
-              incoming().welcomeBonusGranted == true &&
-              incoming().coinBalance == existing().coinBalance + 1000000 &&
-              incoming().vipLevel == existing().vipLevel &&
-              incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'welcomeBonusGranted', 'welcomeBonusGrantedAt', 'updatedAt']))
+           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'officialCoinsGranted', 'updatedAt'])) ||
+          ((!('welcomeBonusGranted' in existing()) || existing().welcomeBonusGranted == false) &&
+           incoming().welcomeBonusGranted == true &&
+           incoming().coinBalance == existing().coinBalance + 1000000 &&
+           incoming().vipLevel == existing().vipLevel &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'welcomeBonusGranted', 'welcomeBonusGrantedAt', 'updatedAt']))
         )) ||
         (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
           (incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
@@ -339,6 +337,15 @@ service cloud.firestore {
            existsAfter(/databases/$(database)/documents/room_creation_locks/$(userId)) &&
            getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
            incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
+          (incoming().vipLevel == existing().vipLevel && incoming().coinBalance == existing().coinBalance + 150 &&
+           (!('lastDailyClaimDay' in existing()) || incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'lastDailyClaimDay', 'xp', 'level', 'updatedAt'])) ||
+          (incoming().vipLevel == existing().vipLevel && incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
+           incoming().totalGiftsSent is int &&
+           incoming().totalGiftsSent > (('totalGiftsSent' in existing()) ? existing().totalGiftsSent : 0) &&
+           incoming().totalGiftCoinsSent is int &&
+           incoming().totalGiftCoinsSent > (('totalGiftCoinsSent' in existing()) ? existing().totalGiftCoinsSent : 0) &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'totalGiftsSent', 'totalGiftCoinsSent', 'xp', 'level', 'updatedAt'])) ||
           (incoming().vipLevel == existing().vipLevel &&
            incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
            incoming().ownedTitleIds is list &&
@@ -349,8 +356,8 @@ service cloud.firestore {
            incoming().activeTitleId in incoming().ownedTitleIds &&
            incoming().titleExpiresAt is map &&
            incoming().titleExpiresAt[incoming().activeTitleId] is timestamp &&
-           incoming().titleExpiresAt[incoming().activeTitleId] > request.time &&
-           incoming().titleExpiresAt[incoming().activeTitleId] <= request.time + duration.value(15, 'd') &&
+           incoming().titleExpiresAt[incoming().activeTitleId] > request.time - duration.value(1, 'm') &&
+           incoming().titleExpiresAt[incoming().activeTitleId] <= request.time + duration.value(15, 'd') + duration.value(1, 'm') &&
            shopTitlePrice(incoming().activeTitleId) >= 0 &&
            incoming().coinBalance == existing().coinBalance - shopTitlePrice(incoming().activeTitleId) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'activeTitleId', 'titleExpiresAt', 'updatedAt'])) ||
@@ -364,8 +371,8 @@ service cloud.firestore {
            incoming().activeFrameId in incoming().ownedFrameIds &&
            incoming().frameExpiresAt is map &&
            incoming().frameExpiresAt[incoming().activeFrameId] is timestamp &&
-           incoming().frameExpiresAt[incoming().activeFrameId] > request.time &&
-           incoming().frameExpiresAt[incoming().activeFrameId] <= request.time + duration.value(7, 'd') &&
+           incoming().frameExpiresAt[incoming().activeFrameId] > request.time - duration.value(1, 'm') &&
+           incoming().frameExpiresAt[incoming().activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(1, 'm') &&
            shopFramePrice(incoming().activeFrameId) >= 0 &&
            incoming().coinBalance == existing().coinBalance - shopFramePrice(incoming().activeFrameId) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'updatedAt'])) ||
@@ -383,22 +390,13 @@ service cloud.firestore {
             (incoming().ownedFrameIds is list && incoming().activeFrameId in incoming().ownedFrameIds &&
              incoming().frameExpiresAt is map && incoming().frameExpiresAt[incoming().activeFrameId] > request.time)) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['activeFrameId', 'updatedAt'])) ||
-          (incoming().vipLevel == existing().vipLevel && incoming().coinBalance == existing().coinBalance + 150 &&
-           (!('lastDailyClaimDay' in existing()) || incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'lastDailyClaimDay', 'xp', 'level', 'updatedAt'])) ||
-          (incoming().vipLevel == existing().vipLevel && incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
-           incoming().totalGiftsSent is int &&
-           incoming().totalGiftsSent > (('totalGiftsSent' in existing()) ? existing().totalGiftsSent : 0) &&
-           incoming().totalGiftCoinsSent is int &&
-           incoming().totalGiftCoinsSent > (('totalGiftCoinsSent' in existing()) ? existing().totalGiftCoinsSent : 0) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'totalGiftsSent', 'totalGiftCoinsSent', 'xp', 'level', 'updatedAt'])) ||
           (incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
            incoming().vipLevel >= 1 && incoming().vipLevel <= 30 &&
            (incoming().vipLevel > existing().vipLevel ||
-            (('vipExpiresAt' in existing()) && existing().vipExpiresAt <= request.time)) &&
+            (!('vipExpiresAt' in existing()) || existing().vipExpiresAt <= request.time)) &&
            incoming().vipExpiresAt is timestamp &&
-           incoming().vipExpiresAt > request.time &&
-           incoming().vipExpiresAt <= request.time + duration.value(30, 'd') &&
+           incoming().vipExpiresAt > request.time - duration.value(1, 'm') &&
+           incoming().vipExpiresAt <= request.time + duration.value(30, 'd') + duration.value(1, 'm') &&
            incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'vipLevel', 'vipExpiresAt', 'updatedAt']))
         )) ||
         (request.auth.uid != userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus &&
@@ -632,126 +630,12 @@ service cloud.firestore {
     match /conversations/{conversationId} {
       // Signed-in users may check whether a deterministic conversation ID exists.
       // Existing conversations remain readable only by their participants.
-      allow get: if isSignedIn() && isValidId(conversationId) && (
-                   !exists(/databases/$(database)/documents/conversations/$(conversationId)) ||
-                   request.auth.uid in existing().participantIds ||
-                   (isAdmin() && conversationId.matches('^bot_[A-Za-z0-9_\\-]+
+      allow get: if isSignedIn() && isValidId(conversationId) &&
+                   (!exists(/databases/$(database)/documents/conversations/$(conversationId)) ||
+                    request.auth.uid in existing().participantIds);
       allow list: if isSignedIn() && request.auth.uid in existing().participantIds;
       allow create: if isSignedIn() && isValidId(conversationId) &&
-                       (request.auth.uid in incoming().participantIds ||
-                        (isAdmin() && 'VIBEPLAY_OFFICIAL_BOT' in incoming().participantIds && incoming().participantIds.size() == 2)) &&
-                       (!('conversationType' in incoming()) || incoming().conversationType == 'DIRECT' || incoming().ownerId == request.auth.uid) &&
-                       isValidConversation(incoming()) &&
-                       isValidTs(incoming().createdAt) &&
-                       isValidTs(incoming().updatedAt);
-      allow update: if isSignedIn() && isValidId(conversationId) &&
-                       request.auth.uid in existing().participantIds &&
-                       incoming().createdAt == existing().createdAt &&
-                       isValidConversation(incoming()) &&
-                       isValidTs(incoming().updatedAt) && (
-        (incoming().participantIds == existing().participantIds &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastSenderId', 'unreadBy', 'participantNames', 'participantAvatars', 'updatedAt'])) ||
-        (('conversationType' in existing() && existing().conversationType == 'GROUP') &&
-         (('ownerId' in existing() && existing().ownerId == request.auth.uid) ||
-          ('adminIds' in existing() && request.auth.uid in existing().adminIds)) &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['groupName', 'groupAvatarUrl', 'participantIds', 'participantNames', 'participantAvatars', 'adminIds', 'ownerId', 'lastMessage', 'lastSenderId', 'unreadBy', 'updatedAt'])) ||
-        (('conversationType' in existing() && existing().conversationType == 'GROUP') &&
-         !(request.auth.uid in incoming().participantIds) &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['participantIds', 'participantNames', 'participantAvatars', 'adminIds', 'ownerId', 'unreadBy', 'lastMessage', 'lastSenderId', 'updatedAt']))
-      );
-      allow delete: if isSignedIn() && isValidId(conversationId) && (('ownerId' in existing() && existing().ownerId == request.auth.uid) || (request.auth.uid in existing().participantIds && existing().participantIds.size() <= 1));
-
-      match /messages/{messageId} {
-        allow get: if isSignedIn() && isValidId(messageId) && (
-                     isAdmin() ||
-                     request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
-                   );
-        allow list: if isSignedIn() && (
-                      isAdmin() ||
-                      request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
-                    );
-        allow create: if isSignedIn() && isValidId(messageId) &&
-                         isValidDirectMessage(incoming()) &&
-                         isValidTs(incoming().createdAt) && (
-                           (request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
-                            incoming().senderId == request.auth.uid) ||
-                           (incoming().senderId == 'VIBEPLAY_OFFICIAL_BOT' &&
-                            incoming().type == 'SYSTEM' &&
-                            messageId == 'welcome_10_lakh_bonus' &&
-                            incoming().text == '🎉 10 LAKH COINS WELCOME BONUS!\n\nCongratulations! 🥳 VibePlay ki taraf se aapke account mein 10,00,000 bonus coins add kiye gaye hain.\n\n❤️ Enjoy VibePlay, send gifts and have fun!\n\n— Team VibePlay' &&
-                            ('VIBEPLAY_OFFICIAL_BOT' in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
-                             (isAdmin() ||
-                              request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds))
-                         );
-        allow update: if isSignedIn() && isValidId(messageId) &&
-                         request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
-                         isValidDirectMessage(incoming()) &&
-                         incoming().diff(existing()).affectedKeys().hasOnly(['read']);
-      }
-    }
-
-    match /gift_transactions/{txId} {
-      allow get: if isSignedIn() && isValidId(txId) && (request.auth.uid in existing().participantIds || isAdmin());
-      allow list: if isSignedIn() && (request.auth.uid in existing().participantIds || isAdmin());
-      allow create: if isSignedIn() && isValidId(txId) &&
-                       incoming().senderId == request.auth.uid &&
                        request.auth.uid in incoming().participantIds &&
-                       isValidGiftTransaction(incoming()) &&
-                       isValidTs(incoming().createdAt);
-      allow update, delete: if false;
-    }
-
-    match /notifications/{notificationId} {
-      allow get: if isSignedIn() && isValidId(notificationId) && (existing().recipientId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (existing().recipientId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && isValidId(notificationId) &&
-                       incoming().senderId == request.auth.uid &&
-                       isValidNotification(incoming()) &&
-                       isValidTs(incoming().createdAt);
-      allow update: if isSignedIn() && isValidId(notificationId) &&
-                       existing().recipientId == request.auth.uid &&
-                       isValidNotification(incoming()) &&
-                       incoming().diff(existing()).affectedKeys().hasOnly(['read']);
-      allow delete: if isSignedIn() && existing().recipientId == request.auth.uid;
-    }
-
-    match /reports/{reportId} {
-      allow get: if isSignedIn() && isValidId(reportId) && (existing().reporterId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (existing().reporterId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && isValidId(reportId) &&
-                       incoming().reporterId == request.auth.uid &&
-                       incoming().status == 'OPEN' &&
-                       isValidReport(incoming()) &&
-                       isValidTs(incoming().createdAt) &&
-                       isValidTs(incoming().updatedAt);
-      allow update: if isSignedIn() && isValidId(reportId) &&
-                       isAdmin() &&
-                       isValidReport(incoming()) &&
-                       incoming().reporterId == existing().reporterId &&
-                       incoming().createdAt == existing().createdAt &&
-                       isValidTs(incoming().updatedAt);
-      allow delete: if isAdmin();
-    }
-
-    match /gifts_catalog/{giftId} {
-      allow get: if isSignedIn() && isValidId(giftId) && (existing().active == true || isAdmin());
-      allow list: if isSignedIn() && (existing().active == true || isAdmin());
-      allow create, update: if isSignedIn() && isValidId(giftId) &&
-                               isAdmin() &&
-                               isValidGiftCatalogItem(incoming()) &&
-                               isValidTs(incoming().updatedAt);
-      allow delete: if isAdmin();
-    }
-  }
-}
-) &&
-                    'VIBEPLAY_OFFICIAL_BOT' in existing().participantIds &&
-                    existing().participantIds.size() == 2)
-                 );
-      allow list: if isSignedIn() && request.auth.uid in existing().participantIds;
-      allow create: if isSignedIn() && isValidId(conversationId) &&
-                       (request.auth.uid in incoming().participantIds ||
-                        (isAdmin() && 'VIBEPLAY_OFFICIAL_BOT' in incoming().participantIds && incoming().participantIds.size() == 2)) &&
                        (!('conversationType' in incoming()) || incoming().conversationType == 'DIRECT' || incoming().ownerId == request.auth.uid) &&
                        isValidConversation(incoming()) &&
                        isValidTs(incoming().createdAt) &&
@@ -774,14 +658,8 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(conversationId) && (('ownerId' in existing() && existing().ownerId == request.auth.uid) || (request.auth.uid in existing().participantIds && existing().participantIds.size() <= 1));
 
       match /messages/{messageId} {
-        allow get: if isSignedIn() && isValidId(messageId) && (
-                     isAdmin() ||
-                     request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
-                   );
-        allow list: if isSignedIn() && (
-                      isAdmin() ||
-                      request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
-                    );
+        allow get: if isSignedIn() && isValidId(messageId) && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+        allow list: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
         allow create: if isSignedIn() && isValidId(messageId) &&
                          isValidDirectMessage(incoming()) &&
                          isValidTs(incoming().createdAt) && (
@@ -791,9 +669,9 @@ service cloud.firestore {
                             incoming().type == 'SYSTEM' &&
                             messageId == 'welcome_10_lakh_bonus' &&
                             incoming().text == '🎉 10 LAKH COINS WELCOME BONUS!\n\nCongratulations! 🥳 VibePlay ki taraf se aapke account mein 10,00,000 bonus coins add kiye gaye hain.\n\n❤️ Enjoy VibePlay, send gifts and have fun!\n\n— Team VibePlay' &&
-                            (isAdmin() ||
-                             (request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
-                              'VIBEPLAY_OFFICIAL_BOT' in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds)))
+                            request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                            'VIBEPLAY_OFFICIAL_BOT' in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.welcomeBonusGranted == true)
                          );
         allow update: if isSignedIn() && isValidId(messageId) &&
                          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&

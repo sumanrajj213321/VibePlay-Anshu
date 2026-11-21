@@ -388,6 +388,8 @@ class RoomViewModel(
                 roomRepository.updateRoomCoverUrl(roomId, downloadUrl)
                     .onSuccess { _roomError.value = "Room cover uploaded successfully." }
                     .onFailure { _roomError.value = it.localizedMessage ?: "Could not save room cover." }
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: Exception) {
                 _roomError.value = error.localizedMessage ?: "Room cover upload failed."
             }

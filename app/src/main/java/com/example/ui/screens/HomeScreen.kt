@@ -469,7 +469,7 @@ fun HomeScreen(
                                     size = 54.dp,
                                     vipLevel = user.vipLevel,
                                     online = true,
-                                    frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == user.activeFrameId }?.colorArgb
+                                    frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == user.activeFrameId && user.isFrameActive(it.id) }?.colorArgb
                                 )
                                 Spacer(modifier = Modifier.height(5.dp))
                                 Text(

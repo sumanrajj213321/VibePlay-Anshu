@@ -127,6 +127,7 @@ data class FollowEdge(
 @IgnoreExtraProperties
 data class VoiceRoom(
     @DocumentId val id: String = "",
+    val publicRoomId: String = "",
     val creatorId: String = "",
     val hostId: String = "",
     val hostName: String = "",

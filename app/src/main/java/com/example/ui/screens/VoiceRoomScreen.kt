@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Share
@@ -472,7 +473,7 @@ internal fun VoiceRoomStageContent(
                                         .testTag(if (isManager) "host_online_members_button" else "my_speaker_seat_button")
                                 ) {
                                     Icon(
-                                        imageVector = if (isManager) Icons.Filled.People else Icons.Filled.Mic,
+                                        imageVector = if (isManager) Icons.Filled.People else Icons.Filled.MoreVert,
                                         contentDescription = if (isManager) "Online room members" else "Manage my speaker seat",
                                         tint = controlTint
                                     )

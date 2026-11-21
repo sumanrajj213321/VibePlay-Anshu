@@ -498,11 +498,14 @@ service cloud.firestore {
       }
 
       match /messages/{messageId} {
+        // A user can only read messages created at or after their latest room join.
         allow get: if isSignedIn() && isValidId(messageId) &&
                       exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
+                      existing().createdAt >= get(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)).data.joinedAt &&
                       existing().type in ['TEXT', 'GIFT', 'SYSTEM'];
         allow list: if isSignedIn() &&
                        exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
+                       existing().createdAt >= get(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)).data.joinedAt &&
                        existing().type in ['TEXT', 'GIFT', 'SYSTEM'];
         allow create: if isSignedIn() && isValidId(messageId) &&
                          incoming().senderId == request.auth.uid &&

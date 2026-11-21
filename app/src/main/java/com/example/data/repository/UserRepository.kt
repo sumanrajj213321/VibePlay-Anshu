@@ -188,8 +188,8 @@ class UserRepository(
             resized.compress(Bitmap.CompressFormat.JPEG, quality, output)
             bytes = output.toByteArray()
             quality -= 8
-        } while (bytes.size > 300 * 1024 && quality >= 42)
-        if (bytes.size > 300 * 1024) throw IllegalArgumentException("Please choose a smaller photo. Profile photos must compress below 300 KB.")
+        } while (bytes.size > 700 * 1024 && quality >= 42)
+        if (bytes.size > 700 * 1024) throw IllegalArgumentException("Please choose a smaller photo. Profile photos must compress below 700 KB.")
         val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
         db.collection("users").document(uid).collection("avatar").document("image").set(
             mapOf("data" to encoded, "contentType" to "image/jpeg", "updatedAt" to FieldValue.serverTimestamp())

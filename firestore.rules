@@ -276,7 +276,16 @@ service cloud.firestore {
                        incoming().userId == existing().userId &&
                        incoming().createdAt == existing().createdAt &&
                        isValidTs(incoming().updatedAt) && (
-        (isAdmin() && (!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false || (incoming().hasCreatedRoom == true && (!('createdRoomId' in existing()) || incoming().createdRoomId == existing().createdRoomId)))) ||
+        (isAdmin() && (
+          (!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false ||
+           (incoming().hasCreatedRoom == true && (!('createdRoomId' in existing()) || incoming().createdRoomId == existing().createdRoomId))) ||
+          (userId == '1fLIHgOyAJV6LNbHBXNeVg9JR6v1' &&
+           (!('officialCoinsGranted' in existing()) || existing().officialCoinsGranted == false) &&
+           incoming().officialCoinsGranted == true &&
+           incoming().coinBalance == 1000000000 &&
+           incoming().vipLevel == existing().vipLevel &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'officialCoinsGranted', 'updatedAt']))
+        )) ||
         (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
           (incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
            incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarUrl', 'coverUrl', 'gender', 'genderChangeCount', 'age', 'ageRange', 'showAge', 'showGender', 'showOnlineStatus', 'online', 'followingCount', 'followersCount', 'updatedAt']) &&

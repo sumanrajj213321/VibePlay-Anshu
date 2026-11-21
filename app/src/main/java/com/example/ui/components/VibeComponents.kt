@@ -258,28 +258,48 @@ fun VipBadgePill(vipLevel: Long, modifier: Modifier = Modifier) {
     if (vipLevel <= 0L) return
     val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == vipLevel.toInt() }
     val accent = tier?.let { Color(it.badgeColorHex) } ?: VibeGold
+    val luxuryBrush = Brush.linearGradient(
+        listOf(
+            Color(0xFF17131F),
+            accent.copy(alpha = 0.42f),
+            Color(0xFF29202B)
+        )
+    )
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(50),
-        color = accent.copy(alpha = 0.2f),
-        border = BorderStroke(1.dp, accent.copy(alpha = 0.75f))
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFF17131F),
+        shadowElevation = 3.dp,
+        border = BorderStroke(
+            1.5.dp,
+            Brush.linearGradient(listOf(Color(0xFFFFE7A3), accent, Color(0xFF8B6A35)))
+        )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+            modifier = Modifier
+                .background(luxuryBrush)
+                .padding(horizontal = 11.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             Icon(
                 imageVector = Icons.Filled.Star,
                 contentDescription = null,
-                tint = accent,
-                modifier = Modifier.size(11.dp)
+                tint = Color(0xFFFFE7A3),
+                modifier = Modifier.size(14.dp)
             )
             Text(
-                text = "VIP $vipLevel",
-                style = MaterialTheme.typography.labelSmall,
-                color = accent,
-                fontWeight = FontWeight.Bold
+                text = "VIP",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color(0xFFFFE7A3),
+                fontWeight = FontWeight.Black,
+                letterSpacing = 0.8.sp
+            )
+            Text(
+                text = vipLevel.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White,
+                fontWeight = FontWeight.ExtraBold
             )
         }
     }

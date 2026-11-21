@@ -1616,7 +1616,7 @@ class RoomRepository(
 
             db.runTransaction { tx ->
                 val senderSnap = tx.get(senderRef)
-                val recipientSnap = if (recipientId != uid) tx.get(recipientRef) else null
+                val recipientSnap = if (recipientId != uid) tx.get(recipientRef) else senderSnap
 
                 val liveCoins = senderSnap.getLong("coinBalance") ?: sender.coinBalance
                 val liveSent = senderSnap.getLong("totalGiftsSent") ?: sender.totalGiftsSent
@@ -1624,19 +1624,37 @@ class RoomRepository(
                 require(liveCoins >= totalCost) { "Not enough coins for ${safeQty}x ${gift.name} ($totalCost needed)." }
 
                 val newSenderXp = liveSenderXp + (totalCost / 5L)
-                tx.update(
-                    senderRef,
-                    mapOf(
-                        "coinBalance" to (liveCoins - totalCost),
-                        "totalGiftsSent" to (liveSent + safeQty),
-                        "totalGiftCoinsSent" to ((senderSnap.getLong("totalGiftCoinsSent") ?: 0L) + totalCost),
-                        "xp" to newSenderXp,
-                        "level" to LevelProgression.levelForXp(newSenderXp),
-                        "updatedAt" to FieldValue.serverTimestamp()
+                if (recipientId == uid) {
+                    // Self-gifts count as both sent and received; update the user
+                    // document once to keep both counters and coin totals consistent.
+                    tx.update(
+                        senderRef,
+                        mapOf(
+                            "coinBalance" to (liveCoins - totalCost),
+                            "totalGiftsSent" to (liveSent + safeQty),
+                            "totalGiftCoinsSent" to ((senderSnap.getLong("totalGiftCoinsSent") ?: 0L) + totalCost),
+                            "totalGiftsReceived" to ((senderSnap.getLong("totalGiftsReceived") ?: 0L) + safeQty),
+                            "totalGiftCoinsReceived" to ((senderSnap.getLong("totalGiftCoinsReceived") ?: 0L) + totalCost),
+                            "xp" to newSenderXp,
+                            "level" to LevelProgression.levelForXp(newSenderXp),
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
                     )
-                )
+                } else {
+                    tx.update(
+                        senderRef,
+                        mapOf(
+                            "coinBalance" to (liveCoins - totalCost),
+                            "totalGiftsSent" to (liveSent + safeQty),
+                            "totalGiftCoinsSent" to ((senderSnap.getLong("totalGiftCoinsSent") ?: 0L) + totalCost),
+                            "xp" to newSenderXp,
+                            "level" to LevelProgression.levelForXp(newSenderXp),
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                }
 
-                if (recipientSnap != null && recipientSnap.exists()) {
+                if (recipientSnap != null && recipientSnap.exists() && recipientId != uid) {
                     val recReceived = recipientSnap.getLong("totalGiftsReceived") ?: 0L
                     val recXp = recipientSnap.getLong("xp") ?: 0L
                     val updatedRecXp = recXp + (totalCost / 5L)

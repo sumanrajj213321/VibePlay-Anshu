@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,6 +62,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.GiftCatalogItem
 import com.example.data.model.RoomCategory
+import com.example.data.model.RoomCoverPreset
 import com.example.data.model.RoomListener
 import com.example.data.model.RoomOnlineMember
 import com.example.data.model.SpeakerRequest
@@ -76,6 +79,7 @@ import com.example.data.model.VoiceRoom
 import com.example.data.model.VoiceSeat
 import com.example.data.model.VoiceStage
 import com.example.ui.components.VibeAvatar
+import com.example.ui.components.coverDrawableRes
 import com.example.ui.components.VipBadgePill
 import com.example.ui.theme.VibeCoral
 import com.example.ui.theme.VibeCyan
@@ -271,7 +275,7 @@ fun HostSettingsSheet(
     stage: VoiceStage,
     isOwner: Boolean = true,
     onDismiss: () -> Unit,
-    onSaveSettings: (title: String, announcement: String, category: String, locked: Boolean, newPassword: String?) -> Unit,
+    onSaveSettings: (title: String, announcement: String, category: String, coverKey: String, locked: Boolean, newPassword: String?) -> Unit,
     onMuteAllSpeakers: () -> Unit = {},
     onTransferOwnership: (VoiceSeat) -> Unit,
     onEndRoom: () -> Unit
@@ -279,6 +283,7 @@ fun HostSettingsSheet(
     var title by remember(room.title) { mutableStateOf(room.title) }
     var announcement by remember(room.announcement) { mutableStateOf(room.announcement) }
     var selectedCategory by remember(room.category) { mutableStateOf(RoomCategory.fromString(room.category)) }
+    var selectedCoverKey by remember(room.coverKey) { mutableStateOf(room.coverKey) }
     var locked by remember(room.locked) { mutableStateOf(room.locked) }
     var changePassword by remember { mutableStateOf(false) }
     var newPassword by remember { mutableStateOf("") }
@@ -350,6 +355,44 @@ fun HostSettingsSheet(
                 }
             }
             item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Room Cover Gallery", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(RoomCoverPreset.entries) { preset ->
+                            val selected = selectedCoverKey == preset.key
+                            Column(
+                                modifier = Modifier
+                                    .width(150.dp)
+                                    .clickable { selectedCoverKey = preset.key }
+                                    .testTag("room_cover_${preset.key}"),
+                                verticalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(id = coverDrawableRes(preset.key)),
+                                    contentDescription = preset.label,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(82.dp)
+                                        .then(
+                                            if (selected) Modifier.border(3.dp, VibeCyan, RoundedCornerShape(12.dp))
+                                            else Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                                        ),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                )
+                                Text(
+                                    text = preset.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (selected) VibeCyan else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -391,6 +434,7 @@ fun HostSettingsSheet(
                             title,
                             announcement,
                             selectedCategory.label,
+                            selectedCoverKey,
                             locked,
                             if (changePassword) newPassword else null
                         )

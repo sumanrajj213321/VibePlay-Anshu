@@ -136,7 +136,7 @@ fun VoiceRoomScreen(
     val messages by roomViewModel.messages.collectAsStateWithLifecycle()
     val listeners by roomViewModel.listeners.collectAsStateWithLifecycle()
     val onlineUsers by roomViewModel.onlineUsers.collectAsStateWithLifecycle()
-    val mySeatInvitation by roomViewModel.myPendingSpeakerRequest.collectAsStateWithLifecycle()
+    val mySeatInvitation by roomViewModel.mySeatInvitation.collectAsStateWithLifecycle()
     val voiceConnection by roomViewModel.voiceConnectionState.collectAsStateWithLifecycle()
     val giftBurst by roomViewModel.giftBurst.collectAsStateWithLifecycle()
     val vipEntrance by roomViewModel.vipEntrance.collectAsStateWithLifecycle()
@@ -594,7 +594,7 @@ internal fun VoiceRoomStageContent(
                             shape = RoundedCornerShape(50),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
                             modifier = Modifier
-                                .clickable { showListenersAndRequests = true }
+                                .clickable { showOnlineMembers = true }
                                 .testTag("room_listeners_pill")
                         ) {
                             Row(
@@ -908,7 +908,7 @@ internal fun VoiceRoomStageContent(
         }
     }
 
-    if (showListenersAndRequests) {
+    if (showOnlineMembers) {
         val firstOpenSeat = VoiceStage.findAvailableSpeakerSeat(currentStage)
         RoomOnlineMembersSheet(
             isHost = isManager,
@@ -927,19 +927,19 @@ internal fun VoiceRoomStageContent(
                         listener.vipLevel,
                         listener.gender
                     )
-                    showListenersAndRequests = false
+                    showOnlineMembers = false
                 }
             },
             onOpenUserProfile = onOpenUserProfile,
             onToggleRoomAdmin = onPromoteOrDemoteAdmin,
             onReportListener = { listener: RoomListener ->
-                showListenersAndRequests = false
+                showOnlineMembers = false
                 reportTarget = Triple("USER", listener.userId, listener.username)
             },
             onBlockListener = { listener ->
                 onBlockUser(listener.userId)
             },
-            onDismiss = { showListenersAndRequests = false }
+            onDismiss = { showOnlineMembers = false }
         )
     }
 

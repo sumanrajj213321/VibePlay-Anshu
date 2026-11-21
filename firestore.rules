@@ -357,7 +357,7 @@ service cloud.firestore {
             (incoming().vipLevel > 0 &&
              incoming().vipExpiresAt is timestamp &&
              incoming().vipExpiresAt > request.time - duration.value(1, 'm') &&
-             incoming().vipExpiresAt <= request.time + duration.value(30, 'd') + duration.value(1, 'm')))
+             incoming().vipExpiresAt <= request.time + duration.value(30, 'd') + duration.value(1, 'm'))))
         )) ||
         (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
           (incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&

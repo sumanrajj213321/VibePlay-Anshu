@@ -380,7 +380,7 @@ class RoomRepository(
             val lockRef = db.collection("room_creation_locks").document(uid)
 
             var roomIdCollisionAttempts = 0
-            while (true) {
+            while (roomIdCollisionAttempts < 12) {
                 val roomId = (100000 + roomIdRandom.nextInt(900000)).toString()
                 val roomRef = db.collection("rooms").document(roomId)
                 try {
@@ -509,9 +509,10 @@ class RoomRepository(
                     return@withLock Result.success(roomRef.id)
                 } catch (collision: RoomIdCollisionException) {
                     roomIdCollisionAttempts += 1
-                    if (roomIdCollisionAttempts >= 12) throw collision
+                    roomIdCollisionAttempts += 1
                 }
             }
+            throw RoomIdCollisionException()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

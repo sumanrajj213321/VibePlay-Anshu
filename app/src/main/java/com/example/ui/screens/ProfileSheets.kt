@@ -618,12 +618,12 @@ fun PublicProfileSheet(
                     size = 68.dp,
                     vipLevel = targetUser.vipLevel,
                     online = targetUser.online && targetUser.showOnlineStatus,
-                    frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == targetUser.activeFrameId }?.colorArgb
+                    frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == targetUser.activeFrameId && targetUser.isFrameActive(it.id) }?.colorArgb
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(targetUser.username, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        VibeShopCatalog.titles.firstOrNull { it.id == targetUser.activeTitleId }?.let { title ->
+                        VibeShopCatalog.titles.firstOrNull { it.id == targetUser.activeTitleId && targetUser.isTitleActive(it.id) }?.let { title ->
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
                                 color = Color(title.colorArgb).copy(alpha = 0.18f),
@@ -658,7 +658,7 @@ fun PublicProfileSheet(
                             compact = true
                         )
                         LevelBadge(targetUser.level)
-                        VipBadgePill(targetUser.vipLevel)
+                        if (targetUser.isVipActive) VipBadgePill(targetUser.vipLevel)
                     }
                     val ageSuffix = if (targetUser.showAge && targetUser.formattedAge != null) " · ${targetUser.formattedAge}" else ""
                     Text(

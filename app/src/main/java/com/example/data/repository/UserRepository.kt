@@ -1,7 +1,10 @@
 package com.example.data.repository
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Base64
 import com.example.R
 import com.example.data.firebase.OperationType
 import com.example.data.firebase.handleFirestoreError
@@ -11,6 +14,7 @@ import com.example.data.model.RoomCreationLock
 import com.example.data.model.UserProfile
 import com.example.data.model.VibeCatalogDefaults
 import com.google.firebase.Firebase
+import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.auth
@@ -18,11 +22,11 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.snapshots
-import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
+import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -170,6 +174,29 @@ class UserRepository(
                 snap.toObjects(FollowEdge::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
             }
 
+    private suspend fun saveAvatarToFirestore(uid: String, uri: Uri) {
+        val resolver = FirebaseApp.getInstance().applicationContext.contentResolver
+        val input = resolver.openInputStream(uri) ?: throw IllegalArgumentException("Could not read the selected photo.")
+        val original = input.use { BitmapFactory.decodeStream(it) } ?: throw IllegalArgumentException("Selected photo is not a supported image.")
+        val maxSide = 512
+        val scale = minOf(1f, maxSide.toFloat() / maxOf(original.width, original.height))
+        val resized = if (scale < 1f) Bitmap.createScaledBitmap(original, (original.width * scale).toInt().coerceAtLeast(1), (original.height * scale).toInt().coerceAtLeast(1), true) else original
+        var quality = 82
+        var bytes: ByteArray
+        do {
+            val output = ByteArrayOutputStream()
+            resized.compress(Bitmap.CompressFormat.JPEG, quality, output)
+            bytes = output.toByteArray()
+            quality -= 8
+        } while (bytes.size > 300 * 1024 && quality >= 42)
+        if (bytes.size > 300 * 1024) throw IllegalArgumentException("Please choose a smaller photo. Profile photos must compress below 300 KB.")
+        val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
+        db.collection("users").document(uid).collection("avatar").document("image").set(
+            mapOf("data" to encoded, "contentType" to "image/jpeg", "updatedAt" to FieldValue.serverTimestamp())
+        ).await()
+        if (resized !== original) resized.recycle()
+        original.recycle()
+    }
     suspend fun updateProfile(
         username: String,
         bio: String,
@@ -190,10 +217,8 @@ class UserRepository(
             require(age == 0L || age in 13L..120L) { "Please enter an exact age between 13 and 120 (or leave blank)." }
             val cleanBio = bio.trim().take(200)
             val savedAvatarUrl = if (avatarUrl.startsWith("content://")) {
-                val avatarRef = FirebaseStorage.getInstance().reference
-                    .child("avatars/$currentUid/profile_${System.currentTimeMillis()}.jpg")
-                avatarRef.putFile(Uri.parse(avatarUrl)).await()
-                avatarRef.downloadUrl.await().toString()
+                saveAvatarToFirestore(currentUid, Uri.parse(avatarUrl))
+                "firestore-avatar://$currentUid"
             } else {
                 avatarUrl
             }

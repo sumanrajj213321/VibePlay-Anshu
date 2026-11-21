@@ -1223,14 +1223,24 @@ test("Own and public profile reads plus title/frame cosmetic purchases are permi
   await assertSucceeds(userRef.update({
     coinBalance: 1000500 - 12000,
     ownedTitleIds: ["singer"],
-    activeTitleId: "singer",
+    lastPurchasedTitleId: "singer",
     titleExpiresAt: { singer: titleExpiry },
+    updatedAt: pastDate(),
+  }));
+
+  // A second title can be purchased without equipping either title.
+  const secondTitleExpiry = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+  await assertSucceeds(userRef.update({
+    coinBalance: 1000500 - 12000 - 15000,
+    ownedTitleIds: ["singer", "charming"],
+    lastPurchasedTitleId: "charming",
+    titleExpiresAt: { singer: titleExpiry, charming: secondTitleExpiry },
     updatedAt: pastDate(),
   }));
 
   const frameExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   await assertSucceeds(userRef.update({
-    coinBalance: 1000500 - 12000 - 15000,
+    coinBalance: 1000500 - 12000 - 15000 - 15000,
     ownedFrameIds: ["neon_cyan"],
     activeFrameId: "neon_cyan",
     frameExpiresAt: { neon_cyan: frameExpiry },

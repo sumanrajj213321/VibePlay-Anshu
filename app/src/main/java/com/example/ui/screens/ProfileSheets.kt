@@ -168,7 +168,11 @@ fun EditProfileSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Text("Gender", style = MaterialTheme.typography.labelLarge)
+            val genderLocked = profile.gender != "UNSPECIFIED" || profile.genderChangeCount >= 1L
+            Text(
+                if (genderLocked) "Gender (permanent)" else "Gender (choose once)",
+                style = MaterialTheme.typography.labelLarge
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("UNSPECIFIED", "FEMALE", "MALE", "NON_BINARY").forEach { g ->
                     val label = when (g) {
@@ -179,10 +183,18 @@ fun EditProfileSheet(
                     }
                     FilterChip(
                         selected = gender == g,
+                        enabled = !genderLocked,
                         onClick = { gender = g },
                         label = { Text(label, style = MaterialTheme.typography.labelSmall) }
                     )
                 }
+            }
+            if (genderLocked) {
+                Text(
+                    "Your gender selection is permanent and cannot be edited.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             OutlinedTextField(

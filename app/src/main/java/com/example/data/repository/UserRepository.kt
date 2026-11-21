@@ -142,15 +142,22 @@ class UserRepository(
                 // Do not mutate an existing profile during sign-in.
             }
 
-            // Ensure the deterministic official welcome conversation/message exists.
-            // Safe to retry after logout, reinstall, or temporary network failure.
-            val latestProfile = userRef.get().await()
-            if (latestProfile.getBoolean("welcomeBonusGranted") == true) {
-                ensureWelcomeInbox(
-                    user.uid,
-                    user.displayName?.takeIf { it.isNotBlank() } ?: latestProfile.getString("username") ?: "VibeStar",
-                    user.photoUrl?.toString() ?: latestProfile.getString("avatarUrl") ?: ""
-                )
+            // The welcome inbox is a best-effort side effect, not a prerequisite
+            // for loading the signed-in user's profile. A stale or partially-created
+            // welcome conversation must never lock the user out of the whole app.
+            try {
+                val latestProfile = userRef.get().await()
+                if (latestProfile.getBoolean("welcomeBonusGranted") == true) {
+                    ensureWelcomeInbox(
+                        user.uid,
+                        user.displayName?.takeIf { it.isNotBlank() } ?: latestProfile.getString("username") ?: "VibeStar",
+                        user.photoUrl?.toString() ?: latestProfile.getString("avatarUrl") ?: ""
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("VibePlayUserRepository", "Welcome inbox setup failed; continuing profile initialization.", e)
             }
 
             val refreshed = userRef.get().await()

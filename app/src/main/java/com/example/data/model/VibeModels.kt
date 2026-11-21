@@ -417,7 +417,8 @@ data class RoomListener(
     val vipLevel: Long = 0L,
     val gender: String = "UNSPECIFIED",
     val role: String = "LISTENER",
-    val joinedAt: Timestamp? = null
+    val joinedAt: Timestamp? = null,
+    val frameColorArgb: Long? = null
 )
 
 data class RoomOnlineMember(
@@ -428,7 +429,8 @@ data class RoomOnlineMember(
     val gender: String = "UNSPECIFIED",
     val stageRole: String = "LISTENER",
     val seatIndex: Int? = null,
-    val isRoomAdmin: Boolean = false
+    val isRoomAdmin: Boolean = false,
+    val frameColorArgb: Long? = null
 )
 
 @Keep

@@ -122,13 +122,19 @@ class RoomRepository(
             .snapshots()
             .map { snapshot ->
                 snapshot.documents.mapNotNull { document ->
-                    val profile = document.toObject(UserProfile::class.java) ?: return@mapNotNull null
+                    // A malformed legacy profile must not terminate the entire live seat stream.
+                    val profile = runCatching {
+                        document.toObject(UserProfile::class.java)
+                    }.getOrNull() ?: return@mapNotNull null
                     val activeFrame = VibeShopCatalog.frames.firstOrNull {
                         it.id == profile.activeFrameId && profile.isFrameActive(it.id)
                     }
                     document.id to (activeFrame?.colorArgb)
                 }.toMap()
             }
+            // Frame metadata is supplementary; seat occupancy and lock state must remain observable
+            // even if the online-users query temporarily fails.
+            .catch { emit(emptyMap()) }
         return combine(seatsFlow, sessionsFlow, onlineUsersFlow, observeRoom(roomId)) { seats, sessionIds, onlineFrameColors, room ->
             val activeSessionIds = sessionIds.intersect(onlineFrameColors.keys)
             seats.filter { seat ->

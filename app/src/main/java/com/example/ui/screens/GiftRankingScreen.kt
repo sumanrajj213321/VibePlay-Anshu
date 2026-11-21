@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.model.UserProfile
+import com.example.data.model.VibeShopCatalog
 import com.example.ui.components.VibeAvatar
 import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibePink
@@ -102,7 +103,8 @@ fun GiftRankingScreen(
                                 avatarUrl = user.avatarUrl,
                                 username = user.username,
                                 size = 52.dp,
-                                vipLevel = user.vipLevel
+                                vipLevel = user.vipLevel,
+                                frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == user.activeFrameId }?.colorArgb
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(user.username, fontWeight = FontWeight.Bold, maxLines = 1)

@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -230,7 +229,7 @@ fun ProfileScreen(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.WorkspacePremium,
+                                imageVector = Icons.Filled.Star,
                                 contentDescription = null,
                                 tint = titleColor,
                                 modifier = Modifier.size(15.dp)
@@ -240,7 +239,7 @@ fun ProfileScreen(
                                 style = MaterialTheme.typography.labelMedium,
                                 color = titleColor,
                                 fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 0.65.sp
+                                letterSpacing = 0.65f.sp
                             )
                         }
                     }

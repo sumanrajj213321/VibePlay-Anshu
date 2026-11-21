@@ -794,7 +794,7 @@ internal fun VoiceRoomStageContent(
                                     VibeAvatar(
                                         avatarUrl = msg.senderAvatarUrl,
                                         username = msg.senderName,
-                                        size = 36.dp,
+                                        size = 42.dp,
                                         vipLevel = msg.senderVipLevel
                                     )
                                     Column(
@@ -807,6 +807,7 @@ internal fun VoiceRoomStageContent(
                                         ) {
                                             Text(
                                                 text = msg.senderName.ifBlank { "User" },
+                                                modifier = Modifier.weight(1f),
                                                 style = MaterialTheme.typography.labelMedium,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onSurface,
@@ -814,7 +815,7 @@ internal fun VoiceRoomStageContent(
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                             if (msg.senderVipLevel > 0) {
-                                                VipBadgePill(msg.senderVipLevel)
+                                                VipBadgePill(msg.senderVipLevel, compact = true)
                                             }
                                         }
                                         Text(

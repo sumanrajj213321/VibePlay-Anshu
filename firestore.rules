@@ -177,7 +177,7 @@ service cloud.firestore {
              (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 500)) &&
              (!('vipLevel' in data) || (data.vipLevel is int && data.vipLevel >= 0 && data.vipLevel <= 30)) &&
              (!('preferredSeatIndex' in data) || (data.preferredSeatIndex is int && data.preferredSeatIndex >= 0 && data.preferredSeatIndex <= 8)) &&
-             data.status in ['PENDING', 'APPROVED', 'REJECTED'];
+             data.status in ['PENDING', 'INVITED', 'ACCEPTED', 'APPROVED', 'REJECTED'];
     }
 
     function isValidRoomMessage(data) {
@@ -561,13 +561,19 @@ service cloud.firestore {
         allow get: if isSignedIn() && isValidId(requestId) && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) || isAdmin());
         allow list: if isSignedIn() && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) || isAdmin());
         allow create: if isSignedIn() && isValidId(requestId) &&
-                         requestId == request.auth.uid &&
-                         incoming().userId == request.auth.uid &&
-                         incoming().hostId == get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId &&
-                         incoming().status == 'PENDING' &&
                          isValidSpeakerRequest(incoming()) &&
+                         incoming().hostId == get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId &&
                          isValidTs(incoming().createdAt) &&
-                         isValidTs(incoming().updatedAt);
+                         isValidTs(incoming().updatedAt) && (
+          (requestId == request.auth.uid &&
+           incoming().userId == request.auth.uid &&
+           incoming().status == 'PENDING') ||
+          (requestId == incoming().userId &&
+           incoming().status == 'INVITED' &&
+           isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
+           incoming().preferredSeatIndex >= 1 &&
+           incoming().preferredSeatIndex <= 8)
+        );
         allow update: if isSignedIn() && isValidId(requestId) &&
                          isValidSpeakerRequest(incoming()) &&
                          incoming().userId == existing().userId &&
@@ -576,9 +582,13 @@ service cloud.firestore {
                          isValidTs(incoming().updatedAt) && (
           (existing().status == 'PENDING' &&
            isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
-           incoming().status in ['APPROVED', 'REJECTED'] &&
+           incoming().status in ['INVITED', 'APPROVED', 'REJECTED'] &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'preferredSeatIndex', 'username', 'avatarUrl', 'vipLevel', 'updatedAt'])) ||
+          (existing().status == 'INVITED' &&
+           existing().userId == request.auth.uid &&
+           incoming().status in ['ACCEPTED', 'REJECTED'] &&
            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
-          (existing().status != 'PENDING' &&
+          (existing().status != 'PENDING' && existing().status != 'INVITED' &&
            existing().userId == request.auth.uid &&
            incoming().status == 'PENDING' &&
            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'preferredSeatIndex', 'username', 'avatarUrl', 'vipLevel', 'updatedAt']))

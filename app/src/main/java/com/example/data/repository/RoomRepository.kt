@@ -74,19 +74,23 @@ class RoomRepository(
                 if (rooms.isEmpty()) {
                     flowOf(emptyList())
                 } else {
+                    val onlineUsersFlow = db.collection("users")
+                        .whereEqualTo("accountStatus", "ACTIVE")
+                        .whereEqualTo("online", true)
+                        .snapshots()
+                        .map { users -> users.documents.map { it.id }.toSet() }
                     val roomCountFlows = rooms.map { room ->
                         val roomRef = db.collection("rooms").document(room.id)
                         val sessionsFlow = roomRef.collection("room_sessions").snapshots()
                             .map { sessions -> sessions.documents.map { it.id }.toSet() }
                         val seatsFlow = roomRef.collection("seats").snapshots()
                             .map { seats -> seats.documents.mapNotNull { it.getString("occupantId") }.filter { it.isNotBlank() }.toSet() }
-                        // Room sessions are the source of truth for people currently inside a room.
-                        // Do not make the entire public room feed depend on the global users/online query:
-                        // a stale or unavailable profile-presence query must not hide active rooms.
-                        combine(sessionsFlow, seatsFlow) { sessionIds, seatedIds ->
-                            val activeSeatedIds = seatedIds.intersect(sessionIds)
+                        combine(sessionsFlow, seatsFlow, onlineUsersFlow) { sessionIds, seatedIds, onlineUserIds ->
+                            // A stored session/seat alone is not proof that the user is currently online.
+                            val activeSessionIds = sessionIds.intersect(onlineUserIds)
+                            val activeSeatedIds = seatedIds.intersect(activeSessionIds)
                             val speakerCount = activeSeatedIds.size.toLong()
-                            val listenerCount = (sessionIds - activeSeatedIds).size.toLong()
+                            val listenerCount = (activeSessionIds - activeSeatedIds).size.toLong()
                             room.copy(
                                 listenerCount = listenerCount,
                                 activeSpeakersCount = speakerCount

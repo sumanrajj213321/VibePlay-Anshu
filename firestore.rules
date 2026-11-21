@@ -521,7 +521,7 @@ service cloud.firestore {
         allow create, update: if isSignedIn() && sessionUserId == request.auth.uid &&
                                  incoming().userId == request.auth.uid &&
                                  incoming().joinedAt is timestamp &&
-                                 incoming().joinedAt <= request.time &&
+                                 incoming().joinedAt == request.time &&
                                  incoming().keys().hasOnly(['userId', 'joinedAt']);
         allow delete: if isSignedIn() && sessionUserId == request.auth.uid;
       }

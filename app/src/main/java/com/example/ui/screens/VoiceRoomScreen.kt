@@ -138,6 +138,7 @@ fun VoiceRoomScreen(
     val messages by roomViewModel.messages.collectAsStateWithLifecycle()
     val listeners by roomViewModel.listeners.collectAsStateWithLifecycle()
     val onlineUsers by roomViewModel.onlineUsers.collectAsStateWithLifecycle()
+    val myPendingRequest by roomViewModel.myPendingSpeakerRequest.collectAsStateWithLifecycle()
     val voiceConnection by roomViewModel.voiceConnectionState.collectAsStateWithLifecycle()
     val giftBurst by roomViewModel.giftBurst.collectAsStateWithLifecycle()
     val vipEntrance by roomViewModel.vipEntrance.collectAsStateWithLifecycle()
@@ -196,9 +197,7 @@ fun VoiceRoomScreen(
         onToggleSeatLock = { seat, locked -> roomViewModel.toggleSeatLock(seat, locked) },
         onMuteAllSpeakers = { roomViewModel.muteAllSpeakers() },
         onJoinSpeakerSeat = { seatIndex -> roomViewModel.joinSpeakerSeat(currentRoom, seatIndex, currentUser) },
-        myPendingRequest = roomViewModel.myPendingSpeakerRequest.collectAsStateWithLifecycle().value,
-        onAcceptSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, true) },
-        onRejectSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, false) },
+        myPendingRequest = myPendingRequest,
         onAcceptSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, true) },
         onRejectSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, false) },
         onClearGiftBurst = { roomViewModel.clearGiftBurst() },
@@ -295,6 +294,10 @@ internal fun VoiceRoomStageContent(
     var preselectedGiftRecipientId by remember { mutableStateOf<String?>(null) }
     var showHostSettings by remember { mutableStateOf(false) }
     var showListenersAndRequests by remember { mutableStateOf(false) }
+    var showInvitationDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(myPendingRequest?.id, myPendingRequest?.status) {
+        if (myPendingRequest?.status == "INVITED") showInvitationDialog = true
+    }
     var showSetupGuide by remember { mutableStateOf(false) }
     var inviteTargetSeatIndex by remember { mutableStateOf<Int?>(null) }
     var showInvitationDialog by remember { mutableStateOf(false) }
@@ -485,25 +488,20 @@ internal fun VoiceRoomStageContent(
                                 },
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .testTag(if (isManager) "host_requests_queue_button" else "request_to_speak_button")
+                                    .testTag(if (isManager) "host_online_members_button" else "my_speaker_seat_button")
                             ) {
                                 if (isManager) {
-                                    BadgedBox(
-                                        badge = {
-                                        }
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.PanTool,
-                                            contentDescription = "Speaker requests",
-                                            tint = raiseHandTint
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Filled.People,
+                                        contentDescription = "Online room members",
+                                        tint = raiseHandTint
+                                    )
                                 } else {
                                     Icon(
                                         imageVector = Icons.Filled.PanTool,
                                         contentDescription = when {
                                             mySeat != null -> "On speaker seat ${mySeat.seatIndex}"
-                                            else -> "Raise hand to speak"
+                                            else -> "Tap an open seat to join"
                                         },
                                         tint = raiseHandTint
                                     )
@@ -925,6 +923,18 @@ internal fun VoiceRoomStageContent(
                     }
                 },
                 onDismiss = { inviteTargetSeatIndex = null }
+            )
+        }
+    }
+
+    if (showInvitationDialog) {
+        myPendingRequest?.takeIf { it.status == "INVITED" }?.let { invitation ->
+            PendingRequestStatusDialog(
+                request = invitation,
+                onCancelRequest = {},
+                onAcceptInvitation = { onAcceptSeatInvitation(invitation) },
+                onRejectInvitation = { onRejectSeatInvitation(invitation) },
+                onDismiss = { showInvitationDialog = false }
             )
         }
     }

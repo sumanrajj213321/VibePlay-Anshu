@@ -75,6 +75,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.google.firebase.firestore.FirebaseFirestore
+import android.util.Base64
 import com.example.BuildConfig
 import com.example.R
 import com.example.data.model.GiftBurstEvent
@@ -89,6 +91,7 @@ import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
 import com.example.ui.theme.VibeVioletBright
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.tasks.await
 
 @DrawableRes
 fun coverDrawableRes(coverKey: String): Int = when (coverKey) {
@@ -108,6 +111,19 @@ fun VibeAvatar(
     speaking: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val firestoreAvatar = avatarUrl.startsWith("firestore-avatar://")
+    val firestoreAvatarUid = if (firestoreAvatar) avatarUrl.removePrefix("firestore-avatar://") else ""
+    var firestoreAvatarBytes by remember(avatarUrl) { mutableStateOf<ByteArray?>(null) }
+    LaunchedEffect(avatarUrl) {
+        firestoreAvatarBytes = null
+        if (firestoreAvatar && firestoreAvatarUid.isNotBlank()) {
+            firestoreAvatarBytes = runCatching {
+                val snapshot = FirebaseFirestore.getInstance().collection("users").document(firestoreAvatarUid).collection("avatar").document("image").get().await()
+                val encoded = snapshot.getString("data") ?: return@runCatching null
+                Base64.decode(encoded, Base64.DEFAULT)
+            }.getOrNull()
+        }
+    }
     val vipColor = remember(vipLevel) {
         val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == vipLevel.toInt() }
         if (tier != null) Color(tier.badgeColorHex) else null
@@ -159,13 +175,12 @@ fun VibeAvatar(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            if (avatarUrl.isNotBlank()) {
+            val avatarImageModel: Any? = if (firestoreAvatar) firestoreAvatarBytes else avatarUrl.takeIf { it.isNotBlank() }
+            if (avatarImageModel != null) {
                 AsyncImage(
-                    model = avatarUrl,
+                    model = avatarImageModel,
                     contentDescription = "$username avatar",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape),
+                    modifier = Modifier.fillMaxSize().clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
             } else {

@@ -900,7 +900,6 @@ internal fun VoiceRoomStageContent(
         mySeatInvitation?.takeIf { it.status == "INVITED" }?.let { invitation ->
             SeatInvitationDialog(
                 request = invitation,
-                onCancelRequest = {},
                 onAcceptInvitation = { onAcceptSeatInvitation(invitation) },
                 onRejectInvitation = { onRejectSeatInvitation(invitation) },
                 onDismiss = { showInvitationDialog = false }
@@ -1206,9 +1205,7 @@ private fun SpeakerSeatTile(
             Surface(
                 modifier = Modifier.size(54.dp),
                 shape = CircleShape,
-                color = when {
-                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)
-                },
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f),
                 border = BorderStroke(
                     width = 1.dp,
                     color = if (seat.seatLocked) VibePink.copy(alpha = 0.55f) else VibeCyan.copy(alpha = 0.55f)
@@ -1225,10 +1222,9 @@ private fun SpeakerSeatTile(
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = if (isPendingForSeat) "Pending" else "Seat ${seat.seatIndex}",
+                text = "Seat ${seat.seatIndex}",
                 style = MaterialTheme.typography.labelSmall,
-                color = if (isPendingForSeat) VibeGold else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = if (isPendingForSeat) FontWeight.Bold else FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1
             )
         }

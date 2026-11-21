@@ -200,11 +200,8 @@ data class VoiceStage(
                 role = "HOST",
                 occupantId = ownerId,
                 occupantName = ownerName,
-                occupantAvatarUrl = if (ownerOnline) {
-                    rawHost?.occupantAvatarUrl?.ifBlank { room.hostAvatarUrl } ?: room.hostAvatarUrl
-                } else {
-                    ""
-                },
+                // Keep the owner's avatar available for the faded OFFLINE host tile.
+                occupantAvatarUrl = rawHost?.occupantAvatarUrl?.ifBlank { room.hostAvatarUrl } ?: room.hostAvatarUrl,
                 occupantVipLevel = rawHost?.occupantVipLevel ?: 0L,
                 occupantGender = rawHost?.occupantGender ?: "UNSPECIFIED",
                 muted = if (!ownerOnline) true else (rawHost?.muted ?: false),

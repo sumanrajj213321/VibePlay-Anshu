@@ -100,7 +100,10 @@ fun HomeScreen(
     var pinError by remember { mutableStateOf<String?>(null) }
 
     val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
-    val canClaimDaily = currentUser.lastDailyClaimDay != todayStr
+    var dailyClaimDismissed by remember(currentUser.userId, todayStr) {
+        mutableStateOf(currentUser.lastDailyClaimDay == todayStr)
+    }
+    val canClaimDaily = !dailyClaimDismissed
 
     val onlineUsers = remember(activeUsers, currentUser.userId, blockedUserIds, followingIds) {
         activeUsers.filter {
@@ -337,7 +340,10 @@ fun HomeScreen(
                             }
                         }
                         Button(
-                            onClick = onClaimDailyReward,
+                            onClick = {
+                                dailyClaimDismissed = true
+                                onClaimDailyReward()
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = VibeGold, contentColor = Color.Black),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.testTag("claim_daily_reward_button")

@@ -306,7 +306,6 @@ class RoomRepository(
         announcement: String,
         category: String,
         coverKey: String,
-        keepCustomCover: Boolean,
         locked: Boolean,
         rawPassword: String
     ): Result<String> = createRoomMutex.withLock {
@@ -1445,6 +1444,7 @@ class RoomRepository(
         announcement: String,
         category: String? = null,
         coverKey: String,
+        keepCustomCover: Boolean,
         locked: Boolean,
         newRawPassword: String?
     ): Result<Unit> {

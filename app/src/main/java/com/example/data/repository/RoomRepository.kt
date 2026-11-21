@@ -383,9 +383,17 @@ class RoomRepository(
             while (roomIdCollisionAttempts < 12) {
                 val roomId = (100000 + roomIdRandom.nextInt(900000)).toString()
                 val roomRef = db.collection("rooms").document(roomId)
+                val publicIdRef = db.collection("room_public_ids").document(roomId)
                 try {
                     db.runTransaction { tx ->
-                if (tx.get(roomRef).exists()) throw RoomIdCollisionException()
+                if (tx.get(roomRef).exists() || tx.get(publicIdRef).exists()) throw RoomIdCollisionException()
+                tx.set(
+                    publicIdRef,
+                    mapOf(
+                        "roomId" to roomRef.id,
+                        "createdAt" to FieldValue.serverTimestamp()
+                    )
+                )
                 val lockSnap = tx.get(lockRef)
                 val userSnap = tx.get(userRef)
                 if (lockSnap.exists() || userSnap.getBoolean("hasCreatedRoom") == true) {

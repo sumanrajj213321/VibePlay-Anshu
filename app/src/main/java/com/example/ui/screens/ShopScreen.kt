@@ -90,10 +90,10 @@ fun ShopScreen(
             when (selectedTab) {
                 0 -> items(VibeCatalogDefaults.vipTiers, key = { "vip_${it.level}" }) { tier ->
                     val color = Color(tier.badgeColorHex)
-                    val owned = profile.vipLevel >= tier.level
+                    val owned = profile.isVipActive && profile.vipLevel >= tier.level
                     ShopCard(
                         title = tier.title,
-                        subtitle = tier.perks.joinToString(" · "),
+                        subtitle = tier.perks.joinToString(" · ") + " · Valid for 30 days",
                         price = tier.coinPrice,
                         accent = color,
                         status = if (owned) "Owned" else if (profile.coinBalance >= tier.coinPrice) "Purchase" else "Need ${tier.coinPrice - profile.coinBalance} more",
@@ -103,11 +103,11 @@ fun ShopScreen(
                     )
                 }
                 1 -> items(VibeShopCatalog.frames, key = { it.id }) { item ->
-                    val owned = item.id in profile.ownedFrameIds
+                    val owned = profile.isFrameActive(item.id)
                     val equipped = profile.activeFrameId == item.id
                     ShopCard(
                         title = item.title,
-                        subtitle = item.subtitle,
+                        subtitle = item.subtitle + " · Valid for 7 days",
                         price = item.coinPrice,
                         accent = Color(item.colorArgb),
                         status = when { equipped -> "Equipped"; owned -> "Equip"; else -> "Purchase" },
@@ -117,11 +117,11 @@ fun ShopScreen(
                     )
                 }
                 else -> items(VibeShopCatalog.titles, key = { it.id }) { item ->
-                    val owned = item.id in profile.ownedTitleIds
+                    val owned = profile.isTitleActive(item.id)
                     val equipped = profile.activeTitleId == item.id
                     ShopCard(
                         title = item.title,
-                        subtitle = item.subtitle,
+                        subtitle = item.subtitle + " · Valid for 15 days",
                         price = item.coinPrice,
                         accent = Color(item.colorArgb),
                         status = when { equipped -> "Equipped"; owned -> "Equip"; else -> "Purchase" },

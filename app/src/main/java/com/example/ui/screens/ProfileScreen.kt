@@ -117,8 +117,8 @@ fun ProfileScreen(
     val (xpInLevel, xpNeededForNextLevel) = LevelProgression.progressInLevel(profile.xp)
     val giftCoinsIn = giftHistory.filter { it.recipientId == profile.userId }.sumOf { it.coinCost }
     val giftCoinsOut = giftHistory.filter { it.senderId == profile.userId }.sumOf { it.coinCost }
-    val equippedTitle = VibeShopCatalog.titles.firstOrNull {
-        it.id == profile.activeTitleId && profile.isTitleActive(it.id)
+    val equippedTitles = profile.equippedTitleIds.mapNotNull { titleId ->
+        VibeShopCatalog.titles.firstOrNull { it.id == titleId }
     }
 
     LazyColumn(
@@ -220,37 +220,17 @@ fun ProfileScreen(
                     }
                 }
 
-                if (equippedTitle != null) {
+                equippedTitles.forEach { equippedTitle ->
                     val titleColor = Color(equippedTitle.colorArgb)
                     Surface(
                         shape = RoundedCornerShape(9.dp),
                         color = titleColor.copy(alpha = 0.13f),
-                        border = BorderStroke(
-                            1.dp,
-                            Brush.linearGradient(
-                                listOf(titleColor.copy(alpha = 0.95f), Color.White.copy(alpha = 0.45f), titleColor.copy(alpha = 0.75f))
-                            )
-                        ),
+                        border = BorderStroke(1.dp, Brush.linearGradient(listOf(titleColor.copy(alpha = 0.95f), Color.White.copy(alpha = 0.45f), titleColor.copy(alpha = 0.75f)))),
                         shadowElevation = 2.dp
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Star,
-                                contentDescription = null,
-                                tint = titleColor,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Text(
-                                text = equippedTitle.title.uppercase(),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = titleColor,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 0.65f.sp
-                            )
+                        Row(modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(imageVector = Icons.Filled.Star, contentDescription = null, tint = titleColor, modifier = Modifier.size(15.dp))
+                            Text(text = equippedTitle.title.uppercase(), style = MaterialTheme.typography.labelMedium, color = titleColor, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.65f.sp)
                         }
                     }
                 }

@@ -1,5 +1,8 @@
 package com.example.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -276,6 +279,7 @@ fun HostSettingsSheet(
     isOwner: Boolean = true,
     onDismiss: () -> Unit,
     onSaveSettings: (title: String, announcement: String, category: String, coverKey: String, locked: Boolean, newPassword: String?) -> Unit,
+    onUploadCover: (Uri) -> Unit = {},
     onMuteAllSpeakers: () -> Unit = {},
     onTransferOwnership: (VoiceSeat) -> Unit,
     onEndRoom: () -> Unit
@@ -289,6 +293,9 @@ fun HostSettingsSheet(
     var newPassword by remember { mutableStateOf("") }
     var transferTarget by remember { mutableStateOf<VoiceSeat?>(null) }
     var confirmEndRoom by remember { mutableStateOf(false) }
+    val coverPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) onUploadCover(uri)
+    }
 
     val eligibleSpeakers = remember(stage.speakerSeats) {
         stage.speakerSeats.filter { it.isOccupied && !it.isHostSeat }
@@ -357,6 +364,12 @@ fun HostSettingsSheet(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Room Cover Gallery", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    OutlinedButton(
+                        onClick = { coverPickerLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth().testTag("room_cover_upload_button")
+                    ) {
+                        Text("Upload from Gallery")
+                    }
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(RoomCoverPreset.entries) { preset ->
                             val selected = selectedCoverKey == preset.key

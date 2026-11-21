@@ -82,12 +82,10 @@ import com.example.data.firebase.AuthHelper
 import com.example.data.firebase.PreferencesRepository
 import com.example.data.model.UserProfile
 import com.example.data.model.VoiceRoom
-import com.example.data.repository.AdminRepository
 import com.example.data.repository.InboxRepository
 import com.example.data.repository.NotificationRepository
 import com.example.data.repository.RoomRepository
 import com.example.data.repository.UserRepository
-import com.example.ui.screens.AdminPanelScreen
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.ExploreScreen
 import com.example.ui.screens.GiftRankingScreen
@@ -122,7 +120,6 @@ private sealed class MainTab(
 }
 
 private const val ROUTE_VOICE_ROOM = "room/{roomId}"
-private const val ROUTE_ADMIN = "admin"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -180,7 +177,6 @@ private fun AuthenticatedVibePlayApp(
                     roomRepository = RoomRepository(appContext),
                     inboxRepository = InboxRepository(appContext),
                     notificationRepository = NotificationRepository(appContext),
-                    adminRepository = AdminRepository(appContext),
                     preferencesRepository = PreferencesRepository(appContext)
                 )
             }
@@ -610,7 +606,6 @@ private fun AuthenticatedVibePlayApp(
                                 composable(MainTab.Profile.route) {
                                     ProfileScreen(
                                         profile = currentUser,
-                                        isAdmin = viewModel.isAdmin(currentUser),
                                         darkTheme = darkTheme,
                                         roomEffectsEnabled = roomEffectsEnabled,
                                         followingList = followingList,
@@ -628,9 +623,6 @@ private fun AuthenticatedVibePlayApp(
                                         onCopyVibeId = { vibeId -> viewModel.showStatus("Copied Vibe ID: $vibeId") },
                                         onUnblockUser = { targetId -> viewModel.toggleBlockUser(targetId, block = false) },
                                         onOpenNotifications = { showNotificationsSheet = true },
-                                        onOpenAdminPanel = {
-                                            navController.navigate(ROUTE_ADMIN) { launchSingleTop = true }
-                                        },
                                         onSignOut = signOutAction,
                                         onOpenShop = { navController.navigate("shop") }
                                     )
@@ -697,16 +689,6 @@ private fun AuthenticatedVibePlayApp(
                                         )
                                     }
                                 }
-
-                                composable(ROUTE_ADMIN) {
-                                    if (viewModel.isAdmin(currentUser)) {
-                                        AdminPanelScreen(
-                                            viewModel = viewModel,
-                                            onBack = { navController.popBackStack() }
-                                        )
-                                    } else {
-                                        LaunchedEffect(Unit) { navController.popBackStack() }
-                                    }
                                 }
                             }
                         }

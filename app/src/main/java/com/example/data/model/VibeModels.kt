@@ -139,6 +139,7 @@ data class VoiceRoom(
     val announcement: String = "",
     val category: String = "Chill",
     val coverKey: String = "party_stage",
+    val coverUrl: String = "",
     val tags: List<String> = emptyList(),
     val listenerCount: Long = 0L,
     val activeSpeakersCount: Long = 1L,

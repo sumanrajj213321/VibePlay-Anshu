@@ -260,9 +260,9 @@ fun VipBadgePill(vipLevel: Long, modifier: Modifier = Modifier, compact: Boolean
     val accent = tier?.let { Color(it.badgeColorHex) } ?: VibeGold
     val luxuryBrush = Brush.linearGradient(
         listOf(
+            accent.copy(alpha = 0.30f),
             Color(0xFF17131F),
-            accent.copy(alpha = 0.42f),
-            Color(0xFF29202B)
+            accent.copy(alpha = 0.48f)
         )
     )
     Surface(
@@ -272,7 +272,7 @@ fun VipBadgePill(vipLevel: Long, modifier: Modifier = Modifier, compact: Boolean
         shadowElevation = 3.dp,
         border = BorderStroke(
             1.5.dp,
-            Brush.linearGradient(listOf(Color(0xFFFFE7A3), accent, Color(0xFF8B6A35)))
+            Brush.linearGradient(listOf(accent, accent.copy(alpha = 0.72f), Color.White.copy(alpha = 0.72f), accent))
         )
     ) {
         Row(
@@ -285,13 +285,13 @@ fun VipBadgePill(vipLevel: Long, modifier: Modifier = Modifier, compact: Boolean
             Icon(
                 imageVector = Icons.Filled.Star,
                 contentDescription = null,
-                tint = Color(0xFFFFE7A3),
+                tint = accent,
                 modifier = Modifier.size(if (compact) 10.dp else 14.dp)
             )
             Text(
                 text = "VIP",
                 style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
-                color = Color(0xFFFFE7A3),
+                color = accent,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 0.8.sp
             )

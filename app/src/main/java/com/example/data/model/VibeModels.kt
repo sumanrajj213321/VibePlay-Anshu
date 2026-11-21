@@ -54,10 +54,13 @@ data class UserProfile(
     val level: Long = 1L,
     val xp: Long = 0L,
     val vipLevel: Long = 0L,
+    val vipExpiresAt: Timestamp? = null,
     val ownedTitleIds: List<String> = emptyList(),
     val activeTitleId: String = "",
+    val titleExpiresAt: Map<String, Timestamp> = emptyMap(),
     val ownedFrameIds: List<String> = emptyList(),
     val activeFrameId: String = "",
+    val frameExpiresAt: Map<String, Timestamp> = emptyMap(),
     val coinBalance: Long = 500L,
     val totalGiftsReceived: Long = 0L,
     val totalGiftsSent: Long = 0L,
@@ -73,6 +76,17 @@ data class UserProfile(
     val createdAt: Timestamp? = null,
     val updatedAt: Timestamp? = null
 ) {
+    val isVipActive: Boolean
+        get() = vipLevel > 0L && (vipExpiresAt?.toDate()?.after(java.util.Date()) == true)
+
+    fun isTitleActive(itemId: String): Boolean =
+        itemId.isNotBlank() && itemId in ownedTitleIds &&
+            titleExpiresAt[itemId]?.toDate()?.after(java.util.Date()) == true
+
+    fun isFrameActive(itemId: String): Boolean =
+        itemId.isNotBlank() && itemId in ownedFrameIds &&
+            frameExpiresAt[itemId]?.toDate()?.after(java.util.Date()) == true
+
     val formattedAge: String?
         get() = if (age > 0L) "$age years" else null
 }

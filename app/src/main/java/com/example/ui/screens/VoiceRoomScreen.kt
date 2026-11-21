@@ -138,7 +138,6 @@ fun VoiceRoomScreen(
     val messages by roomViewModel.messages.collectAsStateWithLifecycle()
     val listeners by roomViewModel.listeners.collectAsStateWithLifecycle()
     val onlineUsers by roomViewModel.onlineUsers.collectAsStateWithLifecycle()
-    val speakerRequests by roomViewModel.speakerRequests.collectAsStateWithLifecycle()
     val myPendingRequest by roomViewModel.myPendingSpeakerRequest.collectAsStateWithLifecycle()
     val voiceConnection by roomViewModel.voiceConnectionState.collectAsStateWithLifecycle()
     val giftBurst by roomViewModel.giftBurst.collectAsStateWithLifecycle()
@@ -179,7 +178,6 @@ fun VoiceRoomScreen(
         messages = messages,
         listeners = listeners,
         onlineUsers = onlineUsers,
-        speakerRequests = speakerRequests,
         myPendingRequest = myPendingRequest,
         voiceConnection = voiceConnection,
         giftBurst = giftBurst,
@@ -199,10 +197,7 @@ fun VoiceRoomScreen(
         onToggleSeatMute = { seat -> roomViewModel.toggleSeatMute(seat) },
         onToggleSeatLock = { seat, locked -> roomViewModel.toggleSeatLock(seat, locked) },
         onMuteAllSpeakers = { roomViewModel.muteAllSpeakers() },
-        onRequestToSpeak = { preferredSeat ->
-            roomViewModel.requestToSpeak(currentRoom, currentUser, preferredSeat)
-        },
-        onCancelSpeakerRequest = { roomViewModel.cancelSpeakerRequest(currentUser.userId) },
+        onJoinSpeakerSeat = { seatIndex -> roomViewModel.joinSpeakerSeat(currentRoom, seatIndex, currentUser) },
         onAcceptSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, true) },
         onRejectSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, false) },
         onClearGiftBurst = { roomViewModel.clearGiftBurst() },
@@ -232,9 +227,6 @@ fun VoiceRoomScreen(
                 gender = gender
             )
         },
-        onResolveSpeakerRequest = { req, approve ->
-            roomViewModel.resolveSpeakerRequest(currentRoom, req, approve = approve)
-        },
         onVacateSpeakerSeat = { seatIndex ->
             roomViewModel.vacateSpeakerSeat(seatIndex, currentUser)
         },
@@ -254,7 +246,6 @@ internal fun VoiceRoomStageContent(
     messages: List<RoomMessage>,
     listeners: List<RoomListener>,
     onlineUsers: List<RoomOnlineMember> = emptyList(),
-    speakerRequests: List<SpeakerRequest>,
     myPendingRequest: SpeakerRequest?,
     voiceConnection: VoiceConnectionState,
     giftBurst: GiftBurstEvent?,
@@ -274,8 +265,7 @@ internal fun VoiceRoomStageContent(
     onToggleSeatMute: (VoiceSeat) -> Unit,
     onToggleSeatLock: (VoiceSeat, Boolean) -> Unit = { _, _ -> },
     onMuteAllSpeakers: () -> Unit = {},
-    onRequestToSpeak: (preferredSeatIndex: Int) -> Unit,
-    onCancelSpeakerRequest: () -> Unit,
+    onJoinSpeakerSeat: (seatIndex: Int) -> Unit,
     onAcceptSeatInvitation: (SpeakerRequest) -> Unit = {},
     onRejectSeatInvitation: (SpeakerRequest) -> Unit = {},
     onClearGiftBurst: () -> Unit,
@@ -287,7 +277,6 @@ internal fun VoiceRoomStageContent(
     onPromoteOrDemoteAdmin: (userId: String, username: String, promote: Boolean) -> Unit = { _, _, _ -> },
     onEndRoom: () -> Unit,
     onHostAssignUserToSeat: (seatIndex: Int, userId: String, username: String, avatarUrl: String, vipLevel: Long, gender: String) -> Unit,
-    onResolveSpeakerRequest: (SpeakerRequest, approve: Boolean) -> Unit,
     onVacateSpeakerSeat: (seatIndex: Int) -> Unit,
     onHostRemoveSpeaker: (seatIndex: Int) -> Unit,
     onSubmitReport: (targetType: String, targetId: String, targetName: String, reason: String, details: String) -> Unit,

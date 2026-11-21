@@ -729,8 +729,12 @@ fun PublicProfileSheet(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
                     ) {
-                        Text("${targetUser.totalGiftsReceived}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("Gifts In", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            "${targetUser.totalGiftCoinsReceived.takeIf { it > 0L } ?: targetUser.totalGiftsReceived}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text("Total Gifts", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

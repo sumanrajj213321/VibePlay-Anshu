@@ -673,7 +673,11 @@ class RoomRepository(
                             mapOf(
                                 "occupantId" to loadedRoom.effectiveOwnerId,
                                 "occupantName" to ownerName,
-                                "occupantAvatarUrl" to "",
+                                // Keep the last known host photo in the permanent host seat.
+                                // The UI fades it and overlays OFFLINE while ownerOnline=false.
+                                "occupantAvatarUrl" to loadedRoom.hostAvatarUrl,
+                                "occupantVipLevel" to (seat0Snap.getLong("occupantVipLevel") ?: 0L),
+                                "occupantGender" to (seat0Snap.getString("occupantGender") ?: "UNSPECIFIED"),
                                 "muted" to true,
                                 "speaking" to false,
                                 "updatedAt" to FieldValue.serverTimestamp()

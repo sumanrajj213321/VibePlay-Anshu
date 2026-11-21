@@ -168,6 +168,7 @@ data class VoiceSeat(
     val occupantId: String = "",
     val occupantName: String = "",
     val occupantAvatarUrl: String = "",
+    val occupantFrameColorArgb: Long? = null,
     val occupantVipLevel: Long = 0L,
     val occupantGender: String = "UNSPECIFIED",
     val muted: Boolean = true,

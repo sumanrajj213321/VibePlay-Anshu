@@ -144,6 +144,7 @@ service cloud.firestore {
              (!('announcement' in data) || (data.announcement is string && data.announcement.size() <= 200)) &&
              data.category in ['Chill', 'Music', 'Gaming', 'Dating', 'Karaoke', 'Chat'] &&
              (!('coverKey' in data) || (data.coverKey is string && data.coverKey.size() <= 120)) &&
+             (!('coverUrl' in data) || (data.coverUrl is string && data.coverUrl.size() <= 1000)) &&
              (!('tags' in data) || (data.tags is list && data.tags.size() <= 5 && (data.tags.size() == 0 || data.tags[0] is string))) &&
              (!('listenerCount' in data) || (data.listenerCount is int && data.listenerCount >= 0)) &&
              (!('activeSpeakersCount' in data) || (data.activeSpeakersCount is int && data.activeSpeakersCount >= 0 && data.activeSpeakersCount <= 9)) &&
@@ -492,7 +493,7 @@ service cloud.firestore {
         isAdmin() ||
         (isRoomOwner(existing()) && existing().status == 'LIVE' &&
          incoming().featured == existing().featured &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'status', 'hostId', 'hostName', 'hostAvatarUrl', 'ownerId', 'ownerName', 'ownerOnline', 'adminIds', 'activeAdminIds', 'listenerCount', 'activeSpeakersCount', 'updatedAt'])) ||
+         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'coverUrl', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'status', 'hostId', 'hostName', 'hostAvatarUrl', 'ownerId', 'ownerName', 'ownerOnline', 'adminIds', 'activeAdminIds', 'listenerCount', 'activeSpeakersCount', 'updatedAt'])) ||
         (isRoomAdminUser(existing()) && existing().status == 'LIVE' &&
          incoming().hostId == existing().hostId &&
          (!('ownerId' in existing()) || incoming().ownerId == existing().ownerId) &&

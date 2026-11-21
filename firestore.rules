@@ -129,7 +129,7 @@ service cloud.firestore {
              data.occupantId is string && data.occupantId.size() <= 128 &&
              (!('occupantName' in data) || (data.occupantName is string && data.occupantName.size() <= 60)) &&
              (!('occupantAvatarUrl' in data) || (data.occupantAvatarUrl is string && data.occupantAvatarUrl.size() <= 500)) &&
-             (!('occupantVipLevel' in data) || (data.occupantVipLevel is int && data.occupantVipLevel >= 0 && data.occupantVipLevel <= 5)) &&
+             (!('occupantVipLevel' in data) || (data.occupantVipLevel is int && data.occupantVipLevel >= 0 && data.occupantVipLevel <= 30)) &&
              (!('occupantGender' in data) || data.occupantGender in ['UNSPECIFIED', 'FEMALE', 'MALE', 'NON_BINARY']) &&
              data.muted is bool &&
              data.seatLocked is bool &&
@@ -153,7 +153,7 @@ service cloud.firestore {
     function isValidRoomMessage(data) {
       return data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 &&
              data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 60 &&
-             (!('senderVipLevel' in data) || (data.senderVipLevel is int && data.senderVipLevel >= 0 && data.senderVipLevel <= 5)) &&
+             (!('senderVipLevel' in data) || (data.senderVipLevel is int && data.senderVipLevel >= 0 && data.senderVipLevel <= 30)) &&
              (!('senderGender' in data) || data.senderGender in ['UNSPECIFIED', 'FEMALE', 'MALE', 'NON_BINARY']) &&
              data.text is string && data.text.size() >= 1 && data.text.size() <= 400 &&
              data.type in ['TEXT', 'GIFT', 'SYSTEM'] &&

@@ -616,7 +616,7 @@ fun PublicProfileSheet(
                     avatarUrl = targetUser.avatarUrl,
                     username = targetUser.username,
                     size = 68.dp,
-                    vipLevel = targetUser.vipLevel,
+                    vipLevel = if (targetUser.isVipActive) targetUser.vipLevel else 0L,
                     online = targetUser.online && targetUser.showOnlineStatus,
                     frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == targetUser.activeFrameId && targetUser.isFrameActive(it.id) }?.colorArgb
                 )

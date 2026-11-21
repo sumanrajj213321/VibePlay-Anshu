@@ -93,8 +93,8 @@ class RoomViewModel(
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
 
-    val myPendingSpeakerRequest: StateFlow<SpeakerRequest?> =
-        roomRepository.observeMySpeakerRequest(roomId, currentUserId)
+    val mySeatInvitation: StateFlow<SpeakerRequest?> =
+        roomRepository.observeSeatInvitation(roomId, currentUserId)
             .catch { error ->
                 unwrapFirestoreError(error)
                 emit(null)

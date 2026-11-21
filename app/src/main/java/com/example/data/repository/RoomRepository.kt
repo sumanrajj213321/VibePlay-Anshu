@@ -25,6 +25,7 @@ import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -121,13 +122,23 @@ class RoomRepository(
         )
     }
 
-    fun observeListeners(roomId: String): Flow<List<RoomListener>> =
-        db.collection("rooms").document(roomId).collection("listeners")
+    fun observeListeners(roomId: String): Flow<List<RoomListener>> {
+        val listenersFlow = db.collection("rooms").document(roomId).collection("listeners")
             .whereEqualTo("role", "LISTENER")
             .snapshots()
             .map { snapshot ->
                 snapshot.toObjects(RoomListener::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
             }
+        val onlineUsersFlow = db.collection("users")
+            .whereEqualTo("accountStatus", "ACTIVE")
+            .whereEqualTo("online", true)
+            .snapshots()
+            .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
+
+        return combine(listenersFlow, onlineUsersFlow) { listeners, onlineIds ->
+            listeners.filter { it.userId in onlineIds }
+        }
+    }
 
     fun observeActiveGifts(): Flow<List<GiftCatalogItem>> =
         db.collection("gifts_catalog")

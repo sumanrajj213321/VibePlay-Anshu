@@ -680,7 +680,7 @@ fun PublicProfileSheet(
                     val ageSuffix = if (targetUser.showAge && targetUser.formattedAge != null) " · ${targetUser.formattedAge}" else ""
                     Text(
                         text = "${targetUser.vibeId}$ageSuffix",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelSmall,
                         color = VibeCyan,
                         modifier = Modifier.testTag("public_profile_id_age")
                     )

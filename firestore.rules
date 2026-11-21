@@ -589,6 +589,12 @@ service cloud.firestore {
            incoming().status in ['INVITED', 'APPROVED', 'REJECTED'] &&
            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'preferredSeatIndex', 'username', 'avatarUrl', 'vipLevel', 'updatedAt'])) ||
           (existing().status == 'INVITED' &&
+           isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
+           incoming().status == 'INVITED' &&
+           incoming().preferredSeatIndex >= 1 &&
+           incoming().preferredSeatIndex <= 8 &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'preferredSeatIndex', 'username', 'avatarUrl', 'vipLevel', 'updatedAt'])) ||
+          (existing().status == 'INVITED' &&
            existing().userId == request.auth.uid &&
            incoming().status in ['ACCEPTED', 'REJECTED'] &&
            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||

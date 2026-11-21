@@ -293,7 +293,8 @@ data class VoiceStage(
                             gender = seat.occupantGender,
                             stageRole = "SPEAKER",
                             seatIndex = seat.seatIndex.toInt(),
-                            isRoomAdmin = room.isRoomAdmin(seat.occupantId)
+                            isRoomAdmin = room.isRoomAdmin(seat.occupantId),
+                            frameColorArgb = seat.occupantFrameColorArgb
                         )
                     )
                 }

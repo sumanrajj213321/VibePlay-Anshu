@@ -689,7 +689,6 @@ private fun AuthenticatedVibePlayApp(
                                         )
                                     }
                                 }
-                                }
                             }
                         }
                     }

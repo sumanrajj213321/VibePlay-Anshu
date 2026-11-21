@@ -1207,6 +1207,92 @@ test("One permanent room per user: enforces lifetime lock across close, delete, 
   });
   await assertFails(bobNewRoom.commit());
 });
+test("New user can create a room with the exact atomic app transaction", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const ts = firebase.firestore.FieldValue.serverTimestamp();
+  await assertSucceeds(
+    aliceDb.collection("users").doc(ALICE_UID).set({
+      ...makeUserPayload(ALICE_UID, "Alice", "VP-100001"),
+      hasCreatedRoom: false,
+      createdRoomId: "",
+    })
+  );
+
+  const roomId = "123456";
+  const roomRef = aliceDb.collection("rooms").doc(roomId);
+  const batch = aliceDb.batch();
+  batch.set(aliceDb.collection("room_public_ids").doc(roomId), {
+    roomId,
+    createdAt: ts,
+  });
+  batch.set(aliceDb.collection("room_creation_locks").doc(ALICE_UID), {
+    userId: ALICE_UID,
+    roomId,
+    createdAt: ts,
+  });
+  batch.update(aliceDb.collection("users").doc(ALICE_UID), {
+    hasCreatedRoom: true,
+    createdRoomId: roomId,
+    updatedAt: ts,
+  });
+  batch.set(roomRef, {
+    publicRoomId: roomId,
+    creatorId: ALICE_UID,
+    hostId: ALICE_UID,
+    hostName: "Alice",
+    hostAvatarUrl: "",
+    ownerId: ALICE_UID,
+    ownerName: "Alice",
+    ownerOnline: true,
+    adminIds: [],
+    activeAdminIds: [],
+    title: "New User Stage",
+    announcement: "Welcome!",
+    category: "Music",
+    coverKey: "party_stage",
+    tags: ["Music", "Live"],
+    listenerCount: 0,
+    activeSpeakersCount: 1,
+    locked: false,
+    hasPassword: false,
+    passcodeHash: "",
+    status: "LIVE",
+    featured: false,
+    createdAt: ts,
+    updatedAt: ts,
+  });
+  for (let index = 0; index <= 8; index += 1) {
+    batch.set(roomRef.collection("seats").doc(String(index)), {
+      seatIndex: index,
+      role: index === 0 ? "HOST" : "SPEAKER",
+      occupantId: index === 0 ? ALICE_UID : "",
+      occupantName: index === 0 ? "Alice" : "",
+      occupantAvatarUrl: "",
+      occupantVipLevel: 0,
+      occupantGender: "UNSPECIFIED",
+      muted: index !== 0,
+      seatLocked: false,
+      speaking: false,
+      updatedAt: ts,
+    });
+  }
+  batch.set(roomRef.collection("room_sessions").doc(ALICE_UID), {
+    userId: ALICE_UID,
+    joinedAt: ts,
+  });
+  batch.set(roomRef.collection("messages").doc("welcome_room_created"), {
+    senderId: ALICE_UID,
+    senderName: "Alice",
+    senderVipLevel: 0,
+    senderGender: "UNSPECIFIED",
+    text: "Room created! Welcome to New User Stage.",
+    type: "SYSTEM",
+    createdAt: ts,
+  });
+
+  await assertSucceeds(batch.commit());
+});
+
 test("Own and public profile reads plus title/frame cosmetic purchases are permitted only through valid updates", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();

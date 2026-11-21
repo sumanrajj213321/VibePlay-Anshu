@@ -30,16 +30,15 @@ service cloud.firestore {
 
 
     function isNotAlreadyOnAnotherSpeakerSeat(roomId, seatIndex) {
-      return (seatIndex == '1' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId != request.auth.uid) &&
-             (seatIndex == '2' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/3).data.occupantId != request.auth.uid) &&
-             (seatIndex == '3' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/4).data.occupantId != request.auth.uid) &&
-             (seatIndex == '4' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/5).data.occupantId != request.auth.uid) &&
-             (seatIndex == '5' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/6).data.occupantId != request.auth.uid) &&
-             (seatIndex == '6' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/7).data.occupantId != request.auth.uid) &&
-             (seatIndex == '7' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId != request.auth.uid) &&
-             (seatIndex == '8' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId != request.auth.uid);
+      return (seatIndex == '1' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId != request.auth.uid) &&
+             (seatIndex == '2' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId != request.auth.uid) &&
+             (seatIndex == '3' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/3).data.occupantId != request.auth.uid) &&
+             (seatIndex == '4' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/4).data.occupantId != request.auth.uid) &&
+             (seatIndex == '5' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/5).data.occupantId != request.auth.uid) &&
+             (seatIndex == '6' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/6).data.occupantId != request.auth.uid) &&
+             (seatIndex == '7' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/7).data.occupantId != request.auth.uid) &&
+             (seatIndex == '8' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId != request.auth.uid);
     }
-
     function isDirectSpeakerSeatJoin(roomId) {
       return (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId == '') ||
              (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId == '') ||

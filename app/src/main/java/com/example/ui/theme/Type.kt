@@ -45,13 +45,13 @@ val VibePlayTypography = Typography(
     ),
     titleLarge = TextStyle(
         fontFamily = OutfitFontFamily,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Bold,
         fontSize = 18.sp,
         lineHeight = 24.sp
     ),
     titleMedium = TextStyle(
         fontFamily = PlusJakartaFontFamily,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Bold,
         fontSize = 16.sp,
         lineHeight = 22.sp
     ),
@@ -63,19 +63,19 @@ val VibePlayTypography = Typography(
     ),
     bodyLarge = TextStyle(
         fontFamily = PlusJakartaFontFamily,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.Medium,
         fontSize = 15.sp,
         lineHeight = 22.sp
     ),
     bodyMedium = TextStyle(
         fontFamily = PlusJakartaFontFamily,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.Medium,
         fontSize = 13.sp,
         lineHeight = 19.sp
     ),
     bodySmall = TextStyle(
         fontFamily = PlusJakartaFontFamily,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 12.sp,
         lineHeight = 16.sp
     ),
@@ -93,7 +93,7 @@ val VibePlayTypography = Typography(
     ),
     labelSmall = TextStyle(
         fontFamily = PlusJakartaFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 11.sp,
         lineHeight = 14.sp
     )

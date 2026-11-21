@@ -148,7 +148,8 @@ service cloud.firestore {
     }
 
     function isValidRoom(data) {
-      return (!('creatorId' in data) || (data.creatorId is string && data.creatorId.size() <= 128)) &&
+      return (!('publicRoomId' in data) || (data.publicRoomId is string && data.publicRoomId.matches('^[0-9]{6}$'))) &&
+             (!('creatorId' in data) || (data.creatorId is string && data.creatorId.size() <= 128)) &&
              data.hostId is string && data.hostId.size() >= 1 && data.hostId.size() <= 128 &&
              data.hostName is string && data.hostName.size() >= 1 && data.hostName.size() <= 60 &&
              (!('hostAvatarUrl' in data) || (data.hostAvatarUrl is string && data.hostAvatarUrl.size() <= 500)) &&
@@ -493,6 +494,20 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /room_public_ids/{publicRoomId} {
+      allow get: if isSignedIn() && publicRoomId.matches('^[0-9]{6}$');
+      allow list: if false;
+      allow create: if isSignedIn() &&
+                       publicRoomId.matches('^[0-9]{6}$') &&
+                       incoming().roomId is string &&
+                       incoming().roomId == publicRoomId &&
+                       isValidTs(incoming().createdAt) &&
+                       existsAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)) &&
+                       getAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)).data.publicRoomId == publicRoomId &&
+                       getAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)).data.hostId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     match /rooms/{roomId} {
       allow get: if isSignedIn() && isValidId(roomId) && (existing().status == 'LIVE' || isRoomManager(existing()));
       allow list: if isSignedIn() && (existing().status == 'LIVE' || isRoomManager(existing()));
@@ -512,6 +527,8 @@ service cloud.firestore {
                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hasCreatedRoom == false) &&
                        existsAfter(/databases/$(database)/documents/room_creation_locks/$(request.auth.uid)) &&
                        getAfter(/databases/$(database)/documents/room_creation_locks/$(request.auth.uid)).data.roomId == roomId;
+                       existsAfter(/databases/$(database)/documents/room_public_ids/$(roomId)) &&
+                       getAfter(/databases/$(database)/documents/room_public_ids/$(roomId)).data.roomId == roomId;
 
       allow update: if isSignedIn() && isValidId(roomId) &&
                        isValidRoom(incoming()) &&

@@ -625,14 +625,24 @@ fun PublicProfileSheet(
                         Text(targetUser.username, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         VibeShopCatalog.titles.firstOrNull { it.id == targetUser.activeTitleId && targetUser.isTitleActive(it.id) }?.let { title ->
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = Color(title.colorArgb).copy(alpha = 0.18f),
-                                border = BorderStroke(1.dp, Color(title.colorArgb).copy(alpha = 0.75f))
+                                shape = RoundedCornerShape(9.dp),
+                                color = Color(title.colorArgb).copy(alpha = 0.16f),
+                                border = BorderStroke(
+                                    1.dp,
+                                    androidx.compose.ui.graphics.Brush.linearGradient(
+                                        listOf(
+                                            Color(title.colorArgb).copy(alpha = 0.95f),
+                                            Color.White.copy(alpha = 0.48f),
+                                            Color(title.colorArgb).copy(alpha = 0.78f)
+                                        )
+                                    )
+                                ),
+                                shadowElevation = 2.dp
                             ) {
                                 Text(
-                                    text = title.title,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                    style = MaterialTheme.typography.labelSmall,
+                                    text = title.title.uppercase(),
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = Color(title.colorArgb),
                                     fontWeight = FontWeight.ExtraBold
                                 )
@@ -640,15 +650,22 @@ fun PublicProfileSheet(
                         }
                         if (targetUser.userId == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = VibeCyan.copy(alpha = 0.16f)
+                                shape = RoundedCornerShape(9.dp),
+                                color = Color(0xFF080807),
+                                border = BorderStroke(
+                                    1.2.dp,
+                                    androidx.compose.ui.graphics.Brush.linearGradient(
+                                        listOf(Color(0xFF8A641F), Color(0xFFFFE6A0), Color(0xFF9C711F))
+                                    )
+                                ),
+                                shadowElevation = 5.dp
                             ) {
                                 Text(
-                                    text = "VibePlay Official",
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = VibeCyan,
-                                    fontWeight = FontWeight.Bold
+                                    text = "★ VibePlay Official ★",
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color(0xFFFFD76A),
+                                    fontWeight = FontWeight.ExtraBold
                                 )
                             }
                         }

@@ -400,6 +400,14 @@ class VibePlayViewModel(
         }
     }
 
+    fun sendInboxGift(conversation: Conversation, sender: UserProfile, gift: GiftCatalogItem, quantity: Long = 1L) {
+        viewModelScope.launch {
+            inboxRepository.sendInboxGift(conversation, sender, gift, quantity)
+                .onSuccess { _statusMessage.value = "Gift sent successfully" }
+                .onFailure { _statusMessage.value = it.localizedMessage ?: "Failed to send gift" }
+        }
+    }
+
     fun addGroupMembers(conversation: Conversation, actor: UserProfile, newMembers: List<UserProfile>) {
         viewModelScope.launch {
             inboxRepository.addGroupMembers(conversation, actor, newMembers)

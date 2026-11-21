@@ -339,9 +339,9 @@ fun ProfileScreen(
                             )
                             Text(
                                 text = profile.vibeId,
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.ExtraBold
+                                fontWeight = FontWeight.Bold
                             )
                         }
                         Icon(

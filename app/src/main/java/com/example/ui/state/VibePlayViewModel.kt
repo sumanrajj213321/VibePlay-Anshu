@@ -334,6 +334,23 @@ class VibePlayViewModel(
         }
     }
 
+
+    fun purchaseShopCosmetic(category: String, itemId: String) {
+        viewModelScope.launch {
+            userRepository.purchaseShopCosmetic(category, itemId)
+                .onSuccess { _statusMessage.value = "Purchase successful!" }
+                .onFailure { _statusMessage.value = it.localizedMessage ?: "Purchase failed." }
+        }
+    }
+
+    fun equipShopCosmetic(category: String, itemId: String?) {
+        viewModelScope.launch {
+            userRepository.equipShopCosmetic(category, itemId)
+                .onSuccess { _statusMessage.value = if (itemId.isNullOrBlank()) "Item removed from profile." else "Item equipped on profile!" }
+                .onFailure { _statusMessage.value = it.localizedMessage ?: "Unable to equip item." }
+        }
+    }
+
     fun upgradeVip(profile: UserProfile, targetTier: Int) {
         viewModelScope.launch {
             userRepository.upgradeVipTier(profile, targetTier)

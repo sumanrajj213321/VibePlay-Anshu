@@ -6,6 +6,7 @@ import com.example.data.firebase.OperationType
 import com.example.data.firebase.handleFirestoreError
 import com.example.data.model.GiftCatalogItem
 import com.example.data.model.GiftTransaction
+import com.example.data.model.LevelProgression
 import com.example.data.model.RoomCreationLock
 import com.example.data.model.RoomListener
 import com.example.data.model.RoomMessage

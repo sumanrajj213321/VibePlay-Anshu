@@ -39,15 +39,12 @@ service cloud.firestore {
              (seatIndex == '7' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/7).data.occupantId != request.auth.uid) &&
              (seatIndex == '8' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId != request.auth.uid);
     }
-    function isDirectSpeakerSeatJoin(roomId) {
-      return (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId == '') ||
-             (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId == '') ||
-             (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/3).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/3).data.occupantId == '') ||
-             (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/4).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/4).data.occupantId == '') ||
-             (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/5).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/5).data.occupantId == '') ||
-             (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/6).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/6).data.occupantId == '') ||
-             (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/7).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/7).data.occupantId == '') ||
-             (getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId == request.auth.uid && get(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId == '');
+    function isDirectSpeakerSeatJoin(roomId, roomData) {
+      let seatIndex = roomData.lastSpeakerSeatJoinSeatIndex;
+      return roomData.lastSpeakerSeatJoinUserId == request.auth.uid &&
+             seatIndex is int && seatIndex >= 1 && seatIndex <= 8 &&
+             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/$(seatIndex)).data.occupantId == request.auth.uid &&
+             get(/databases/$(database)/documents/rooms/$(roomId)/seats/$(seatIndex)).data.occupantId == '';
     }
 
     // --- Validation Helpers ---
@@ -531,13 +528,13 @@ service cloud.firestore {
          (incoming().status == existing().status || (incoming().status == 'ENDED' && (!('ownerOnline' in existing()) || existing().ownerOnline == false))) &&
          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'coverUrl', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'listenerCount', 'activeSpeakersCount', 'activeAdminIds', 'status', 'updatedAt'])) ||
         (existing().status == 'LIVE' &&
-         isDirectSpeakerSeatJoin(roomId) &&
+         isDirectSpeakerSeatJoin(roomId, incoming()) &&
          incoming().status == existing().status &&
          incoming().hostId == existing().hostId &&
          incoming().featured == existing().featured &&
          incoming().listenerCount == (exists(/databases/$(database)/documents/rooms/$(roomId)/listeners/$(request.auth.uid)) ? (existing().listenerCount > 0 ? existing().listenerCount - 1 : 0) : existing().listenerCount) &&
          incoming().activeSpeakersCount == (existing().activeSpeakersCount < 9 ? existing().activeSpeakersCount + 1 : 9) &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['listenerCount', 'activeSpeakersCount', 'updatedAt'])) ||
+         incoming().diff(existing()).affectedKeys().hasOnly(['listenerCount', 'activeSpeakersCount', 'lastSpeakerSeatJoinUserId', 'lastSpeakerSeatJoinSeatIndex', 'updatedAt'])) ||
         (existing().status == 'LIVE' && incoming().hostId == existing().hostId &&
          (!('ownerId' in existing()) || incoming().ownerId == existing().ownerId) &&
          (!('ownerOnline' in existing()) || incoming().ownerOnline == existing().ownerOnline) &&

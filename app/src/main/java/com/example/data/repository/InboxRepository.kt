@@ -298,7 +298,7 @@ class InboxRepository(
                     "Chat or recipient profile is unavailable."
                 }
                 val participants = conversationSnap.get("participantIds") as? List<*>
-                check(participants?.contains(uid) == true && participants.contains(recipientId)) {
+                check(participants != null && participants.contains(uid) && participants.contains(recipientId)) {
                     "You are no longer a member of this chat."
                 }
                 val liveCoins = senderSnap.getLong("coinBalance") ?: sender.coinBalance

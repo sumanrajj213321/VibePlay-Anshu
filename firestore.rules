@@ -393,8 +393,13 @@ service cloud.firestore {
            incoming().totalGiftCoinsSent > (('totalGiftCoinsSent' in existing()) ? existing().totalGiftCoinsSent : 0) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'totalGiftsSent', 'totalGiftCoinsSent', 'xp', 'level', 'updatedAt'])) ||
           (incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
-           incoming().vipLevel > existing().vipLevel && incoming().vipLevel <= 30 &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'vipLevel', 'updatedAt']))
+           incoming().vipLevel >= 1 && incoming().vipLevel <= 30 &&
+           (incoming().vipLevel > existing().vipLevel ||
+            (('vipExpiresAt' in existing()) && existing().vipExpiresAt <= request.time)) &&
+           incoming().vipExpiresAt is timestamp &&
+           incoming().vipExpiresAt > request.time &&
+           incoming().vipExpiresAt <= request.time + duration.value(30, 'd') &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'vipLevel', 'vipExpiresAt', 'updatedAt']))
         )) ||
         (request.auth.uid != userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus &&
          incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel && (

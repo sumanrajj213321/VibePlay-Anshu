@@ -254,7 +254,7 @@ fun VibeAvatar(
 }
 
 @Composable
-fun VipBadgePill(vipLevel: Long, modifier: Modifier = Modifier) {
+fun VipBadgePill(vipLevel: Long, modifier: Modifier = Modifier, compact: Boolean = false) {
     if (vipLevel <= 0L) return
     val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == vipLevel.toInt() }
     val accent = tier?.let { Color(it.badgeColorHex) } ?: VibeGold
@@ -278,26 +278,26 @@ fun VipBadgePill(vipLevel: Long, modifier: Modifier = Modifier) {
         Row(
             modifier = Modifier
                 .background(luxuryBrush)
-                .padding(horizontal = 11.dp, vertical = 6.dp),
+                .padding(horizontal = if (compact) 6.dp else 11.dp, vertical = if (compact) 2.dp else 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp)
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 5.dp)
         ) {
             Icon(
                 imageVector = Icons.Filled.Star,
                 contentDescription = null,
                 tint = Color(0xFFFFE7A3),
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(if (compact) 10.dp else 14.dp)
             )
             Text(
                 text = "VIP",
-                style = MaterialTheme.typography.labelMedium,
+                style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                 color = Color(0xFFFFE7A3),
                 fontWeight = FontWeight.Black,
                 letterSpacing = 0.8.sp
             )
             Text(
                 text = vipLevel.toString(),
-                style = MaterialTheme.typography.labelMedium,
+                style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                 color = Color.White,
                 fontWeight = FontWeight.ExtraBold
             )

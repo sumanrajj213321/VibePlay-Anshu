@@ -1,5 +1,11 @@
 package com.example.ui.screens
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas as AndroidCanvas
+import android.graphics.Paint
+import android.graphics.Rect
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,6 +25,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -47,12 +55,20 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -66,6 +82,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
+import kotlin.math.max
 import coil.compose.AsyncImage
 import com.example.R
 import com.example.data.model.FollowEdge
@@ -116,13 +138,26 @@ fun EditProfileSheet(
     var showGender by remember(profile.showGender) { mutableStateOf(profile.showGender) }
     var showOnline by remember(profile.showOnlineStatus) { mutableStateOf(profile.showOnlineStatus) }
 
+    var pendingAvatarUri by remember { mutableStateOf<Uri?>(null) }
+
     val avatarPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
-    ) { uri -> uri?.let { avatarUrl = it.toString() } }
+    ) { uri -> pendingAvatarUri = uri }
 
     val coverPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri -> uri?.let { coverUrl = it.toString() } }
+
+    pendingAvatarUri?.let { selectedUri ->
+        AvatarCropDialog(
+            imageUri = selectedUri,
+            onCancel = { pendingAvatarUri = null },
+            onApply = { croppedUri ->
+                avatarUrl = croppedUri.toString()
+                pendingAvatarUri = null
+            }
+        )
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface) {
         Column(
@@ -243,6 +278,142 @@ fun EditProfileSheet(
                 Text("Save Profile", fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
+}
+
+@Composable
+private fun AvatarCropDialog(
+    imageUri: Uri,
+    onCancel: () -> Unit,
+    onApply: (Uri) -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var sourceBitmap by remember(imageUri) { mutableStateOf<Bitmap?>(null) }
+    var loadError by remember(imageUri) { mutableStateOf<String?>(null) }
+    var zoom by remember(imageUri) { mutableStateOf(1f) }
+    var offsetX by remember(imageUri) { mutableStateOf(0f) }
+    var offsetY by remember(imageUri) { mutableStateOf(0f) }
+    var previewSize by remember(imageUri) { mutableStateOf(IntSize.Zero) }
+    var saving by remember(imageUri) { mutableStateOf(false) }
+
+    LaunchedEffect(imageUri) {
+        val decoded = withContext(Dispatchers.IO) {
+            context.contentResolver.openInputStream(imageUri)?.use { BitmapFactory.decodeStream(it) }
+        }
+        if (decoded == null) loadError = "This photo could not be opened. Please choose another photo."
+        else sourceBitmap = decoded
+    }
+
+    Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text("Adjust Profile Photo", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    "Pinch to zoom in or out. Drag the photo to position it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                val bitmap = sourceBitmap
+                if (bitmap != null) {
+                    Box(
+                        modifier = Modifier.size(280.dp).clip(CircleShape)
+                            .onSizeChanged { previewSize = it }
+                            .pointerInput(bitmap, previewSize) {
+                                detectTransformGestures { _, pan, gestureZoom, _ ->
+                                    val nextZoom = (zoom * gestureZoom).coerceIn(1f, 5f)
+                                    zoom = nextZoom
+                                    val w = previewSize.width.toFloat()
+                                    val h = previewSize.height.toFloat()
+                                    if (w > 0f && h > 0f) {
+                                        val base = max(w / bitmap.width, h / bitmap.height)
+                                        val maxX = ((bitmap.width * base * nextZoom - w) / 2f).coerceAtLeast(0f)
+                                        val maxY = ((bitmap.height * base * nextZoom - h) / 2f).coerceAtLeast(0f)
+                                        offsetX = (offsetX + pan.x).coerceIn(-maxX, maxX)
+                                        offsetY = (offsetY + pan.y).coerceIn(-maxY, maxY)
+                                    }
+                                }
+                            }
+                    ) {
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = "Profile photo crop preview",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize().graphicsLayer {
+                                scaleX = zoom
+                                scaleY = zoom
+                                translationX = offsetX
+                                translationY = offsetY
+                            }
+                        )
+                    }
+                    TextButton(onClick = {
+                        zoom = 1f
+                        offsetX = 0f
+                        offsetY = 0f
+                    }) { Text("Reset") }
+                } else {
+                    Text(
+                        loadError ?: "Loading photo…",
+                        color = if (loadError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick = onCancel, enabled = !saving, modifier = Modifier.weight(1f)) {
+                        Text("Cancel")
+                    }
+                    Button(
+                        onClick = {
+                            val original = sourceBitmap ?: return@Button
+                            if (previewSize.width <= 0 || previewSize.height <= 0 || saving) return@Button
+                            saving = true
+                            val z = zoom
+                            val dx = offsetX
+                            val dy = offsetY
+                            val size = previewSize
+                            scope.launch {
+                                val croppedUri = withContext(Dispatchers.IO) {
+                                    val base = max(size.width.toFloat() / original.width, size.height.toFloat() / original.height)
+                                    val cropSize = minOf(original.width.toFloat(), original.height.toFloat()) / z
+                                    val centerX = original.width / 2f - dx / (base * z)
+                                    val centerY = original.height / 2f - dy / (base * z)
+                                    val left = (centerX - cropSize / 2f).coerceIn(0f, original.width - cropSize)
+                                    val top = (centerY - cropSize / 2f).coerceIn(0f, original.height - cropSize)
+                                    val src = Rect(
+                                        left.toInt(), top.toInt(),
+                                        (left + cropSize).toInt().coerceAtMost(original.width),
+                                        (top + cropSize).toInt().coerceAtMost(original.height)
+                                    )
+                                    val result = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888)
+                                    AndroidCanvas(result).drawBitmap(
+                                        original, src, Rect(0, 0, 512, 512),
+                                        Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+                                    )
+                                    val file = File(context.cacheDir, "profile_avatar_${System.currentTimeMillis()}.jpg")
+                                    FileOutputStream(file).use { it ->
+                                        result.compress(Bitmap.CompressFormat.JPEG, 88, it)
+                                    }
+                                    result.recycle()
+                                    Uri.fromFile(file)
+                                }
+                                saving = false
+                                onApply(croppedUri)
+                            }
+                        },
+                        enabled = sourceBitmap != null && loadError == null && !saving,
+                        modifier = Modifier.weight(1f)
+                    ) { Text(if (saving) "Applying…" else "Apply") }
+                }
+            }
         }
     }
 }

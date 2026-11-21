@@ -90,6 +90,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.example.data.livekit.VoiceConnectionState
 import com.example.data.model.GiftBurstEvent
 import com.example.data.model.GiftCatalogItem
@@ -561,14 +562,25 @@ internal fun VoiceRoomStageContent(
                 .padding(innerPadding)
         ) {
             // Subtle atmospheric cover backdrop
-            Image(
-                painter = painterResource(id = coverDrawableRes(currentRoom.coverKey)),
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .alpha(0.18f),
-                contentScale = ContentScale.Crop
-            )
+            if (currentRoom.coverUrl.isNotBlank()) {
+                AsyncImage(
+                    model = currentRoom.coverUrl,
+                    contentDescription = "Room cover",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(0.18f),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = coverDrawableRes(currentRoom.coverKey)),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(0.18f),
+                    contentScale = ContentScale.Crop
+                )
+            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()

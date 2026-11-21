@@ -291,7 +291,7 @@ internal fun VoiceRoomStageContent(
     var showGiftSheet by remember { mutableStateOf(false) }
     var preselectedGiftRecipientId by remember { mutableStateOf<String?>(null) }
     var showHostSettings by remember { mutableStateOf(false) }
-    var showListenersAndRequests by remember { mutableStateOf(false) }
+    var showOnlineMembers by remember { mutableStateOf(false) }
     var showInvitationDialog by remember { mutableStateOf(false) }
     LaunchedEffect(myPendingRequest?.id, myPendingRequest?.status) {
         if (myPendingRequest?.status == "INVITED") showInvitationDialog = true
@@ -455,49 +455,26 @@ internal fun VoiceRoomStageContent(
                             }
                         }
 
-                        // Button 2: Raise Hand / Requests Queue (always visible)
-                        val raiseHandBg = when {
-                            isManager -> MaterialTheme.colorScheme.surfaceVariant
-                            mySeat != null -> VibeEmerald
-                            else -> VibeCyan
-                        }
-                        val raiseHandTint = when {
-                            isManager -> VibeGold
-                            else -> Color.White
-                        }
-                        Surface(
-                            shape = CircleShape,
-                            color = raiseHandBg,
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            IconButton(
-                                onClick = {
-                                    when {
-                                        isManager -> showListenersAndRequests = true
-                                        mySeat != null -> activeSeatDialog = mySeat
-                                        else -> {
-                                            scope.launch { snackbarHostState.showSnackbar("Tap an open seat to join the stage.") }
-                                        }
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .testTag(if (isManager) "host_online_members_button" else "my_speaker_seat_button")
+                        // Room controls: managers can open the online member list; seated users can manage their seat.
+                        if (isManager || mySeat != null) {
+                            val controlTint = if (isManager) VibeGold else Color.White
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isManager) MaterialTheme.colorScheme.surfaceVariant else VibeEmerald,
+                                modifier = Modifier.size(48.dp)
                             ) {
-                                if (isManager) {
+                                IconButton(
+                                    onClick = {
+                                        if (isManager) showOnlineMembers = true else activeSeatDialog = mySeat
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .testTag(if (isManager) "host_online_members_button" else "my_speaker_seat_button")
+                                ) {
                                     Icon(
-                                        imageVector = Icons.Filled.People,
-                                        contentDescription = "Online room members",
-                                        tint = raiseHandTint
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Filled.PanTool,
-                                        contentDescription = when {
-                                            mySeat != null -> "On speaker seat ${mySeat.seatIndex}"
-                                            else -> "Tap an open seat to join"
-                                        },
-                                        tint = raiseHandTint
+                                        imageVector = if (isManager) Icons.Filled.People else Icons.Filled.Mic,
+                                        contentDescription = if (isManager) "Online room members" else "Manage my speaker seat",
+                                        tint = controlTint
                                     )
                                 }
                             }
@@ -933,7 +910,7 @@ internal fun VoiceRoomStageContent(
 
     if (showListenersAndRequests) {
         val firstOpenSeat = VoiceStage.findAvailableSpeakerSeat(currentStage)
-        SpeakerRequestsAndListenersSheet(
+        RoomOnlineMembersSheet(
             isHost = isManager,
             isOwner = isOwner,
             currentUserId = currentUser.userId,

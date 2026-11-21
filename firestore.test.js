@@ -721,6 +721,8 @@ test("Open speaker seats: users join directly, locked or occupied seats reject j
   bobJoin.update(bobRoomRef, {
     listenerCount: 1,
     activeSpeakersCount: 2,
+    lastSpeakerSeatJoinUserId: BOB_UID,
+    lastSpeakerSeatJoinSeatIndex: 3,
     updatedAt: pastDate(),
   });
   await assertSucceeds(bobJoin.commit());
@@ -802,6 +804,8 @@ test("Open speaker seats: users join directly, locked or occupied seats reject j
   charlieJoin.update(charlieRoomRef, {
     listenerCount: 0,
     activeSpeakersCount: 3,
+    lastSpeakerSeatJoinUserId: charlieUid,
+    lastSpeakerSeatJoinSeatIndex: 4,
     updatedAt: pastDate(),
   });
   await assertSucceeds(charlieJoin.commit());

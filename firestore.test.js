@@ -304,7 +304,8 @@ test("Strict 9-seat Voice Room batch creation, seat 9 rejection, seat 0 protecti
   );
 
   // Bob requests a seat, receives an invitation, and accepts it transactionally.
-  const bobRequestRef = roomRef.collection("speaker_requests").doc(BOB_UID);
+  const bobRoomRef = bobDb.collection("rooms").doc("room_alpha");
+  const bobRequestRef = bobRoomRef.collection("speaker_requests").doc(BOB_UID);
   await assertSucceeds(bobRequestRef.set({
     userId: BOB_UID,
     hostId: ALICE_UID,
@@ -323,7 +324,7 @@ test("Strict 9-seat Voice Room batch creation, seat 9 rejection, seat 0 protecti
   }));
   const acceptSeatBatch = bobDb.batch();
   acceptSeatBatch.update(bobRequestRef, { status: "ACCEPTED", updatedAt: pastDate() });
-  acceptSeatBatch.update(roomRef.collection("seats").doc("1"), {
+  acceptSeatBatch.update(bobRoomRef.collection("seats").doc("1"), {
     occupantId: BOB_UID,
     occupantName: "Bob",
     occupantAvatarUrl: "",
@@ -333,8 +334,8 @@ test("Strict 9-seat Voice Room batch creation, seat 9 rejection, seat 0 protecti
     speaking: false,
     updatedAt: pastDate(),
   });
-  acceptSeatBatch.delete(roomRef.collection("listeners").doc(BOB_UID));
-  acceptSeatBatch.update(roomRef, {
+  acceptSeatBatch.delete(bobRoomRef.collection("listeners").doc(BOB_UID));
+  acceptSeatBatch.update(bobRoomRef, {
     listenerCount: 0,
     activeSpeakersCount: 2,
     updatedAt: pastDate(),
@@ -782,8 +783,9 @@ test("Speaker requests: prevent duplicates, allow cancel, support reject/re-requ
       updatedAt: pastDate(),
     })
   );
+  const bobRoomRef = bobDb.collection("rooms").doc("room_seats_tx");
   const acceptBatch = bobDb.batch();
-  acceptBatch.update(roomRef.collection("seats").doc("2"), {
+  acceptBatch.update(bobRoomRef.collection("seats").doc("2"), {
     occupantId: BOB_UID,
     occupantName: "Bob",
     occupantAvatarUrl: "",
@@ -793,11 +795,11 @@ test("Speaker requests: prevent duplicates, allow cancel, support reject/re-requ
     speaking: false,
     updatedAt: pastDate(),
   });
-  acceptBatch.update(roomRef.collection("speaker_requests").doc(BOB_UID), {
+  acceptBatch.update(bobRoomRef.collection("speaker_requests").doc(BOB_UID), {
     status: "ACCEPTED",
     updatedAt: pastDate(),
   });
-  acceptBatch.update(roomRef, {
+  acceptBatch.update(bobRoomRef, {
     activeSpeakersCount: 2,
     listenerCount: 2,
     updatedAt: pastDate(),

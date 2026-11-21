@@ -440,15 +440,22 @@ class UserRepository(
                 val snap = tx.get(userRef)
                 require(snap.exists()) { "Profile not found." }
                 val ownedField = if (category == "TITLE") "ownedTitleIds" else "ownedFrameIds"
+                val expiryField = if (category == "TITLE") "titleExpiresAt" else "frameExpiresAt"
+                val activeField = if (category == "TITLE") "activeTitleId" else "activeFrameId"
                 val owned = (snap.get(ownedField) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-                require(itemId !in owned) { "You already own this item." }
+                val expiries = (snap.get(expiryField) as? Map<*, *>)?.entries
+                    ?.associate { it.key.toString() to (it.value as? Timestamp) } ?: emptyMap()
+                val currentExpiry = expiries[itemId]?.toDate()?.time ?: 0L
+                require(currentExpiry <= System.currentTimeMillis()) { "You already own this item. It expires first." }
                 val coins = snap.getLong("coinBalance") ?: 0L
                 require(coins >= item.coinPrice) { "Not enough coins. Need ${item.coinPrice} coins." }
+                val durationDays = if (category == "TITLE") 15L else 7L
+                val expiresAt = Timestamp(java.util.Date(System.currentTimeMillis() + durationDays * 24L * 60L * 60L * 1000L))
                 tx.update(userRef, mapOf(
                     "coinBalance" to coins - item.coinPrice,
-                    ownedField to FieldValue.arrayUnion(itemId),
-                    (if (category == "TITLE") "activeTitleId" else "activeFrameId") to
-                        (snap.getString(if (category == "TITLE") "activeTitleId" else "activeFrameId") ?: ""),
+                    ownedField to if (itemId in owned) owned else FieldValue.arrayUnion(itemId),
+                    expiryField to mapOf(itemId to expiresAt),
+                    activeField to itemId,
                     "updatedAt" to FieldValue.serverTimestamp()
                 ))
             }.await()
@@ -507,6 +514,7 @@ class UserRepository(
                     mapOf(
                         "coinBalance" to (currentCoins - tier.coinPrice),
                         "vipLevel" to targetTierLevel.toLong(),
+                        "vipExpiresAt" to Timestamp(java.util.Date(System.currentTimeMillis() + 30L * 24L * 60L * 60L * 1000L)),
                         "updatedAt" to FieldValue.serverTimestamp()
                     )
                 )

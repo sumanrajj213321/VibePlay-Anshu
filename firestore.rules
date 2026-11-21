@@ -632,10 +632,11 @@ service cloud.firestore {
       // Existing conversations remain readable only by their participants.
       allow get: if isSignedIn() && isValidId(conversationId) &&
                    (!exists(/databases/$(database)/documents/conversations/$(conversationId)) ||
-                    request.auth.uid in existing().participantIds);
+                    request.auth.uid in existing().participantIds || isAdmin());
       allow list: if isSignedIn() && request.auth.uid in existing().participantIds;
       allow create: if isSignedIn() && isValidId(conversationId) &&
-                       request.auth.uid in incoming().participantIds &&
+                       (request.auth.uid in incoming().participantIds ||
+                        (isAdmin() && 'VIBEPLAY_OFFICIAL_BOT' in incoming().participantIds && incoming().participantIds.size() == 2)) &&
                        (!('conversationType' in incoming()) || incoming().conversationType == 'DIRECT' || incoming().ownerId == request.auth.uid) &&
                        isValidConversation(incoming()) &&
                        isValidTs(incoming().createdAt) &&

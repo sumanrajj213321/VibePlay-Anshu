@@ -410,11 +410,25 @@ fun ImageCropDialog(
                             }
                         )
                     }
-                    TextButton(onClick = {
-                        zoom = 1f
-                        offsetX = 0f
-                        offsetY = 0f
-                    }) { Text("Reset") }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = { zoom = (zoom - 0.25f).coerceIn(1f, 5f) },
+                            enabled = zoom > 1f
+                        ) { Text("− Zoom Out") }
+                        OutlinedButton(
+                            onClick = { zoom = (zoom + 0.25f).coerceIn(1f, 5f) },
+                            enabled = zoom < 5f
+                        ) { Text("+ Zoom In") }
+                        TextButton(onClick = {
+                            zoom = 1f
+                            offsetX = 0f
+                            offsetY = 0f
+                        }) { Text("Reset") }
+                    }
                 } else {
                     Text(
                         loadError ?: "Loading photo…",

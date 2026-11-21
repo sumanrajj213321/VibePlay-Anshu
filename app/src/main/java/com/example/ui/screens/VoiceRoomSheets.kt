@@ -733,7 +733,7 @@ fun SpeakerRequestsAndListenersSheet(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            VibeAvatar(member.avatarUrl, member.username, size = 38.dp, vipLevel = member.vipLevel)
+                            VibeAvatar(member.avatarUrl, member.username, size = 38.dp, vipLevel = member.vipLevel, frameColorArgb = member.frameColorArgb)
                             Column {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,

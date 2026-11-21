@@ -63,6 +63,7 @@ import com.example.R
 import com.example.data.model.FollowEdge
 import com.example.data.model.GiftTransaction
 import com.example.data.model.UserProfile
+import com.example.data.model.VibeShopCatalog
 import com.example.data.model.VibeCatalogDefaults
 import com.example.data.model.VoiceRoom
 import com.example.ui.components.BiologicalGenderBadge
@@ -616,11 +617,27 @@ fun PublicProfileSheet(
                     username = targetUser.username,
                     size = 68.dp,
                     vipLevel = targetUser.vipLevel,
-                    online = targetUser.online && targetUser.showOnlineStatus
+                    online = targetUser.online && targetUser.showOnlineStatus,
+                    frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == targetUser.activeFrameId }?.colorArgb
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(targetUser.username, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        VibeShopCatalog.titles.firstOrNull { it.id == targetUser.activeTitleId }?.let { title ->
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(title.colorArgb).copy(alpha = 0.18f),
+                                border = BorderStroke(1.dp, Color(title.colorArgb).copy(alpha = 0.75f))
+                            ) {
+                                Text(
+                                    text = title.title,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(title.colorArgb),
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
+                        }
                         if (targetUser.userId == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
                             Surface(
                                 shape = RoundedCornerShape(8.dp),

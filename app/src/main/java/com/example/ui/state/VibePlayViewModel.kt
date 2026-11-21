@@ -23,6 +23,7 @@ import com.example.data.repository.RoomRepository
 import com.example.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -44,6 +45,7 @@ class VibePlayViewModel(
 ) : ViewModel() {
 
     private val _statusMessage = MutableStateFlow<String?>(null)
+    private var inspectedUserProfileJob: Job? = null
     val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
 
     val recentRoomIds: StateFlow<List<String>> = preferencesRepository.recentRoomIdsFlow
@@ -285,24 +287,27 @@ class VibePlayViewModel(
         onLoaded: (UserProfile) -> Unit
     ) {
         if (userId.isBlank()) return
+        inspectedUserProfileJob?.cancel()
+
+        // Render immediately from memory, then keep the opened profile synchronized
+        // with Firestore so title, official status, frame and gift data do not stay stale.
         val cached = activeUsers.value.firstOrNull { it.userId == userId }
-        if (cached != null) {
-            onLoaded(cached)
-        } else if (fallback != null) {
-            onLoaded(fallback)
-        }
-        viewModelScope.launch {
-            userRepository.getUserProfileOnce(userId)
-                .onSuccess { fetched ->
-                    if (fetched != null) {
-                        onLoaded(fetched)
-                    } else if (cached == null && fallback == null) {
-                        _statusMessage.value = "User profile not found"
+        (cached ?: fallback)?.let(onLoaded)
+
+        inspectedUserProfileJob = viewModelScope.launch {
+            userRepository.observeUserProfile(userId)
+                .catch { error ->
+                    val root = unwrapFirestoreError(error)
+                    Log.w(TAG, "Error observing inspected user profile", root)
+                    if (cached == null && fallback == null) {
+                        _statusMessage.value = root.message ?: "Unable to load profile"
                     }
                 }
-                .onFailure {
-                    if (cached == null && fallback == null) {
-                        _statusMessage.value = it.localizedMessage ?: "Unable to load profile"
+                .collect { latest ->
+                    if (latest != null) {
+                        onLoaded(latest)
+                    } else if (cached == null && fallback == null) {
+                        _statusMessage.value = "User profile not found"
                     }
                 }
         }

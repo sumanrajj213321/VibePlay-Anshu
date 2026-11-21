@@ -12,6 +12,7 @@ import com.example.data.model.RoomListener
 import com.example.data.model.RoomMessage
 import com.example.data.model.SpeakerRequest
 import com.example.data.model.UserProfile
+import com.example.data.model.VibeShopCatalog
 import com.example.data.model.VoiceRoom
 import com.example.data.model.VoiceSeat
 import com.example.data.model.VoiceStage
@@ -119,14 +120,24 @@ class RoomRepository(
             .whereEqualTo("accountStatus", "ACTIVE")
             .whereEqualTo("online", true)
             .snapshots()
-            .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
-        return combine(seatsFlow, sessionsFlow, onlineUsersFlow, observeRoom(roomId)) { seats, sessionIds, onlineUserIds, room ->
-            val activeSessionIds = sessionIds.intersect(onlineUserIds)
+            .map { snapshot ->
+                snapshot.documents.mapNotNull { document ->
+                    val profile = document.toObject(UserProfile::class.java) ?: return@mapNotNull null
+                    val activeFrame = VibeShopCatalog.frames.firstOrNull {
+                        it.id == profile.activeFrameId && profile.isFrameActive(it.id)
+                    }
+                    document.id to (activeFrame?.colorArgb)
+                }.toMap()
+            }
+        return combine(seatsFlow, sessionsFlow, onlineUsersFlow, observeRoom(roomId)) { seats, sessionIds, onlineFrameColors, room ->
+            val activeSessionIds = sessionIds.intersect(onlineFrameColors.keys)
             seats.filter { seat ->
                 seat.isHostSeat ||
                     seat.occupantId.isBlank() ||
                     seat.occupantId in activeSessionIds ||
                     (room != null && !room.effectiveOwnerOnline && seat.occupantId == room.effectiveOwnerId)
+            }.map { seat ->
+                seat.copy(occupantFrameColorArgb = onlineFrameColors[seat.occupantId] ?: seat.occupantFrameColorArgb)
             }
         }
     }

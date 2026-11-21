@@ -278,7 +278,7 @@ fun HostSettingsSheet(
     stage: VoiceStage,
     isOwner: Boolean = true,
     onDismiss: () -> Unit,
-    onSaveSettings: (title: String, announcement: String, category: String, coverKey: String, locked: Boolean, newPassword: String?) -> Unit,
+    onSaveSettings: (title: String, announcement: String, category: String, coverKey: String, keepCustomCover: Boolean, locked: Boolean, newPassword: String?) -> Unit,
     onUploadCover: (Uri) -> Unit = {},
     onMuteAllSpeakers: () -> Unit = {},
     onTransferOwnership: (VoiceSeat) -> Unit,
@@ -288,6 +288,7 @@ fun HostSettingsSheet(
     var announcement by remember(room.announcement) { mutableStateOf(room.announcement) }
     var selectedCategory by remember(room.category) { mutableStateOf(RoomCategory.fromString(room.category)) }
     var selectedCoverKey by remember(room.coverKey) { mutableStateOf(room.coverKey) }
+    var keepCustomCover by remember(room.coverUrl) { mutableStateOf(room.coverUrl.isNotBlank()) }
     var locked by remember(room.locked) { mutableStateOf(room.locked) }
     var changePassword by remember { mutableStateOf(false) }
     var newPassword by remember { mutableStateOf("") }
@@ -365,18 +366,18 @@ fun HostSettingsSheet(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Room Cover Gallery", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     OutlinedButton(
-                        onClick = { coverPickerLauncher.launch("image/*") },
+                        onClick = { keepCustomCover = true; coverPickerLauncher.launch("image/*") },
                         modifier = Modifier.fillMaxWidth().testTag("room_cover_upload_button")
                     ) {
                         Text("Upload from Gallery")
                     }
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(RoomCoverPreset.entries) { preset ->
-                            val selected = selectedCoverKey == preset.key
+                            val selected = !keepCustomCover && selectedCoverKey == preset.key
                             Column(
                                 modifier = Modifier
                                     .width(150.dp)
-                                    .clickable { selectedCoverKey = preset.key }
+                                    .clickable { selectedCoverKey = preset.key; keepCustomCover = false }
                                     .testTag("room_cover_${preset.key}"),
                                 verticalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
@@ -444,6 +445,7 @@ fun HostSettingsSheet(
                             announcement,
                             selectedCategory.label,
                             selectedCoverKey,
+                            keepCustomCover,
                             locked,
                             if (changePassword) newPassword else null
                         )

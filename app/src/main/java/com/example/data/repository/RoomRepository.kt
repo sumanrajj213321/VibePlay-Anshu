@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -61,7 +63,34 @@ class RoomRepository(
             .snapshots()
             .map { snapshot ->
                 snapshot.toObjects(VoiceRoom::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
-                    .sortedByDescending { (if (it.featured) 100000L else 0L) + it.listenerCount }
+            }
+            .flatMapLatest { rooms ->
+                if (rooms.isEmpty()) {
+                    flowOf(emptyList())
+                } else {
+                    val roomCountFlows = rooms.map { room ->
+                        val roomRef = db.collection("rooms").document(room.id)
+                        val sessionsFlow = roomRef.collection("room_sessions").snapshots()
+                            .map { sessions -> sessions.documents.map { it.id }.toSet() }
+                        val seatsFlow = roomRef.collection("seats").snapshots()
+                            .map { seats -> seats.documents.mapNotNull { it.getString("occupantId") }.filter { it.isNotBlank() }.toSet() }
+                        combine(sessionsFlow, seatsFlow) { activeSessionIds, seatedIds ->
+                            val activeSeatedIds = seatedIds.intersect(activeSessionIds)
+                            val hostIsActive = room.effectiveOwnerId in activeSessionIds
+                            val speakerCount = activeSeatedIds.size.toLong()
+                            val listenerCount = (activeSessionIds - activeSeatedIds).size.toLong()
+                            room.copy(
+                                listenerCount = listenerCount,
+                                activeSpeakersCount = speakerCount
+                            )
+                        }
+                    }
+                    combine(roomCountFlows) { updatedRooms ->
+                        updatedRooms.toList().sortedByDescending {
+                            (if (it.featured) 100000L else 0L) + it.listenerCount + it.activeSpeakersCount
+                        }
+                    }
+                }
             }
 
     fun observeRoom(roomId: String): Flow<VoiceRoom?> =
@@ -69,14 +98,26 @@ class RoomRepository(
             .snapshots()
             .map { it.toObject(VoiceRoom::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE) }
 
-    fun observeNineSeats(roomId: String): Flow<List<VoiceSeat>> =
-        db.collection("rooms").document(roomId).collection("seats")
+    fun observeNineSeats(roomId: String): Flow<List<VoiceSeat>> {
+        val roomRef = db.collection("rooms").document(roomId)
+        val seatsFlow = roomRef.collection("seats")
             .whereGreaterThanOrEqualTo("seatIndex", 0L)
             .whereLessThanOrEqualTo("seatIndex", 8L)
             .snapshots()
             .map { snapshot ->
                 snapshot.toObjects(VoiceSeat::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
             }
+        val sessionsFlow = roomRef.collection("room_sessions").snapshots()
+            .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
+        return combine(seatsFlow, sessionsFlow, observeRoom(roomId)) { seats, activeSessionIds, room ->
+            seats.filter { seat ->
+                seat.isHostSeat ||
+                    seat.occupantId.isBlank() ||
+                    seat.occupantId in activeSessionIds ||
+                    (room != null && !room.effectiveOwnerOnline && seat.occupantId == room.effectiveOwnerId)
+            }
+        }
+    }
 
     fun observeSpeakerRequests(roomId: String): Flow<List<SpeakerRequest>> =
         db.collection("rooms").document(roomId).collection("speaker_requests")
@@ -135,8 +176,12 @@ class RoomRepository(
             .snapshots()
             .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
 
-        return combine(listenersFlow, onlineUsersFlow) { listeners, onlineIds ->
-            listeners.filter { it.userId in onlineIds }
+        val sessionsFlow = db.collection("rooms").document(roomId).collection("room_sessions")
+            .snapshots()
+            .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
+
+        return combine(listenersFlow, onlineUsersFlow, sessionsFlow) { listeners, onlineIds, activeSessionIds ->
+            listeners.filter { it.userId in onlineIds && it.userId in activeSessionIds }
         }
     }
 

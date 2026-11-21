@@ -54,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -611,8 +612,25 @@ fun PublicProfileSheet(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.surface
+            modifier = Modifier
+                .fillMaxWidth(0.94f)
+                .fillMaxHeight(0.94f),
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            border = BorderStroke(
+                1.5.dp,
+                Brush.linearGradient(
+                    listOf(
+                        VibeCyan.copy(alpha = 0.95f),
+                        VibeViolet.copy(alpha = 0.9f),
+                        VibeGold.copy(alpha = 0.9f),
+                        VibePink.copy(alpha = 0.9f),
+                        VibeCyan.copy(alpha = 0.95f)
+                    )
+                )
+            ),
+            shadowElevation = 14.dp
         ) {
         Column(
             modifier = Modifier

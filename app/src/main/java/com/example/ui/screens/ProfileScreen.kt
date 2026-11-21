@@ -107,6 +107,8 @@ fun ProfileScreen(
     var showSetupGuide by remember { mutableStateOf(false) }
 
     val (xpInLevel, xpNeededForNextLevel) = LevelProgression.progressInLevel(profile.xp)
+    val giftCoinsIn = giftHistory.filter { it.recipientId == profile.userId }.sumOf { it.coinCost }
+    val giftCoinsOut = giftHistory.filter { it.senderId == profile.userId }.sumOf { it.coinCost }
     val xpProgress = (xpInLevel.toFloat() / xpNeededForNextLevel.toFloat()).coerceIn(0f, 1f)
 
     LazyColumn(
@@ -413,7 +415,7 @@ fun ProfileScreen(
                 )
                 ProfileActionRow(
                     icon = Icons.Filled.CardGiftcard,
-                    title = "Virtual Gift History",
+                    title = "Gift In: $giftCoinsIn coins · Gift Out: $giftCoinsOut coins",
                     subtitle = "${giftHistory.size} transactions recorded",
                     onClick = { showGiftHistory = true }
                 )

@@ -37,6 +37,7 @@ import com.example.data.model.UserProfile
 import com.example.data.model.VibeCatalogDefaults
 import com.example.data.model.VibeShopCatalog
 import com.example.data.model.ShopCosmeticItem
+import com.example.ui.components.VibeAvatar
 import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibeViolet
 
@@ -113,7 +114,9 @@ fun ShopScreen(
                         status = when { equipped -> "Equipped"; owned -> "Equip"; else -> "Purchase" },
                         enabled = !equipped && (owned || profile.coinBalance >= item.coinPrice),
                         onClick = { if (owned) onEquip("FRAME", item.id) else onPurchase("FRAME", item.id) },
-                        icon = "✨"
+                        icon = "✨",
+                        previewAvatarUrl = profile.avatarUrl,
+                        previewFrameColorArgb = item.colorArgb
                     )
                 }
                 else -> items(VibeShopCatalog.titles, key = { it.id }) { item ->
@@ -158,7 +161,9 @@ private fun ShopCard(
     status: String,
     enabled: Boolean,
     onClick: () -> Unit,
-    icon: String
+    icon: String,
+    previewAvatarUrl: String = "",
+    previewFrameColorArgb: Long? = null
 ) {
     Surface(
         shape = RoundedCornerShape(18.dp),
@@ -170,7 +175,16 @@ private fun ShopCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(icon, style = MaterialTheme.typography.headlineMedium)
+            if (previewFrameColorArgb != null) {
+                VibeAvatar(
+                    avatarUrl = previewAvatarUrl,
+                    username = "Preview",
+                    size = 58.dp,
+                    frameColorArgb = previewFrameColorArgb
+                )
+            } else {
+                Text(icon, style = MaterialTheme.typography.headlineMedium)
+            }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, color = accent, fontWeight = FontWeight.ExtraBold)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

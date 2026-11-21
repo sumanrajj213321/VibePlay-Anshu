@@ -196,6 +196,9 @@ fun VoiceRoomScreen(
         onToggleSeatLock = { seat, locked -> roomViewModel.toggleSeatLock(seat, locked) },
         onMuteAllSpeakers = { roomViewModel.muteAllSpeakers() },
         onJoinSpeakerSeat = { seatIndex -> roomViewModel.joinSpeakerSeat(currentRoom, seatIndex, currentUser) },
+        myPendingRequest = roomViewModel.myPendingSpeakerRequest.collectAsStateWithLifecycle().value,
+        onAcceptSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, true) },
+        onRejectSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, false) },
         onAcceptSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, true) },
         onRejectSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, false) },
         onClearGiftBurst = { roomViewModel.clearGiftBurst() },
@@ -263,6 +266,9 @@ internal fun VoiceRoomStageContent(
     onToggleSeatLock: (VoiceSeat, Boolean) -> Unit = { _, _ -> },
     onMuteAllSpeakers: () -> Unit = {},
     onJoinSpeakerSeat: (seatIndex: Int) -> Unit,
+    myPendingRequest: SpeakerRequest? = null,
+    onAcceptSeatInvitation: (SpeakerRequest) -> Unit = {},
+    onRejectSeatInvitation: (SpeakerRequest) -> Unit = {},
     onClearGiftBurst: () -> Unit,
     onClearVipEntrance: () -> Unit = {},
     onSendGift: (recipientId: String, recipientName: String, gift: GiftCatalogItem, quantity: Long) -> Unit,
@@ -291,6 +297,10 @@ internal fun VoiceRoomStageContent(
     var showListenersAndRequests by remember { mutableStateOf(false) }
     var showSetupGuide by remember { mutableStateOf(false) }
     var inviteTargetSeatIndex by remember { mutableStateOf<Int?>(null) }
+    var showInvitationDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(myPendingRequest?.id, myPendingRequest?.status) {
+        if (myPendingRequest?.status == "INVITED") showInvitationDialog = true
+    }
     var activeSeatDialog by remember { mutableStateOf<VoiceSeat?>(null) }
     var reportTarget by remember { mutableStateOf<Triple<String, String, String>?>(null) }
 
@@ -427,7 +437,7 @@ internal fun VoiceRoomStageContent(
                                         }
                                         else -> {
                                             scope.launch {
-                                                snackbarHostState.showSnackbar("Tap an open seat or Raise Hand to request speaking.")
+                                                snackbarHostState.showSnackbar("Tap an open seat to join the stage.")
                                             }
                                         }
                                     }
@@ -468,7 +478,9 @@ internal fun VoiceRoomStageContent(
                                     when {
                                         isManager -> showListenersAndRequests = true
                                         mySeat != null -> activeSeatDialog = mySeat
-                                        else -> onLeaveRoom()
+                                        else -> {
+                                            scope.launch { snackbarHostState.showSnackbar("Tap an open seat to join the stage.") }
+                                        }
                                     }
                                 },
                                 modifier = Modifier
@@ -913,6 +925,18 @@ internal fun VoiceRoomStageContent(
                     }
                 },
                 onDismiss = { inviteTargetSeatIndex = null }
+            )
+        }
+    }
+
+    if (showInvitationDialog) {
+        myPendingRequest?.takeIf { it.status == "INVITED" }?.let { invitation ->
+            PendingRequestStatusDialog(
+                request = invitation,
+                onCancelRequest = {},
+                onAcceptInvitation = { onAcceptSeatInvitation(invitation) },
+                onRejectInvitation = { onRejectSeatInvitation(invitation) },
+                onDismiss = { showInvitationDialog = false }
             )
         }
     }

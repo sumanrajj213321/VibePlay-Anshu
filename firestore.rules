@@ -557,8 +557,7 @@ service cloud.firestore {
           (isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
            (seatIndex == '0' ||
             incoming().occupantId == existing().occupantId ||
-            incoming().occupantId == '' ||
-            incoming().occupantId == request.auth.uid)) ||
+            incoming().occupantId == '')) ||
           (seatIndex != '0' && (
             (existing().occupantId == request.auth.uid &&
              (incoming().occupantId == request.auth.uid || incoming().occupantId == '') &&

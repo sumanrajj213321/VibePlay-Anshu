@@ -101,10 +101,6 @@ class RoomViewModel(
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
-    private val _speakerRequests = MutableStateFlow<List<SpeakerRequest>>(emptyList())
-    val speakerRequests: StateFlow<List<SpeakerRequest>> = _speakerRequests.asStateFlow()
-
-    private var speakerRequestsJob: Job? = null
     private var roomMessagesJob: Job? = null
     private var joinedListenerDone = false
     private var lastShownGiftMsgId: String? = null
@@ -195,21 +191,6 @@ class RoomViewModel(
                         )
                     }
                     .onFailure { _roomError.value = it.localizedMessage ?: "Unable to join room" }
-            }
-        }
-        if (loadedRoom.isManager(currentUserId)) {
-            if (speakerRequestsJob == null) {
-                speakerRequestsJob = viewModelScope.launch {
-                    roomRepository.observeSpeakerRequests(roomId)
-                        .catch { error -> unwrapFirestoreError(error); emit(emptyList()) }
-                        .collect { _speakerRequests.value = it }
-                }
-            }
-        } else {
-            speakerRequestsJob?.cancel()
-            speakerRequestsJob = null
-            if (_speakerRequests.value.isNotEmpty()) {
-                _speakerRequests.value = emptyList()
             }
         }
     }
@@ -318,42 +299,6 @@ class RoomViewModel(
                     }
                 }
                 .onFailure { _roomError.value = it.localizedMessage ?: "Unable to update Room Admin" }
-        }
-    }
-
-    fun requestToSpeak(room: VoiceRoom, user: UserProfile, preferredSeatIndex: Int = 0) {
-        viewModelScope.launch {
-            roomRepository.requestToSpeak(room, user, preferredSeatIndex)
-                .onSuccess {
-                    _roomError.value = if (preferredSeatIndex in 1..VoiceStage.SPEAKER_SEAT_COUNT) {
-                        "Request for Seat $preferredSeatIndex sent to Host!"
-                    } else {
-                        "Request to speak sent to Host!"
-                    }
-                }
-                .onFailure { _roomError.value = it.localizedMessage ?: "Unable to request seat" }
-        }
-    }
-
-    fun cancelSpeakerRequest(userId: String) {
-        viewModelScope.launch {
-            roomRepository.cancelSpeakerRequest(roomId, userId)
-                .onSuccess { _roomError.value = "Speaker request cancelled." }
-                .onFailure { _roomError.value = it.localizedMessage ?: "Unable to cancel request" }
-        }
-    }
-
-    fun resolveSpeakerRequest(room: VoiceRoom, request: SpeakerRequest, approve: Boolean) {
-        viewModelScope.launch {
-            roomRepository.resolveSpeakerRequest(room, request, approve)
-                .onSuccess {
-                    _roomError.value = if (approve) {
-                        "Seat invitation sent to ${request.username}. They must accept it first."
-                    } else {
-                        "Declined ${request.username}'s request."
-                    }
-                }
-                .onFailure { _roomError.value = it.localizedMessage ?: "No open speaker seats" }
         }
     }
 

@@ -175,7 +175,10 @@ class RoomViewModel(
                         roomMessagesJob = launch {
                             roomRepository.observeRoomMessages(roomId)
                                 .catch { error ->
-                                    unwrapFirestoreError(error)
+                                    val root = unwrapFirestoreError(error)
+                                    Log.w(TAG, "Room chat stream failed", root)
+                                    _roomError.value = root.localizedMessage
+                                        ?: "Room messages could not be loaded. Please check room access and Firestore index."
                                     emit(emptyList())
                                 }
                                 .collect { _messages.value = it }

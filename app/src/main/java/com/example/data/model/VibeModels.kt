@@ -514,6 +514,32 @@ data class GiftBurstEvent(
     val coinCost: Long
 )
 
+object LevelProgression {
+    // XP needed for each next level: 500, 1200, 1900, 2600, ...
+    fun xpForNextLevel(level: Long): Long = 500L + ((level - 1L).coerceAtLeast(0L) * 700L)
+
+    fun totalXpAtLevel(level: Long): Long {
+        val completedLevels = (level - 1L).coerceAtLeast(0L)
+        return completedLevels * 500L + 350L * completedLevels * (completedLevels - 1L)
+    }
+
+    fun levelForXp(xp: Long): Long {
+        var level = 1L
+        var remaining = xp.coerceAtLeast(0L)
+        while (remaining >= xpForNextLevel(level)) {
+            remaining -= xpForNextLevel(level)
+            level++
+        }
+        return level
+    }
+
+    fun progressInLevel(xp: Long): Pair<Long, Long> {
+        val level = levelForXp(xp)
+        val start = totalXpAtLevel(level)
+        return (xp - start).coerceAtLeast(0L) to xpForNextLevel(level)
+    }
+}
+
 data class VipTier(
     val level: Int,
     val title: String,
@@ -536,45 +562,24 @@ object VibeCatalogDefaults {
     )
 
     val vipTiers = listOf(
+        VipTier(1, "VIP 1 · Starlight", 200L, 0xFF06B6D4, "Cyan Ripple Entrance", listOf("Cyan VIP 1 Badge", "1.2x Room XP Boost", "Custom Cyan Seat Ring")),
+        VipTier(2, "VIP 2 · Neon Pulse", 450L, 0xFF7C3AED, "Aurora Wave Banner", listOf("Violet VIP 2 Badge", "Animated Profile Frame", "Priority Speaker Queue")),
+        VipTier(3, "VIP 3 · Coral Crown", 900L, 0xFFEC4899, "Pink Spotlight Arrival", listOf("Coral VIP 3 Badge", "Exclusive Lounge Decorations", "1.5x XP Boost")),
+        VipTier(4, "VIP 4 · Royal Gold", 1800L, 0xFFF59E0B, "Golden Crown Shower", listOf("Gold VIP 4 Crown", "2x Daily Login Coins", "Royal Stage Aura")),
+        VipTier(5, "VIP 5 · Apex Legend", 3500L, 0xFFFFD700, "Full-Screen Galaxy Entrance", listOf("Apex Legend Crest", "Iridescent Avatar Halo", "VIP Support & All Effects"))
+    ) + (6..30).map { level ->
+        val colors = listOf(0xFF06B6D4, 0xFF7C3AED, 0xFFEC4899, 0xFFF59E0B, 0xFF22C55E, 0xFF3B82F6)
+        val names = listOf("Aurora", "Eclipse", "Stellar", "Celestial", "Infinity", "Cosmic")
+        val effects = listOf("Aurora Portal", "Eclipse Spotlight", "Stellar Burst", "Celestial Entrance", "Infinity Wave", "Cosmic Galaxy")
+        val color = colors[(level - 6) % colors.size]
+        val name = names[(level - 6) % names.size]
         VipTier(
-            level = 1,
-            title = "VIP 1 · Starlight",
-            coinPrice = 200L,
-            badgeColorHex = 0xFF06B6D4,
-            entranceEffect = "Cyan Ripple Entrance",
-            perks = listOf("Cyan VIP 1 Badge", "1.2x Room XP Boost", "Custom Cyan Seat Ring")
-        ),
-        VipTier(
-            level = 2,
-            title = "VIP 2 · Neon Pulse",
-            coinPrice = 450L,
-            badgeColorHex = 0xFF7C3AED,
-            entranceEffect = "Aurora Wave Banner",
-            perks = listOf("Violet VIP 2 Badge", "Animated Profile Frame", "Priority Speaker Queue")
-        ),
-        VipTier(
-            level = 3,
-            title = "VIP 3 · Coral Crown",
-            coinPrice = 900L,
-            badgeColorHex = 0xFFEC4899,
-            entranceEffect = "Pink Spotlight Arrival",
-            perks = listOf("Coral VIP 3 Badge", "Exclusive Lounge Decorations", "1.5x XP Boost")
-        ),
-        VipTier(
-            level = 4,
-            title = "VIP 4 · Royal Gold",
-            coinPrice = 1800L,
-            badgeColorHex = 0xFFF59E0B,
-            entranceEffect = "Golden Crown Shower",
-            perks = listOf("Gold VIP 4 Crown", "2x Daily Login Coins", "Royal Stage Aura")
-        ),
-        VipTier(
-            level = 5,
-            title = "VIP 5 · Apex Legend",
-            coinPrice = 3500L,
-            badgeColorHex = 0xFFFFD700,
-            entranceEffect = "Full-Screen Galaxy Entrance",
-            perks = listOf("Apex Legend Crest", "Iridescent Avatar Halo", "VIP Support & All Effects")
+            level = level,
+            title = "VIP $level · $name",
+            coinPrice = 3500L * (1L shl (level - 5)),
+            badgeColorHex = color,
+            entranceEffect = effects[(level - 6) % effects.size],
+            perks = listOf("VIP $level Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")
         )
-    )
+    }
 }

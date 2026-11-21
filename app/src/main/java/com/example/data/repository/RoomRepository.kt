@@ -194,18 +194,28 @@ class RoomRepository(
             .map { snapshot ->
                 snapshot.toObjects(RoomListener::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
             }
-        val onlineUsersFlow = db.collection("users")
+        val onlineFrameColorsFlow = db.collection("users")
             .whereEqualTo("accountStatus", "ACTIVE")
             .whereEqualTo("online", true)
             .snapshots()
-            .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
+            .map { snapshot ->
+                snapshot.documents.mapNotNull { document ->
+                    val profile = document.toObject(UserProfile::class.java) ?: return@mapNotNull null
+                    val activeFrame = VibeShopCatalog.frames.firstOrNull {
+                        it.id == profile.activeFrameId && profile.isFrameActive(it.id)
+                    }
+                    document.id to activeFrame?.colorArgb
+                }.toMap()
+            }
 
         val sessionsFlow = db.collection("rooms").document(roomId).collection("room_sessions")
             .snapshots()
             .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
 
-        return combine(listenersFlow, onlineUsersFlow, sessionsFlow) { listeners, onlineIds, activeSessionIds ->
-            listeners.filter { it.userId in onlineIds && it.userId in activeSessionIds }
+        return combine(listenersFlow, onlineFrameColorsFlow, sessionsFlow) { listeners, onlineFrameColors, activeSessionIds ->
+            listeners
+                .filter { it.userId in onlineFrameColors.keys && it.userId in activeSessionIds }
+                .map { listener -> listener.copy(frameColorArgb = onlineFrameColors[listener.userId]) }
         }
     }
 

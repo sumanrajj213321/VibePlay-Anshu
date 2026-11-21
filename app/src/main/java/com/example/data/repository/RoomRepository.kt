@@ -148,7 +148,7 @@ class RoomRepository(
             .snapshots()
             .map { snapshot ->
                 snapshot.toObjects(SpeakerRequest::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
-                    .firstOrNull { it.status == "PENDING" || it.status == "INVITED" }
+                    .firstOrNull { it.status == "INVITED" }
             }
 
     fun observeRoomMessages(roomId: String): Flow<List<RoomMessage>> = flow {

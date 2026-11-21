@@ -270,9 +270,13 @@ class UserRepository(
         original.recycle()
     }
     private suspend fun saveCoverToStorage(uid: String, uri: Uri): String {
-        val coverRef = FirebaseStorage.getInstance().reference
+        val storage = FirebaseStorage.getInstance("gs://vibeplay-anshu.firebasestorage.app")
+        val coverRef = storage.reference
             .child("profile-covers/$uid/cover_${System.currentTimeMillis()}.jpg")
-        coverRef.putFile(uri).await()
+        val metadata = com.google.firebase.storage.StorageMetadata.Builder()
+            .setContentType("image/jpeg")
+            .build()
+        coverRef.putFile(uri, metadata).await()
         return coverRef.downloadUrl.await().toString()
     }
 

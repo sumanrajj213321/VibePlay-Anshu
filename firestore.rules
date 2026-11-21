@@ -653,7 +653,9 @@ service cloud.firestore {
 
       match /room_sessions/{sessionUserId} {
         allow get: if isSignedIn() && sessionUserId == request.auth.uid;
-        allow list: if false;
+        // Room UI observes active room sessions to keep seat/listener presence accurate.
+        // Only signed-in users may list sessions while the parent room is live.
+        allow list: if isSignedIn() && get(/databases/$(database)/documents/rooms/$(roomId)).data.status == 'LIVE';
         allow create, update: if isSignedIn() && sessionUserId == request.auth.uid &&
                                  incoming().userId == request.auth.uid &&
                                  incoming().joinedAt is timestamp &&

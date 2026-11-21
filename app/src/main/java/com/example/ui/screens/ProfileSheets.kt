@@ -139,6 +139,7 @@ fun EditProfileSheet(
     var showOnline by remember(profile.showOnlineStatus) { mutableStateOf(profile.showOnlineStatus) }
 
     var pendingAvatarUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingCoverUri by remember { mutableStateOf<Uri?>(null) }
 
     val avatarPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -146,15 +147,29 @@ fun EditProfileSheet(
 
     val coverPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
-    ) { uri -> uri?.let { coverUrl = it.toString() } }
+    ) { uri -> pendingCoverUri = uri }
 
     pendingAvatarUri?.let { selectedUri ->
-        AvatarCropDialog(
+        ImageCropDialog(
             imageUri = selectedUri,
+            title = "Adjust Profile Photo",
+            aspectRatio = 1f,
             onCancel = { pendingAvatarUri = null },
             onApply = { croppedUri ->
                 avatarUrl = croppedUri.toString()
                 pendingAvatarUri = null
+            }
+        )
+    }
+    pendingCoverUri?.let { selectedUri ->
+        ImageCropDialog(
+            imageUri = selectedUri,
+            title = "Adjust Cover Photo",
+            aspectRatio = 16f / 9f,
+            onCancel = { pendingCoverUri = null },
+            onApply = { croppedUri ->
+                coverUrl = croppedUri.toString()
+                pendingCoverUri = null
             }
         )
     }
@@ -320,8 +335,10 @@ fun EditProfileSheet(
 }
 
 @Composable
-private fun AvatarCropDialog(
+fun ImageCropDialog(
     imageUri: Uri,
+    title: String = "Adjust Photo",
+    aspectRatio: Float = 1f,
     onCancel: () -> Unit,
     onApply: (Uri) -> Unit
 ) {
@@ -354,7 +371,7 @@ private fun AvatarCropDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text("Adjust Profile Photo", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(
                     "Pinch to zoom in or out. Drag the photo to position it.",
                     style = MaterialTheme.typography.bodySmall,
@@ -363,7 +380,7 @@ private fun AvatarCropDialog(
                 val bitmap = sourceBitmap
                 if (bitmap != null) {
                     Box(
-                        modifier = Modifier.size(280.dp).clip(CircleShape)
+                        modifier = Modifier.width(280.dp).height(if (aspectRatio >= 1f) (280f / aspectRatio).dp else 280.dp).clip(if (aspectRatio == 1f) CircleShape else RoundedCornerShape(16.dp))
                             .onSizeChanged { previewSize = it }
                             .pointerInput(bitmap, previewSize) {
                                 detectTransformGestures { _, pan, gestureZoom, _ ->
@@ -420,22 +437,25 @@ private fun AvatarCropDialog(
                             scope.launch {
                                 val croppedUri = withContext(Dispatchers.IO) {
                                     val base = max(size.width.toFloat() / original.width, size.height.toFloat() / original.height)
-                                    val cropSize = minOf(original.width.toFloat(), original.height.toFloat()) / z
+                                    val cropWidth = (size.width / (base * z)).coerceAtMost(original.width.toFloat())
+                                    val cropHeight = (size.height / (base * z)).coerceAtMost(original.height.toFloat())
                                     val centerX = original.width / 2f - dx / (base * z)
                                     val centerY = original.height / 2f - dy / (base * z)
-                                    val left = (centerX - cropSize / 2f).coerceIn(0f, original.width - cropSize)
-                                    val top = (centerY - cropSize / 2f).coerceIn(0f, original.height - cropSize)
+                                    val left = (centerX - cropWidth / 2f).coerceIn(0f, original.width - cropWidth)
+                                    val top = (centerY - cropHeight / 2f).coerceIn(0f, original.height - cropHeight)
                                     val src = Rect(
                                         left.toInt(), top.toInt(),
-                                        (left + cropSize).toInt().coerceAtMost(original.width),
-                                        (top + cropSize).toInt().coerceAtMost(original.height)
+                                        (left + cropWidth).toInt().coerceAtMost(original.width),
+                                        (top + cropHeight).toInt().coerceAtMost(original.height)
                                     )
-                                    val result = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888)
+                                    val outputWidth = 1200
+                                    val outputHeight = (outputWidth / aspectRatio).toInt().coerceAtLeast(1)
+                                    val result = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
                                     AndroidCanvas(result).drawBitmap(
-                                        original, src, Rect(0, 0, 512, 512),
+                                        original, src, Rect(0, 0, outputWidth, outputHeight),
                                         Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
                                     )
-                                    val file = File(context.cacheDir, "profile_avatar_${System.currentTimeMillis()}.jpg")
+                                    val file = File(context.cacheDir, (if (aspectRatio == 1f) "profile_avatar_" else "profile_cover_") + System.currentTimeMillis() + ".jpg")
                                     FileOutputStream(file).use { it ->
                                         result.compress(Bitmap.CompressFormat.JPEG, 88, it)
                                     }

@@ -495,6 +495,21 @@ class RoomRepository(
                     )
                 )
 
+                // The room-entry event is the only automatic presence message shown in chat.
+                tx.set(
+                    roomRef.collection("messages").document(),
+                    mapOf(
+                        "senderId" to uid,
+                        "senderName" to user.username,
+                        "senderAvatarUrl" to user.avatarUrl,
+                        "senderVipLevel" to user.vipLevel,
+                        "senderGender" to user.gender,
+                        "text" to "${user.username} entered the room.",
+                        "type" to "SYSTEM",
+                        "createdAt" to FieldValue.serverTimestamp()
+                    )
+                )
+
                 if (loadedRoom.isOwner(uid)) {
                     if (listenerSnap.exists()) {
                         tx.delete(listenerRef)
@@ -694,18 +709,6 @@ class RoomRepository(
                             "activeSpeakersCount" to if (hasActiveAdmin) occupiedSpeakers.toLong().coerceIn(0L, 9L) else 0L,
                             "activeAdminIds" to remainingActiveAdmins,
                             "updatedAt" to FieldValue.serverTimestamp()
-                        )
-                    )
-                    tx.set(
-                        roomRef.collection("messages").document(),
-                        mapOf(
-                            "senderId" to uid,
-                            "senderName" to ownerName,
-                            "senderVipLevel" to 0L,
-                            "senderGender" to "UNSPECIFIED",
-                            "text" to if (hasActiveAdmin) "$ownerName stepped away. Room continues with active Room Admin(s)." else "$ownerName stepped away. This permanent room remains open.",
-                            "type" to "SYSTEM",
-                            "createdAt" to FieldValue.serverTimestamp()
                         )
                     )
                 } else {
@@ -1012,18 +1015,6 @@ class RoomRepository(
                     )
                 )
 
-                tx.set(
-                    roomRef.collection("messages").document(),
-                    mapOf(
-                        "senderId" to uid,
-                        "senderName" to loadedRoom.effectiveOwnerName,
-                        "senderVipLevel" to 0L,
-                        "senderGender" to "UNSPECIFIED",
-                        "text" to "$username joined Speaker Seat $seatIndex.",
-                        "type" to "SYSTEM",
-                        "createdAt" to FieldValue.serverTimestamp()
-                    )
-                )
             }.await()
             Result.success(Unit)
         } catch (e: CancellationException) {
@@ -1414,18 +1405,6 @@ class RoomRepository(
                         )
                     )
 
-                    tx.set(
-                        roomRef.collection("messages").document(),
-                        mapOf(
-                            "senderId" to uid,
-                            "senderName" to loadedRoom.effectiveOwnerName,
-                            "senderVipLevel" to 0L,
-                            "senderGender" to "UNSPECIFIED",
-                            "text" to "${request.username} took Speaker Seat ${openSeat.seatIndex}.",
-                            "type" to "SYSTEM",
-                            "createdAt" to FieldValue.serverTimestamp()
-                        )
-                    )
                 }
 
                 tx.update(

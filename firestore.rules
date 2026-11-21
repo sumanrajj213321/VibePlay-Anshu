@@ -29,15 +29,27 @@ service cloud.firestore {
     }
 
 
-    function isApprovedSpeakerSeatJoin(roomId, seatIndex) {
-      let roomData = get(/databases/$(database)/documents/rooms/$(roomId)).data;
-      let requestData = getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data;
-      return roomData.locked == false &&
-             requestData.userId == request.auth.uid &&
-             requestData.hostId == roomData.hostId &&
-             requestData.status == 'ACCEPTED' &&
-             requestData.preferredSeatIndex is int &&
-             requestData.preferredSeatIndex == int(seatIndex);
+    function isNotAlreadyOnAnotherSpeakerSeat(roomId, seatIndex) {
+      let base = /databases/$(database)/documents/rooms/$(roomId)/seats/;
+      return (seatIndex == '1' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId != request.auth.uid) &&
+             (seatIndex == '2' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/3).data.occupantId != request.auth.uid) &&
+             (seatIndex == '3' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/4).data.occupantId != request.auth.uid) &&
+             (seatIndex == '4' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/5).data.occupantId != request.auth.uid) &&
+             (seatIndex == '5' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/6).data.occupantId != request.auth.uid) &&
+             (seatIndex == '6' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/7).data.occupantId != request.auth.uid) &&
+             (seatIndex == '7' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId != request.auth.uid) &&
+             (seatIndex == '8' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId != request.auth.uid);
+    }
+
+    function isDirectSpeakerSeatJoin(roomId) {
+      return getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId == request.auth.uid ||
+             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId == request.auth.uid ||
+             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/3).data.occupantId == request.auth.uid ||
+             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/4).data.occupantId == request.auth.uid ||
+             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/5).data.occupantId == request.auth.uid ||
+             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/6).data.occupantId == request.auth.uid ||
+             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/7).data.occupantId == request.auth.uid ||
+             getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId == request.auth.uid;
     }
 
     // --- Validation Helpers ---
@@ -521,13 +533,7 @@ service cloud.firestore {
          (incoming().status == existing().status || (incoming().status == 'ENDED' && (!('ownerOnline' in existing()) || existing().ownerOnline == false))) &&
          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'coverUrl', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'listenerCount', 'activeSpeakersCount', 'activeAdminIds', 'status', 'updatedAt'])) ||
         (existing().status == 'LIVE' &&
-         existsAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)) &&
-         getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.userId == request.auth.uid &&
-         getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.hostId == existing().hostId &&
-         getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.status == 'ACCEPTED' &&
-         get(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.status == 'INVITED' &&
-         getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex in [1, 2, 3, 4, 5, 6, 7, 8] &&
-         getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/$(getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex)).data.occupantId == request.auth.uid &&
+         isDirectSpeakerSeatJoin(roomId) &&
          incoming().status == existing().status &&
          incoming().hostId == existing().hostId &&
          incoming().featured == existing().featured &&
@@ -583,8 +589,8 @@ service cloud.firestore {
             (existing().occupantId == '' && existing().seatLocked == false &&
              incoming().occupantId == request.auth.uid &&
              incoming().seatLocked == false &&
-             existsAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)) &&
-             isApprovedSpeakerSeatJoin(roomId, seatIndex) &&
+             exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
+             isNotAlreadyOnAnotherSpeakerSeat(roomId, seatIndex) &&
              incoming().diff(existing()).affectedKeys().hasOnly(['occupantId', 'occupantName', 'occupantAvatarUrl', 'occupantVipLevel', 'occupantGender', 'muted', 'speaking', 'updatedAt']))
           ))
         );

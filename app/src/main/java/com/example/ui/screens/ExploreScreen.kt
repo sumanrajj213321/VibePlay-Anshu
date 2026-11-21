@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import com.example.data.model.FollowEdge
 import com.example.data.model.RoomCategory
 import com.example.data.model.UserProfile
+import com.example.data.model.VibeShopCatalog
 import com.example.data.model.VoiceRoom
 import com.example.ui.components.LevelBadge
 import com.example.ui.components.VibeAvatar
@@ -194,7 +195,8 @@ fun ExploreScreen(
                             username = user.username,
                             size = 52.dp,
                             vipLevel = user.vipLevel,
-                            online = user.online && user.showOnlineStatus
+                            online = user.online && user.showOnlineStatus,
+                            frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == user.activeFrameId }?.colorArgb
                         )
                         Column(
                             modifier = Modifier.weight(1f),

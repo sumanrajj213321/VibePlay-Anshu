@@ -730,7 +730,7 @@ fun PublicProfileSheet(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            "${targetUser.totalGiftCoinsReceived.takeIf { it > 0L } ?: targetUser.totalGiftsReceived}",
+                            "${targetUser.totalGiftCoinsReceived}",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )

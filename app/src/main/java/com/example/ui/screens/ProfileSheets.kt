@@ -415,14 +415,14 @@ fun ImageCropDialog(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        OutlinedButton(
+                        TextButton(
                             onClick = { zoom = (zoom - 0.25f).coerceIn(1f, 5f) },
                             enabled = zoom > 1f
-                        ) { Text("− Zoom Out") }
-                        OutlinedButton(
+                        ) { Text("− Zoom") }
+                        TextButton(
                             onClick = { zoom = (zoom + 0.25f).coerceIn(1f, 5f) },
                             enabled = zoom < 5f
-                        ) { Text("+ Zoom In") }
+                        ) { Text("+ Zoom") }
                         TextButton(onClick = {
                             zoom = 1f
                             offsetX = 0f

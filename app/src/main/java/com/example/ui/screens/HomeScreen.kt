@@ -467,7 +467,7 @@ fun HomeScreen(
                                     avatarUrl = user.avatarUrl,
                                     username = user.username,
                                     size = 54.dp,
-                                    vipLevel = user.vipLevel,
+                                    vipLevel = if (user.isVipActive) user.vipLevel else 0L,
                                     online = true,
                                     frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == user.activeFrameId && user.isFrameActive(it.id) }?.colorArgb
                                 )

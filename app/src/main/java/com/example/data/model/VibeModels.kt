@@ -57,6 +57,7 @@ data class UserProfile(
     val vipExpiresAt: Timestamp? = null,
     val ownedTitleIds: List<String> = emptyList(),
     val activeTitleId: String = "",
+    val activeTitleIds: List<String> = emptyList(),
     val titleExpiresAt: Map<String, Timestamp> = emptyMap(),
     val ownedFrameIds: List<String> = emptyList(),
     val activeFrameId: String = "",
@@ -83,6 +84,10 @@ data class UserProfile(
     fun isTitleActive(itemId: String): Boolean =
         itemId.isNotBlank() && itemId in ownedTitleIds &&
             titleExpiresAt[itemId]?.toDate()?.after(java.util.Date()) == true
+
+    val equippedTitleIds: List<String>
+        get() = (activeTitleIds.ifEmpty { listOf(activeTitleId).filter { it.isNotBlank() } })
+            .distinct().filter { isTitleActive(it) }.take(4)
 
     fun isFrameActive(itemId: String): Boolean =
         itemId.isNotBlank() && itemId in ownedFrameIds &&

@@ -99,7 +99,7 @@ class AdminRepository(
             requireAdminUserId()
             db.collection("users").document(userId).update(
                 mapOf(
-                    "vipLevel" to vipLevel.coerceIn(0L, 5L),
+                    "vipLevel" to vipLevel.coerceIn(0L, 30L),
                     "coinBalance" to coinBalance.coerceAtLeast(0L),
                     "updatedAt" to FieldValue.serverTimestamp()
                 )

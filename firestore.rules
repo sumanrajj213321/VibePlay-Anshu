@@ -346,7 +346,18 @@ service cloud.firestore {
            incoming().welcomeBonusGranted == true &&
            incoming().coinBalance == existing().coinBalance + 1000000 &&
            incoming().vipLevel == existing().vipLevel &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'welcomeBonusGranted', 'welcomeBonusGrantedAt', 'updatedAt']))
+           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'welcomeBonusGranted', 'welcomeBonusGrantedAt', 'updatedAt'])) ||
+          (incoming().role == existing().role &&
+           incoming().accountStatus in ['ACTIVE', 'SUSPENDED', 'BANNED'] &&
+           incoming().vipLevel is int && incoming().vipLevel >= 0 && incoming().vipLevel <= 30 &&
+           incoming().coinBalance is int && incoming().coinBalance >= 0 &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['accountStatus', 'vipLevel', 'vipExpiresAt', 'coinBalance', 'updatedAt']) &&
+           (!incoming().diff(existing()).affectedKeys().hasAny(['vipLevel', 'vipExpiresAt']) ||
+            (incoming().vipLevel == 0 && !('vipExpiresAt' in incoming())) ||
+            (incoming().vipLevel > 0 &&
+             incoming().vipExpiresAt is timestamp &&
+             incoming().vipExpiresAt > request.time - duration.value(1, 'm') &&
+             incoming().vipExpiresAt <= request.time + duration.value(30, 'd') + duration.value(1, 'm')))
         )) ||
         (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
           (incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&

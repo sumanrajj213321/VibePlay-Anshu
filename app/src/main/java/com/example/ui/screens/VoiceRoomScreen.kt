@@ -1197,20 +1197,30 @@ private fun HostSeatTile(
                     speaking = !seat.muted
                 )
             } else {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    border = BorderStroke(2.dp, VibeCoral.copy(alpha = 0.55f)),
+                Box(
                     modifier = Modifier
                         .size(76.dp)
-                        .testTag("host_seat_offline_placeholder")
+                        .testTag("host_seat_offline_placeholder"),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Filled.PersonOff,
-                            contentDescription = "Host offline",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(34.dp)
+                    VibeAvatar(
+                        avatarUrl = seat.occupantAvatarUrl,
+                        username = seat.occupantName,
+                        size = 76.dp,
+                        vipLevel = seat.occupantVipLevel,
+                        modifier = Modifier.alpha(0.38f)
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Color.Black.copy(alpha = 0.62f),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.55f))
+                    ) {
+                        Text(
+                            text = "OFFLINE",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                         )
                     }
                 }

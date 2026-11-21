@@ -602,7 +602,7 @@ private fun ChatDetailScreen(
                         avatarUrl = headerAvatar,
                         username = headerTitle,
                         size = 40.dp,
-                        vipLevel = if (isGroup) 0L else (peerProfile?.vipLevel ?: 0L),
+                        vipLevel = if (isGroup) 0L else (peerProfile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L),
                         online = if (isGroup) false else (peerProfile?.let { it.online && it.showOnlineStatus } ?: false)
                     )
                     Column {
@@ -1000,7 +1000,7 @@ private fun NewChatPickerSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        VibeAvatar(user.avatarUrl, user.username, size = 44.dp, vipLevel = if (user.isVipActive) user.vipLevel else 0L)
+                        VibeAvatar(user.avatarUrl, user.username, size = 44.dp, vipLevel = if (user.isVipActive) user.vipLevel else 0L, frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == user.activeFrameId && user.isFrameActive(it.id) }?.colorArgb)
                         Column {
                             Text(user.username, fontWeight = FontWeight.SemiBold)
                             Text(user.vibeId, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1114,7 +1114,7 @@ fun CreateGroupSheet(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            VibeAvatar(member.avatarUrl, member.username, size = 40.dp, vipLevel = if (member.isVipActive) member.vipLevel else 0L)
+                            VibeAvatar(member.avatarUrl, member.username, size = 40.dp, vipLevel = if (member.isVipActive) member.vipLevel else 0L, frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == member.activeFrameId && member.isFrameActive(it.id) }?.colorArgb)
                             Column {
                                 Text(member.username, fontWeight = FontWeight.SemiBold)
                                 if (member.vibeId.isNotBlank()) {

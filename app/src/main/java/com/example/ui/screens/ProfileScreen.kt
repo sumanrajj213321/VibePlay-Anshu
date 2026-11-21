@@ -318,77 +318,60 @@ fun ProfileScreen(
                     }
                 }
 
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            clipboardManager.setText(AnnotatedString(profile.vibeId))
-                            onCopyVibeId?.invoke(profile.vibeId)
-                        }
-                        .testTag("profile_id_age_line"),
-                    shape = RoundedCornerShape(14.dp),
-                    color = VibeCyan.copy(alpha = 0.09f),
-                    border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.42f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(9.dp)
-                    ) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = "VIBEPLAY ID NUMBER",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = VibeCyan,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = profile.vibeId,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.Filled.ContentCopy,
-                            contentDescription = "Copy Vibe ID",
-                            tint = VibeCyan,
-                            modifier = Modifier.size(19.dp)
-                        )
-                    }
-                }
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(9.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                clipboardManager.setText(AnnotatedString(profile.vibeId))
+                                onCopyVibeId?.invoke(profile.vibeId)
+                            }
+                            .testTag("profile_id_age_line"),
+                        shape = RoundedCornerShape(14.dp),
+                        color = VibeCyan.copy(alpha = 0.09f),
+                        border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.42f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "ID-${profile.vibeId}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Icon(
+                                imageVector = Icons.Filled.ContentCopy,
+                                contentDescription = "Copy Vibe ID",
+                                tint = VibeCyan,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                    }
+                    Surface(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(13.dp),
                         color = VibeGold.copy(alpha = 0.13f),
                         border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.65f))
                     ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Text(
-                                text = "ID LEVEL",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = VibeGold,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "LEVEL ${profile.level}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = VibeGold,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        Text(
+                            text = "Level ${profile.level}",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = VibeGold,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
                     }
-
-
                 }
 
                 // Stats Row

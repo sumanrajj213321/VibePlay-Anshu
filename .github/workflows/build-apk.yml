@@ -9,8 +9,38 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: vibeplay-main-pipeline
+  cancel-in-progress: true
+
 jobs:
+  firestore-rules-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK for Firebase Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Firebase test dependencies
+        run: |
+          npm init -y
+          npm install --no-audit --no-fund firebase-tools @firebase/rules-unit-testing firebase
+
+      - name: Run Firestore rules unit tests
+        run: npx firebase emulators:exec --only firestore --project demo-no-project --config firebase.json "node --test firestore.test.js"
+
   build-debug-apk:
+    needs: firestore-rules-tests
     runs-on: ubuntu-latest
     env:
       DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}

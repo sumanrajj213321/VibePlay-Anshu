@@ -356,7 +356,7 @@ class InboxRepository(
                     "recipientId" to recipientId,
                     "senderId" to uid,
                     "senderName" to sender.username.take(60),
-                    "type" to "GIFT",
+                    "type" to "MESSAGE",
                     "title" to "You received a gift",
                     "body" to messageText.take(240),
                     "targetId" to conversation.id,

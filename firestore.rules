@@ -54,6 +54,8 @@ service cloud.firestore {
              data.coinBalance is int && data.coinBalance >= 0 &&
              (!('welcomeBonusGranted' in data) || data.welcomeBonusGranted is bool) &&
              (!('welcomeBonusGrantedAt' in data) || data.welcomeBonusGrantedAt is timestamp) &&
+             (!('welcomeBonusGranted' in data) || data.welcomeBonusGranted is bool) &&
+             (!('welcomeBonusGrantedAt' in data) || data.welcomeBonusGrantedAt is timestamp) &&
              (!('totalGiftsReceived' in data) || (data.totalGiftsReceived is int && data.totalGiftsReceived >= 0)) &&
              (!('totalGiftsSent' in data) || (data.totalGiftsSent is int && data.totalGiftsSent >= 0)) &&
              (!('totalGiftCoinsSent' in data) || (data.totalGiftCoinsSent is int && data.totalGiftCoinsSent >= 0)) &&
@@ -267,7 +269,8 @@ service cloud.firestore {
                        incoming().role == 'USER' &&
                        incoming().accountStatus == 'ACTIVE' &&
                        incoming().vipLevel == 0 &&
-                       incoming().coinBalance == 500 &&
+                       incoming().coinBalance == 1000500 &&
+                       incoming().welcomeBonusGranted == true &&
                        (!('hasCreatedRoom' in incoming()) || incoming().hasCreatedRoom == false) &&
                        (!('createdRoomId' in incoming()) || incoming().createdRoomId == '') &&
                        incoming().keys().hasAll(['userId', 'vibeId', 'username', 'accountStatus', 'role', 'coinBalance', 'vipLevel', 'createdAt', 'updatedAt']) &&

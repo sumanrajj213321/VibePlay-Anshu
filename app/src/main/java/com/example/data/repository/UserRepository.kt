@@ -421,11 +421,15 @@ class UserRepository(
                 val expiryField = if (category == "TITLE") "titleExpiresAt" else "frameExpiresAt"
                 val activeField = if (category == "TITLE") "activeTitleId" else "activeFrameId"
                 val owned = (snap.get(ownedField) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-                val activeTitles = ((snap.get("activeTitleIds") as? List<*>)?.filterIsInstance<String>()
-                    ?: listOfNotNull(snap.getString("activeTitleId")?.takeIf { it.isNotBlank() }))
-                    .distinct().take(4)
                 val expiries = (snap.get(expiryField) as? Map<*, *>)?.entries
                     ?.associate { it.key.toString() to (it.value as? Timestamp) } ?: emptyMap()
+                val activeTitles = ((snap.get("activeTitleIds") as? List<*>)?.filterIsInstance<String>()
+                    ?: listOfNotNull(snap.getString("activeTitleId")?.takeIf { it.isNotBlank() }))
+                    .distinct()
+                    .filter { titleId ->
+                        val titleExpiry = expiries[titleId]
+                        titleId in owned && titleExpiry?.toDate()?.after(java.util.Date()) == true
+                    }.take(4)
                 val currentExpiry = expiries[itemId]?.toDate()?.time ?: 0L
                 require(currentExpiry <= System.currentTimeMillis()) { "You already own this item. It expires first." }
                 val coins = snap.getLong("coinBalance") ?: 0L
@@ -442,8 +446,10 @@ class UserRepository(
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
                 if (category == "TITLE") {
-                    update["activeTitleIds"] = if (itemId in activeTitles) activeTitles
+                    val nextActiveTitles = if (itemId in activeTitles) activeTitles
                         else if (activeTitles.size < 4) activeTitles + itemId else activeTitles
+                    update["activeTitleIds"] = nextActiveTitles
+                    update["activeTitleId"] = nextActiveTitles.firstOrNull() ?: ""
                 }
                 tx.update(userRef, update)
             }.await()

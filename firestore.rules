@@ -52,6 +52,8 @@ service cloud.firestore {
              (!('xp' in data) || (data.xp is int && data.xp >= 0)) &&
              data.vipLevel is int && data.vipLevel >= 0 && data.vipLevel <= 30 &&
              data.coinBalance is int && data.coinBalance >= 0 &&
+             (!('welcomeBonusGranted' in data) || data.welcomeBonusGranted is bool) &&
+             (!('welcomeBonusGrantedAt' in data) || data.welcomeBonusGrantedAt is timestamp) &&
              (!('totalGiftsReceived' in data) || (data.totalGiftsReceived is int && data.totalGiftsReceived >= 0)) &&
              (!('totalGiftsSent' in data) || (data.totalGiftsSent is int && data.totalGiftsSent >= 0)) &&
              (!('totalGiftCoinsSent' in data) || (data.totalGiftCoinsSent is int && data.totalGiftCoinsSent >= 0)) &&
@@ -547,9 +549,11 @@ service cloud.firestore {
     match /conversations/{conversationId} {
       // Signed-in users may check whether a deterministic conversation ID exists.
       // Existing conversations remain readable only by their participants.
-      allow get: if isSignedIn() && isValidId(conversationId) &&
-                   (!exists(/databases/$(database)/documents/conversations/$(conversationId)) ||
-                    request.auth.uid in existing().participantIds);
+      allow get: if isSignedIn() && isValidId(conversationId) && (
+                   isAdmin() ||
+                   !exists(/databases/$(database)/documents/conversations/$(conversationId)) ||
+                   request.auth.uid in existing().participantIds
+                 );
       allow list: if isSignedIn() && request.auth.uid in existing().participantIds;
       allow create: if isSignedIn() && isValidId(conversationId) &&
                        request.auth.uid in incoming().participantIds &&
@@ -575,13 +579,27 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(conversationId) && (('ownerId' in existing() && existing().ownerId == request.auth.uid) || (request.auth.uid in existing().participantIds && existing().participantIds.size() <= 1));
 
       match /messages/{messageId} {
-        allow get: if isSignedIn() && isValidId(messageId) && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
-        allow list: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+        allow get: if isSignedIn() && isValidId(messageId) && (
+                     isAdmin() ||
+                     request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
+                   );
+        allow list: if isSignedIn() && (
+                      isAdmin() ||
+                      request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
+                    );
         allow create: if isSignedIn() && isValidId(messageId) &&
-                         request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
-                         incoming().senderId == request.auth.uid &&
                          isValidDirectMessage(incoming()) &&
-                         isValidTs(incoming().createdAt);
+                         isValidTs(incoming().createdAt) && (
+                           (request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                            incoming().senderId == request.auth.uid) ||
+                           (incoming().senderId == 'VIBEPLAY_OFFICIAL_BOT' &&
+                            incoming().type == 'SYSTEM' &&
+                            messageId == 'welcome_10_lakh_bonus' &&
+                            incoming().text == '🎉 10 LAKH COINS WELCOME BONUS!\n\nCongratulations! 🥳 VibePlay ki taraf se aapke account mein 10,00,000 bonus coins add kiye gaye hain.\n\n❤️ Enjoy VibePlay, send gifts and have fun!\n\n— Team VibePlay' &&
+                            (isAdmin() ||
+                             (request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                              'VIBEPLAY_OFFICIAL_BOT' in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds)))
+                         );
         allow update: if isSignedIn() && isValidId(messageId) &&
                          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
                          isValidDirectMessage(incoming()) &&

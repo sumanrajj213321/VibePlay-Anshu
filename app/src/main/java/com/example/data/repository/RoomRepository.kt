@@ -142,7 +142,7 @@ class RoomRepository(
         }
     }
 
-    fun observeMySpeakerRequest(roomId: String, userId: String): Flow<SpeakerRequest?> =
+    fun observeSeatInvitation(roomId: String, userId: String): Flow<SpeakerRequest?> =
         db.collection("rooms").document(roomId).collection("speaker_requests")
             .whereEqualTo("userId", userId)
             .snapshots()

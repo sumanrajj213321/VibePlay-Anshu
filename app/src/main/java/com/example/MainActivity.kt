@@ -509,6 +509,7 @@ private fun AuthenticatedVibePlayApp(
                                     RoomsHubScreen(
                                         currentUser = currentUser,
                                         roomsState = roomsState,
+                                        recentRoomIds = recentRoomIds,
                                         hasCreatedRoom = hasCreatedRoom || currentUser.hasCreatedRoom,
                                         createdRoomId = roomCreationLock?.roomId?.ifBlank { currentUser.createdRoomId }
                                             ?: currentUser.createdRoomId,

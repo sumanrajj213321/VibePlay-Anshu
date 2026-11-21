@@ -997,7 +997,107 @@ fun InviteSpeakerSheet(
                 }
             }
 
+            // Section 2: Room Listeners
+            item {
+                Text(
+                    text = "Room Listeners (${unseatedListeners.size})",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = VibeCyan
+                )
+            }
+            if (unseatedListeners.isEmpty()) {
+                item {
+                    Text(
+                        text = "No listeners currently waiting in the room.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                items(unseatedListeners, key = { "listener_${it.userId}" }) { listener ->
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .then(
+                                        if (onOpenUserProfile != null) {
+                                            Modifier.clickable {
+                                                onDismiss()
+                                                onOpenUserProfile(listener.userId)
+                                            }
+                                        } else {
+                                            Modifier
+                                        }
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                VibeAvatar(listener.avatarUrl, listener.username, size = 38.dp, vipLevel = listener.vipLevel)
+                                Column {
+                                    Text(listener.username, fontWeight = FontWeight.Medium)
+                                    Text("Listening in room", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            Button(
+                                onClick = {
+                                    onAssignToSeat(listener.userId, listener.username, listener.avatarUrl, listener.vipLevel, listener.gender)
+                                    onDismiss()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = VibeViolet),
+                                modifier = Modifier.testTag("invite_sheet_assign_listener_${listener.userId}")
+                            ) {
+                                Icon(Icons.Filled.PersonAdd, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Invite")
+                            }
+                        }
+                    }
+                }
+            }
 
+            // Section 3: Following Contacts
+            item {
+                Text(
+                    text = "Following Contacts (${availableFollowing.size})",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = VibePink
+                )
+            }
+            if (availableFollowing.isEmpty()) {
+                item {
+                    Text(
+                        text = "Follow users from Explore to invite them straight to your stage.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                items(availableFollowing, key = { "following_${it.userId}" }) { contact ->
+                    val isInRoom = contact.userId in listenerIds
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(
                                 modifier = Modifier

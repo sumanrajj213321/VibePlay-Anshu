@@ -89,6 +89,7 @@ service cloud.firestore {
              data.accountStatus in ['ACTIVE', 'SUSPENDED', 'BANNED'] &&
              data.role in ['USER', 'ADMIN'] &&
              (!('lastDailyClaimDay' in data) || (data.lastDailyClaimDay is string && data.lastDailyClaimDay.size() <= 20)) &&
+             (!('lastDailyClaimAt' in data) || data.lastDailyClaimAt is timestamp) &&
              (!('hasCreatedRoom' in data) || data.hasCreatedRoom is bool) &&
              (!('createdRoomId' in data) || (data.createdRoomId is string && data.createdRoomId.size() <= 128));
     }
@@ -339,8 +340,15 @@ service cloud.firestore {
            getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
            incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
           (incoming().vipLevel == existing().vipLevel && incoming().coinBalance == existing().coinBalance + 150 &&
+           incoming().lastDailyClaimDay is string &&
            (!('lastDailyClaimDay' in existing()) || incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'lastDailyClaimDay', 'xp', 'level', 'updatedAt'])) ||
+           incoming().lastDailyClaimAt is timestamp &&
+           incoming().lastDailyClaimAt > request.time - duration.value(1, 'm') &&
+           incoming().lastDailyClaimAt <= request.time &&
+           (!('lastDailyClaimAt' in existing()) ||
+            (existing().lastDailyClaimAt + duration.value(330, 'm')).date() !=
+            (request.time + duration.value(330, 'm')).date()) &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'lastDailyClaimDay', 'lastDailyClaimAt', 'xp', 'level', 'updatedAt'])) ||
           (incoming().vipLevel == existing().vipLevel && incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
            incoming().totalGiftsSent is int &&
            incoming().totalGiftsSent > (('totalGiftsSent' in existing()) ? existing().totalGiftsSent : 0) &&

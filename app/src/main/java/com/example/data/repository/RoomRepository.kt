@@ -68,15 +68,21 @@ class RoomRepository(
                 if (rooms.isEmpty()) {
                     flowOf(emptyList())
                 } else {
+                    val onlineUsersFlow = db.collection("users")
+                        .whereEqualTo("accountStatus", "ACTIVE")
+                        .whereEqualTo("online", true)
+                        .snapshots()
+                        .map { users -> users.documents.map { it.id }.toSet() }
                     val roomCountFlows = rooms.map { room ->
                         val roomRef = db.collection("rooms").document(room.id)
                         val sessionsFlow = roomRef.collection("room_sessions").snapshots()
                             .map { sessions -> sessions.documents.map { it.id }.toSet() }
                         val seatsFlow = roomRef.collection("seats").snapshots()
                             .map { seats -> seats.documents.mapNotNull { it.getString("occupantId") }.filter { it.isNotBlank() }.toSet() }
-                        combine(sessionsFlow, seatsFlow) { activeSessionIds, seatedIds ->
+                        combine(sessionsFlow, seatsFlow, onlineUsersFlow) { sessionIds, seatedIds, onlineUserIds ->
+                            // A stored session/seat alone is not proof that the user is currently online.
+                            val activeSessionIds = sessionIds.intersect(onlineUserIds)
                             val activeSeatedIds = seatedIds.intersect(activeSessionIds)
-                            val hostIsActive = room.effectiveOwnerId in activeSessionIds
                             val speakerCount = activeSeatedIds.size.toLong()
                             val listenerCount = (activeSessionIds - activeSeatedIds).size.toLong()
                             room.copy(
@@ -109,7 +115,13 @@ class RoomRepository(
             }
         val sessionsFlow = roomRef.collection("room_sessions").snapshots()
             .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
-        return combine(seatsFlow, sessionsFlow, observeRoom(roomId)) { seats, activeSessionIds, room ->
+        val onlineUsersFlow = db.collection("users")
+            .whereEqualTo("accountStatus", "ACTIVE")
+            .whereEqualTo("online", true)
+            .snapshots()
+            .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
+        return combine(seatsFlow, sessionsFlow, onlineUsersFlow, observeRoom(roomId)) { seats, sessionIds, onlineUserIds, room ->
+            val activeSessionIds = sessionIds.intersect(onlineUserIds)
             seats.filter { seat ->
                 seat.isHostSeat ||
                     seat.occupantId.isBlank() ||

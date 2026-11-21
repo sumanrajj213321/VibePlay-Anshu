@@ -480,6 +480,23 @@ test("Room chat, speaker requests, virtual gift batch, and filtered repository q
     createdAt: pastDate(),
   });
   await assertSucceeds(giftBatch.commit());
+
+  // A forged low price for a known gift must be rejected.
+  await assertFails(
+    bobDb.collection("gift_transactions").doc("tx_forged_price").set({
+      senderId: BOB_UID,
+      senderName: "Bob",
+      recipientId: ALICE_UID,
+      recipientName: "Alice",
+      roomId: "room_1",
+      giftId: "gift_fire",
+      giftName: "Vibe Fire",
+      coinCost: 1,
+      quantity: 1,
+      participantIds: [BOB_UID, ALICE_UID],
+      createdAt: pastDate(),
+    })
+  );
 });
 
 test("Private 1-to-1 conversations, images, notifications, and unfiltered query rejection", async () => {

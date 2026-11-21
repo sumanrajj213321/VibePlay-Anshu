@@ -276,7 +276,8 @@ data class VoiceStage(
                         gender = stage.hostSeat.occupantGender,
                         stageRole = "HOST",
                         seatIndex = 0,
-                        isRoomAdmin = true
+                        isRoomAdmin = true,
+                        frameColorArgb = stage.hostSeat.occupantFrameColorArgb
                     )
                 )
             }
@@ -313,7 +314,8 @@ data class VoiceStage(
                             gender = listener.gender,
                             stageRole = "LISTENER",
                             seatIndex = null,
-                            isRoomAdmin = room.isRoomAdmin(listener.userId)
+                            isRoomAdmin = room.isRoomAdmin(listener.userId),
+                            frameColorArgb = listener.frameColorArgb
                         )
                     )
                 }

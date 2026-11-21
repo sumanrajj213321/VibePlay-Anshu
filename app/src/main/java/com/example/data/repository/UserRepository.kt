@@ -422,6 +422,65 @@ class UserRepository(
         }
     }
 
+
+    suspend fun purchaseShopCosmetic(category: String, itemId: String): Result<Unit> {
+        val uid = requireUserId()
+        val userRef = db.collection("users").document(uid)
+        return try {
+            val item = when (category) {
+                "TITLE" -> com.example.data.model.VibeShopCatalog.titles.firstOrNull { it.id == itemId }
+                "FRAME" -> com.example.data.model.VibeShopCatalog.frames.firstOrNull { it.id == itemId }
+                else -> null
+            } ?: throw IllegalArgumentException("Invalid shop item.")
+            db.runTransaction { tx ->
+                val snap = tx.get(userRef)
+                require(snap.exists()) { "Profile not found." }
+                val ownedField = if (category == "TITLE") "ownedTitleIds" else "ownedFrameIds"
+                val owned = (snap.get(ownedField) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                require(itemId !in owned) { "You already own this item." }
+                val coins = snap.getLong("coinBalance") ?: 0L
+                require(coins >= item.coinPrice) { "Not enough coins. Need ${item.coinPrice} coins." }
+                tx.update(userRef, mapOf(
+                    "coinBalance" to coins - item.coinPrice,
+                    ownedField to FieldValue.arrayUnion(itemId),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ))
+            }.await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, "users/$uid")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun equipShopCosmetic(category: String, itemId: String?): Result<Unit> {
+        val uid = requireUserId()
+        val userRef = db.collection("users").document(uid)
+        return try {
+            require(category == "TITLE" || category == "FRAME")
+            db.runTransaction { tx ->
+                val snap = tx.get(userRef)
+                require(snap.exists()) { "Profile not found." }
+                val ownedField = if (category == "TITLE") "ownedTitleIds" else "ownedFrameIds"
+                val activeField = if (category == "TITLE") "activeTitleId" else "activeFrameId"
+                val owned = (snap.get(ownedField) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                require(itemId.isNullOrBlank() || itemId in owned) { "Purchase this item first." }
+                tx.update(userRef, mapOf(
+                    activeField to (itemId ?: ""),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ))
+            }.await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, "users/$uid")
+            Result.failure(e)
+        }
+    }
+
     suspend fun upgradeVipTier(profile: UserProfile, targetTierLevel: Int): Result<Unit> {
         val docPath = "users/${profile.userId}"
         return try {

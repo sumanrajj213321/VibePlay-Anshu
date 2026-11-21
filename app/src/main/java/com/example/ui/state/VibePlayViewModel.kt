@@ -564,6 +564,8 @@ class VibePlayViewModel(
     }
 
     suspend fun setOfflineBeforeSignOut() {
+        roomRepository.cleanupCurrentUserPresenceInLiveRooms()
+            .onFailure { Log.w(TAG, "Unable to clean room presence before sign out", it) }
         userRepository.setOnlineStatus(false)
     }
 

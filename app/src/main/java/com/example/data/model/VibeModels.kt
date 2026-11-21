@@ -45,6 +45,7 @@ data class UserProfile(
     val avatarUrl: String = "",
     val coverUrl: String = "",
     val gender: String = "UNSPECIFIED",
+    val genderChangeCount: Long = 0L,
     val age: Long = 0L,
     val showAge: Boolean = false,
     val showGender: Boolean = true,

@@ -360,6 +360,7 @@ class RoomViewModel(
         announcement: String,
         category: String? = null,
         coverKey: String,
+        keepCustomCover: Boolean,
         locked: Boolean,
         newPassword: String?
     ) {
@@ -370,6 +371,7 @@ class RoomViewModel(
                 announcement = announcement,
                 category = category,
                 coverKey = coverKey,
+                keepCustomCover = keepCustomCover,
                 locked = locked,
                 newRawPassword = newPassword
             )

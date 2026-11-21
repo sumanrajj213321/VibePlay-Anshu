@@ -555,69 +555,17 @@ service cloud.firestore {
          get(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.status == 'INVITED' &&
          getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex in [1, 2, 3, 4, 5, 6, 7, 8] &&
          (
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 1 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId == request.auth.uid) ||
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 2 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId == request.auth.uid) ||
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 3 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/3).data.occupantId == request.auth.uid) ||
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 4 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/4).data.occupantId == request.auth.uid) ||
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 5 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/5).data.occupantId == request.auth.uid) ||
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 6 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/6).data.occupantId == request.auth.uid) ||
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 7 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/7).data.occupantId == request.auth.uid) ||
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 8 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId == request.auth.uid)
-         ) &&
-         incoming().status == existing().status &&
-         incoming().hostId == existing().hostId &&
-         incoming().featured == existing().featured &&
-         incoming().listenerCount == (exists(/databases/$(database)/documents/rooms/$(roomId)/listeners/$(request.auth.uid)) ? (existing().listenerCount > 0 ? existing().listenerCount - 1 : 0) : existing().listenerCount) &&
-         incoming().activeSpeakersCount == (existing().activeSpeakersCount < 9 ? existing().activeSpeakersCount + 1 : 9) &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['listenerCount', 'activeSpeakersCount', 'updatedAt'])) ||
-        (existing().status == 'LIVE' && incoming().hostId == existing().hostId &&
-         (!('ownerId' in existing()) || incoming().ownerId == existing().ownerId) &&
-         (!('ownerOnline' in existing()) || incoming().ownerOnline == existing().ownerOnline) &&
-         (!('adminIds' in existing()) || incoming().adminIds == existing().adminIds) &&
-         incoming().featured == existing().featured &&
-         (incoming().status == existing().status ||
-          (incoming().status == 'ENDED' &&
-           (!('ownerOnline' in existing()) || existing().ownerOnline == false) &&
-           (!('activeAdminIds' in incoming()) || incoming().activeAdminIds.size() == 0))) &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['listenerCount', 'activeSpeakersCount', 'activeAdminIds', 'status', 'updatedAt']))
-      );
-
-      allow delete: if isSignedIn() && isValidId(roomId) && (
-        isRoomOwner(existing()) ||
-        (isRoomAdminUser(existing()) && (!('ownerOnline' in existing()) || existing().ownerOnline == false)) ||
-        isAdmin()
-      );
-
-      // Strict 9-Seat Stage: 0 = Host, 1..8 = 8 Regular Speaker Seats
-      match /seats/{seatIndex} {
-        allow get: if isSignedIn() && seatIndex in ['0', '1', '2', '3', '4', '5', '6', '7', '8'];
-        allow list: if isSignedIn() && existing().seatIndex >= 0 && existing().seatIndex <= 8;
-
-        allow create: if isSignedIn() &&
-                         seatIndex in ['0', '1', '2', '3', '4', '5', '6', '7', '8'] &&
-                         isValidSeat(incoming(), seatIndex) &&
-                         isValidTs(incoming().updatedAt) &&
-                         getAfter(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid &&
-                         (seatIndex != '0' || incoming().occupantId == request.auth.uid);
-
-        allow update: if isSignedIn() &&
-                         seatIndex in ['0', '1', '2', '3', '4', '5', '6', '7', '8'] &&
-                         isValidSeat(incoming(), seatIndex) &&
-                         isValidTs(incoming().updatedAt) &&
-                         (seatIndex != '0' ||
-                          incoming().occupantId == getAfter(/databases/$(database)/documents/rooms/$(roomId)).data.hostId ||
-                          incoming().occupantId == effectiveRoomOwnerId(getAfter(/databases/$(database)/documents/rooms/$(roomId)).data)) &&
-                         (seatIndex == '0' || existing().occupantId == '' || incoming().occupantId == '' || incoming().occupantId == existing().occupantId) && (
-          isAdmin() ||
-          (isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
-           (seatIndex == '0' ||
-            incoming().occupantId == existing().occupantId ||
-            incoming().occupantId == '')) ||
-          (seatIndex != '0' && (
-            (existing().occupantId == request.auth.uid &&
-             (incoming().occupantId == request.auth.uid || incoming().occupantId == '') &&
-             incoming().seatLocked == existing().seatLocked &&
-             incoming().diff(existing()).affectedKeys().hasOnly(['occupantId', 'occupantName', 'occupantAvatarUrl', 'occupantVipLevel', 'occupantGender', 'muted', 'speaking', 'updatedAt'])) ||
+              (
+                (seatIndex == '1' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 1) ||
+                (seatIndex == '2' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 2) ||
+                (seatIndex == '3' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 3) ||
+                (seatIndex == '4' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 4) ||
+                (seatIndex == '5' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 5) ||
+                (seatIndex == '6' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 6) ||
+                (seatIndex == '7' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 7) ||
+                (seatIndex == '8' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 8)
+              ) &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['occupantId', 'occupantName', 'occupantAvatarUrl', 'occupantVipLevel', 'occupantGender', 'muted', 'speaking', 'updatedAt']))
             (existing().occupantId == '' && existing().seatLocked == false &&
              get(/databases/$(database)/documents/rooms/$(roomId)).data.locked == false &&
              incoming().occupantId == request.auth.uid &&

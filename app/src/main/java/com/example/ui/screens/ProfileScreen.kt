@@ -454,6 +454,17 @@ fun ProfileScreen(
             }
         }
 
+        // Shop shortcut appears above Gifts & Achievements.
+        item {
+            ProfileActionRow(
+                icon = Icons.Filled.AutoAwesome,
+                title = "VibePlay Shop",
+                subtitle = "Buy VIP, premium frames and profile titles with coins",
+                accentTint = VibeGold,
+                onClick = onOpenShop
+            )
+        }
+
         // Achievements Strip
         item {
             Surface(
@@ -564,14 +575,6 @@ fun ProfileScreen(
                         )
                     }
                 }
-
-                ProfileActionRow(
-                    icon = Icons.Filled.AutoAwesome,
-                    title = "VibePlay Shop",
-                    subtitle = "Buy VIP, premium frames and profile titles with coins",
-                    accentTint = VibeGold,
-                    onClick = onOpenShop
-                )
 
                 ProfileActionRow(
                     icon = Icons.Filled.CloudQueue,

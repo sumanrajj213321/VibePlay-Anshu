@@ -1201,14 +1201,23 @@ class RoomRepository(
             require(seatIndex in 1..VoiceStage.SPEAKER_SEAT_COUNT) {
                 "Only regular speaker seats 1..8 can be locked."
             }
-            db.collection("rooms").document(roomId)
+            val seatRef = db.collection("rooms").document(roomId)
                 .collection("seats").document(seatIndex.toString())
-                .update(
-                    mapOf(
-                        "seatLocked" to locked,
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    )
-                ).await()
+            seatRef.update(
+                mapOf(
+                    "seatLocked" to locked,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+
+            // Verify the committed server value before reporting success to the room UI.
+            val verifiedSeat = seatRef.get(Source.SERVER).await()
+            val actualLocked = verifiedSeat.getBoolean("seatLocked")
+                ?: throw IllegalStateException("Seat lock value is missing on the server.")
+            check(actualLocked == locked) {
+                "Seat lock update was not saved. Server still reports seat $seatIndex as " +
+                    (if (actualLocked) "locked." else "open.")
+            }
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e

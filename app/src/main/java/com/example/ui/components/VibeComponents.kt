@@ -400,12 +400,21 @@ fun VoiceRoomCard(
                     .fillMaxWidth()
                     .height(126.dp)
             ) {
-                Image(
-                    painter = painterResource(id = coverDrawableRes(room.coverKey)),
-                    contentDescription = "${room.title} room cover",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
+                if (room.coverUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = room.coverUrl,
+                        contentDescription = "${room.title} room cover",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = coverDrawableRes(room.coverKey)),
+                        contentDescription = "${room.title} room cover",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxSize()

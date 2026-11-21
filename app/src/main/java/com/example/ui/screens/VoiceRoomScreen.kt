@@ -1262,6 +1262,33 @@ private fun SpeakerSeatTile(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1
             )
+            if (seat.seatLocked) {
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = VibePink.copy(alpha = 0.18f),
+                    border = BorderStroke(1.dp, VibePink.copy(alpha = 0.7f)),
+                    modifier = Modifier.padding(top = 3.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Lock,
+                            contentDescription = "Seat locked",
+                            tint = VibePink,
+                            modifier = Modifier.size(10.dp)
+                        )
+                        Text(
+                            text = "LOCKED",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = VibePink,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
     }
 }

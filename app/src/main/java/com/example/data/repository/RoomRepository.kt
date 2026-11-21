@@ -37,12 +37,15 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import java.security.MessageDigest
+import java.security.SecureRandom
 
 class RoomRepository(
     private val db: FirebaseFirestore,
     private val auth: FirebaseAuth = Firebase.auth
 ) {
     private val createRoomMutex = Mutex()
+    private val roomIdRandom = SecureRandom()
+    private class RoomIdCollisionException : IllegalStateException("Room ID collision. Retrying with a new 6-digit ID.")
     constructor(context: Context) : this(
         FirebaseFirestore.getInstance(
             context.applicationContext.getString(R.string.firestore_database_id)
@@ -357,8 +360,7 @@ class RoomRepository(
         locked: Boolean,
         rawPassword: String
     ): Result<String> = createRoomMutex.withLock {
-        val roomRef = db.collection("rooms").document()
-        val path = roomRef.path
+        val path = "rooms"
         try {
             val uid = requireUserId()
             check(uid == host.userId)
@@ -375,7 +377,13 @@ class RoomRepository(
             val userRef = db.collection("users").document(uid)
             val lockRef = db.collection("room_creation_locks").document(uid)
 
-            db.runTransaction { tx ->
+            var roomIdCollisionAttempts = 0
+            while (true) {
+                val roomId = (100000 + roomIdRandom.nextInt(900000)).toString()
+                val roomRef = db.collection("rooms").document(roomId)
+                try {
+                    db.runTransaction { tx ->
+                if (tx.get(roomRef).exists()) throw RoomIdCollisionException()
                 val lockSnap = tx.get(lockRef)
                 val userSnap = tx.get(userRef)
                 if (lockSnap.exists() || userSnap.getBoolean("hasCreatedRoom") == true) {
@@ -495,8 +503,13 @@ class RoomRepository(
                         "createdAt" to FieldValue.serverTimestamp()
                     )
                 )
-            }.await()
-            Result.success(roomRef.id)
+                    }.await()
+                    return@withLock Result.success(roomRef.id)
+                } catch (collision: RoomIdCollisionException) {
+                    roomIdCollisionAttempts += 1
+                    if (roomIdCollisionAttempts >= 12) throw collision
+                }
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

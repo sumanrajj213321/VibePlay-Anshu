@@ -140,8 +140,16 @@ fun VibeAvatar(
         label = "pulse_alpha"
     )
 
+    // Equipped frames animate with a soft shimmer on every avatar instance
+    // (profile, room seats, chat and other places using VibeAvatar).
     val borderBrush = when {
-        frameColorArgb != null -> Brush.linearGradient(listOf(Color(frameColorArgb), Color(frameColorArgb).copy(alpha = 0.55f), Color.White.copy(alpha = 0.85f)))
+        frameColorArgb != null -> Brush.linearGradient(
+            listOf(
+                Color(frameColorArgb).copy(alpha = pulseAlpha),
+                Color(frameColorArgb).copy(alpha = 0.38f + (pulseAlpha * 0.42f)),
+                Color.White.copy(alpha = pulseAlpha)
+            )
+        )
         speaking -> Brush.linearGradient(listOf(VibeCyan, VibePink.copy(alpha = pulseAlpha)))
         vipColor != null -> Brush.linearGradient(listOf(vipColor, VibeGold))
         else -> Brush.linearGradient(

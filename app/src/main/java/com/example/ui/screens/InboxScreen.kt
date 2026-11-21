@@ -343,9 +343,9 @@ fun InboxScreen(
                                     avatarUrl = displayAvatar,
                                     username = displayName,
                                     size = 50.dp,
-                                    vipLevel = if (conv.isGroupChat) 0L else (peerProfile?.vipLevel ?: 0L),
+                                    vipLevel = if (conv.isGroupChat) 0L else (peerProfile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L),
                                     online = isOnline,
-                                    frameColorArgb = if (conv.isGroupChat) null else peerProfile?.let { profile -> VibeShopCatalog.frames.firstOrNull { it.id == profile.activeFrameId }?.colorArgb }
+                                    frameColorArgb = if (conv.isGroupChat) null else peerProfile?.let { profile -> VibeShopCatalog.frames.firstOrNull { it.id == profile.activeFrameId && profile.isFrameActive(it.id) }?.colorArgb }
                                 )
                                 if (conv.isGroupChat) {
                                     Surface(
@@ -1000,7 +1000,7 @@ private fun NewChatPickerSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        VibeAvatar(user.avatarUrl, user.username, size = 44.dp, vipLevel = user.vipLevel)
+                        VibeAvatar(user.avatarUrl, user.username, size = 44.dp, vipLevel = if (user.isVipActive) user.vipLevel else 0L)
                         Column {
                             Text(user.username, fontWeight = FontWeight.SemiBold)
                             Text(user.vibeId, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1114,7 +1114,7 @@ fun CreateGroupSheet(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            VibeAvatar(member.avatarUrl, member.username, size = 40.dp, vipLevel = member.vipLevel)
+                            VibeAvatar(member.avatarUrl, member.username, size = 40.dp, vipLevel = if (member.isVipActive) member.vipLevel else 0L)
                             Column {
                                 Text(member.username, fontWeight = FontWeight.SemiBold)
                                 if (member.vibeId.isNotBlank()) {
@@ -1349,7 +1349,7 @@ private fun GroupInfoSheet(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        VibeAvatar(memberAvatar, memberName, size = 38.dp, vipLevel = profile?.vipLevel ?: 0L)
+                        VibeAvatar(memberAvatar, memberName, size = 38.dp, vipLevel = profile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L)
                         Column {
                             Text(memberName, fontWeight = FontWeight.SemiBold)
                             if (isGroupOwner || isAdmin) {

@@ -357,6 +357,7 @@ class RoomViewModel(
         title: String,
         announcement: String,
         category: String? = null,
+        coverKey: String,
         locked: Boolean,
         newPassword: String?
     ) {
@@ -366,6 +367,7 @@ class RoomViewModel(
                 title = title,
                 announcement = announcement,
                 category = category,
+                coverKey = coverKey,
                 locked = locked,
                 newRawPassword = newPassword
             )

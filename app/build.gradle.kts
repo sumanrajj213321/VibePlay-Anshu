@@ -112,7 +112,6 @@ dependencies {
   // implementation(libs.firebase.ai)
   implementation(libs.firebase.firestore)
   implementation(libs.firebase.auth)
-  implementation("com.google.firebase:firebase-storage")
   implementation(libs.androidx.credentials)
   implementation(libs.androidx.credentials.play.services)
   implementation(libs.googleid)

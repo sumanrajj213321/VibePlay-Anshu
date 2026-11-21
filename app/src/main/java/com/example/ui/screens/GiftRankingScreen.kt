@@ -103,7 +103,7 @@ fun GiftRankingScreen(
                                 avatarUrl = user.avatarUrl,
                                 username = user.username,
                                 size = 52.dp,
-                                vipLevel = user.vipLevel,
+                                vipLevel = if (user.isVipActive) user.vipLevel else 0L,
                                 frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == user.activeFrameId && user.isFrameActive(it.id) }?.colorArgb
                             )
                             Column(modifier = Modifier.weight(1f)) {

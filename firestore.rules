@@ -28,26 +28,6 @@ service cloud.firestore {
       return ts is timestamp && ts <= request.time;
     }
 
-    function isAdmin() {
-      return isSignedIn() && request.auth.uid == '1fLIHgOyAJV6LNbHBXNeVg9JR6v1';
-    }
-    
-    function isValidAdminUserUpdate(userId) {
-      let changed = incoming().diff(existing()).affectedKeys();
-      return incoming().userId == existing().userId &&
-             incoming().createdAt == existing().createdAt &&
-             incoming().role == existing().role &&
-             isValidTs(incoming().updatedAt) &&
-             incoming().accountStatus in ['ACTIVE', 'SUSPENDED', 'BANNED'] &&
-             incoming().vipLevel is int && incoming().vipLevel >= 0 && incoming().vipLevel <= 30 &&
-             incoming().coinBalance is int && incoming().coinBalance >= 0 &&
-             changed.hasOnly(['accountStatus', 'vipLevel', 'vipExpiresAt', 'coinBalance', 'updatedAt']) &&
-             (!changed.hasAny(['vipLevel', 'vipExpiresAt']) ||
-              (incoming().vipLevel == 0 && !('vipExpiresAt' in incoming())) ||
-              (incoming().vipLevel > 0 && incoming().vipExpiresAt is timestamp &&
-               incoming().vipExpiresAt > request.time - duration.value(1, 'm') &&
-               incoming().vipExpiresAt <= request.time + duration.value(30, 'd') + duration.value(1, 'm')));
-    }
 
     function isApprovedSpeakerSeatJoin(roomId, seatIndex) {
       let roomData = get(/databases/$(database)/documents/rooms/$(roomId)).data;
@@ -115,7 +95,7 @@ service cloud.firestore {
              (!('followersCount' in data) || (data.followersCount is int && data.followersCount >= 0)) &&
              (!('followingCount' in data) || (data.followingCount is int && data.followingCount >= 0)) &&
              data.accountStatus in ['ACTIVE', 'SUSPENDED', 'BANNED'] &&
-             data.role in ['USER', 'ADMIN'] &&
+             data.role == 'USER' &&
              (!('lastDailyClaimDay' in data) || (data.lastDailyClaimDay is string && data.lastDailyClaimDay.size() <= 20)) &&
              (!('lastDailyClaimAt' in data) || data.lastDailyClaimAt is timestamp) &&
              (!('hasCreatedRoom' in data) || data.hasCreatedRoom is bool) &&
@@ -329,17 +309,12 @@ service cloud.firestore {
 
     // --- Collection Rules ---
 
-    match /admins/{adminUid} {
-      allow get: if isSignedIn() && (request.auth.uid == adminUid || isAdmin());
-      allow list: if isAdmin();
-      allow create, update, delete: if false;
-    }
 
     match /users/{userId} {
       allow get: if isSignedIn() && isValidId(userId) && (
-        request.auth.uid == userId || existing().accountStatus == 'ACTIVE' || isAdmin()
+        request.auth.uid == userId || existing().accountStatus == 'ACTIVE'
       );
-      allow list: if isSignedIn() && (existing().accountStatus == 'ACTIVE' || isAdmin());
+      allow list: if isSignedIn() && (existing().accountStatus == 'ACTIVE');
 
       allow create: if isSignedIn() && isValidId(userId) &&
                        request.auth.uid == userId &&
@@ -355,38 +330,11 @@ service cloud.firestore {
                        isValidTs(incoming().createdAt) &&
                        isValidTs(incoming().updatedAt);
 
-      allow update: if isAdmin() && isValidId(userId) && isValidAdminUserUpdate(userId);
-
       allow update: if isSignedIn() && isValidId(userId) &&
                        incoming().userId == existing().userId &&
                        incoming().createdAt == existing().createdAt &&
                        isValidTs(incoming().updatedAt) && (
-        (isAdmin() && (
-          (!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false ||
-           (incoming().hasCreatedRoom == true && (!('createdRoomId' in existing()) || incoming().createdRoomId == existing().createdRoomId))) ||
-          (userId == '1fLIHgOyAJV6LNbHBXNeVg9JR6v1' &&
-           (!('officialCoinsGranted' in existing()) || existing().officialCoinsGranted == false) &&
-           incoming().officialCoinsGranted == true &&
-           incoming().coinBalance == 1000000000 &&
-           incoming().vipLevel == existing().vipLevel &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'officialCoinsGranted', 'updatedAt'])) ||
-          ((!('welcomeBonusGranted' in existing()) || existing().welcomeBonusGranted == false) &&
-           incoming().welcomeBonusGranted == true &&
-           incoming().coinBalance == existing().coinBalance + 1000000 &&
-           incoming().vipLevel == existing().vipLevel &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'welcomeBonusGranted', 'welcomeBonusGrantedAt', 'updatedAt'])) ||
-          (incoming().role == existing().role &&
-           incoming().accountStatus in ['ACTIVE', 'SUSPENDED', 'BANNED'] &&
-           incoming().vipLevel is int && incoming().vipLevel >= 0 && incoming().vipLevel <= 30 &&
-           incoming().coinBalance is int && incoming().coinBalance >= 0 &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['accountStatus', 'vipLevel', 'vipExpiresAt', 'coinBalance', 'updatedAt']) &&
-           (!incoming().diff(existing()).affectedKeys().hasAny(['vipLevel', 'vipExpiresAt']) ||
-            (incoming().vipLevel == 0 && !('vipExpiresAt' in incoming())) ||
-            (incoming().vipLevel > 0 &&
-             incoming().vipExpiresAt is timestamp &&
-             incoming().vipExpiresAt > request.time - duration.value(1, 'm') &&
-             incoming().vipExpiresAt <= request.time + duration.value(30, 'd') + duration.value(1, 'm'))))
-        )) ||
+        
         (request.auth.uid == userId && isValidUserProfile(incoming()) && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
           (incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
            incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarUrl', 'coverUrl', 'gender', 'genderChangeCount', 'age', 'ageRange', 'showAge', 'showGender', 'showOnlineStatus', 'online', 'followingCount', 'followersCount', 'updatedAt']) &&
@@ -482,7 +430,7 @@ service cloud.firestore {
         ))
       );
 
-      allow delete: if isAdmin();
+      allow delete: if false;
 
       match /avatar/{avatarDocId} {
         allow get: if isSignedIn() && avatarDocId == 'image';
@@ -494,7 +442,7 @@ service cloud.firestore {
         allow delete: if isSignedIn() && request.auth.uid == userId;
       }
       match /private/{docId} {
-        allow get, list: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+        allow get, list: if isSignedIn() && (request.auth.uid == userId);
         allow create, update: if isSignedIn() && isValidId(userId) && isValidId(docId) &&
                                  request.auth.uid == userId &&
                                  isValidPrivateAccount(incoming(), userId) &&
@@ -524,8 +472,8 @@ service cloud.firestore {
     }
 
     match /room_creation_locks/{userId} {
-      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
-      allow list: if isAdmin();
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId);
+      allow list: if false;
       allow create: if isSignedIn() && isValidId(userId) &&
                        request.auth.uid == userId &&
                        isValidRoomCreationLock(incoming(), userId) &&
@@ -537,8 +485,8 @@ service cloud.firestore {
     }
 
     match /rooms/{roomId} {
-      allow get: if isSignedIn() && isValidId(roomId) && (existing().status == 'LIVE' || isRoomManager(existing()) || isAdmin());
-      allow list: if isSignedIn() && (existing().status == 'LIVE' || isRoomManager(existing()) || isAdmin());
+      allow get: if isSignedIn() && isValidId(roomId) && (existing().status == 'LIVE' || isRoomManager(existing()));
+      allow list: if isSignedIn() && (existing().status == 'LIVE' || isRoomManager(existing()));
 
       allow create: if isSignedIn() && isValidId(roomId) &&
                        isValidRoom(incoming()) &&
@@ -561,7 +509,7 @@ service cloud.firestore {
                        incoming().createdAt == existing().createdAt &&
                        (!('creatorId' in existing()) || incoming().creatorId == existing().creatorId) &&
                        isValidTs(incoming().updatedAt) && (
-        isAdmin() ||
+        false ||
         (isRoomOwner(existing()) && existing().status == 'LIVE' &&
          incoming().featured == existing().featured &&
          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'coverUrl', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'status', 'hostId', 'hostName', 'hostAvatarUrl', 'ownerId', 'ownerName', 'ownerOnline', 'adminIds', 'activeAdminIds', 'listenerCount', 'activeSpeakersCount', 'updatedAt'])) ||
@@ -611,7 +559,7 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(roomId) && (
         isRoomOwner(existing()) ||
         (isRoomAdminUser(existing()) && (!('ownerOnline' in existing()) || existing().ownerOnline == false)) ||
-        isAdmin()
+        false
       );
 
       // Strict 9-Seat Stage: 0 = Host, 1..8 = 8 Regular Speaker Seats
@@ -634,7 +582,7 @@ service cloud.firestore {
                           incoming().occupantId == getAfter(/databases/$(database)/documents/rooms/$(roomId)).data.hostId ||
                           incoming().occupantId == effectiveRoomOwnerId(getAfter(/databases/$(database)/documents/rooms/$(roomId)).data)) &&
                          (seatIndex == '0' || existing().occupantId == '' || incoming().occupantId == '' || incoming().occupantId == existing().occupantId) && (
-          isAdmin() ||
+          false ||
           (isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
            (seatIndex == '0' ||
             incoming().occupantId == existing().occupantId ||
@@ -657,8 +605,8 @@ service cloud.firestore {
       }
 
       match /speaker_requests/{requestId} {
-        allow get: if isSignedIn() && isValidId(requestId) && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) || isAdmin());
-        allow list: if isSignedIn() && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) || isAdmin());
+        allow get: if isSignedIn() && isValidId(requestId) && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
+        allow list: if isSignedIn() && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
         allow create: if isSignedIn() && isValidId(requestId) &&
                          isValidSpeakerRequest(incoming()) &&
                          incoming().hostId == get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId &&
@@ -722,7 +670,7 @@ service cloud.firestore {
                          isValidRoomMessage(incoming()) &&
                          isValidTs(incoming().createdAt) &&
                          existsAfter(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid));
-        allow update, delete: if isAdmin();
+        allow update, delete: if false;
       }
 
       match /room_sessions/{sessionUserId} {
@@ -744,7 +692,7 @@ service cloud.firestore {
                                  incoming().userId == request.auth.uid &&
                                  isValidRoomListener(incoming()) &&
                                  isValidTs(incoming().joinedAt);
-        allow delete: if isSignedIn() && (listenerId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) || isAdmin());
+        allow delete: if isSignedIn() && (listenerId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
       }
     }
 
@@ -753,11 +701,11 @@ service cloud.firestore {
       // Existing conversations remain readable only by their participants.
       allow get: if isSignedIn() && isValidId(conversationId) &&
                    (!exists(/databases/$(database)/documents/conversations/$(conversationId)) ||
-                    request.auth.uid in existing().participantIds || isAdmin());
+                    request.auth.uid in existing().participantIds);
       allow list: if isSignedIn() && request.auth.uid in existing().participantIds;
       allow create: if isSignedIn() && isValidId(conversationId) &&
                        (request.auth.uid in incoming().participantIds ||
-                        (isAdmin() && 'VIBEPLAY_OFFICIAL_BOT' in incoming().participantIds && incoming().participantIds.size() == 2)) &&
+                        ) &&
                        (!('conversationType' in incoming()) || incoming().conversationType == 'DIRECT' || incoming().ownerId == request.auth.uid) &&
                        isValidConversation(incoming()) &&
                        isValidTs(incoming().createdAt) &&
@@ -795,7 +743,7 @@ service cloud.firestore {
                             getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds.size() == 2 &&
                             incoming().recipientId in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
                             'VIBEPLAY_OFFICIAL_BOT' in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
-                            (request.auth.uid == incoming().recipientId || isAdmin()) &&
+                            (request.auth.uid == incoming().recipientId) &&
                             exists(/databases/$(database)/documents/users/$(incoming().recipientId)) &&
                             get(/databases/$(database)/documents/users/$(incoming().recipientId)).data.welcomeBonusGranted == true)
                          );
@@ -807,8 +755,8 @@ service cloud.firestore {
     }
 
     match /gift_transactions/{txId} {
-      allow get: if isSignedIn() && isValidId(txId) && (request.auth.uid in existing().participantIds || isAdmin());
-      allow list: if isSignedIn() && (request.auth.uid in existing().participantIds || isAdmin());
+      allow get: if isSignedIn() && isValidId(txId) && (request.auth.uid in existing().participantIds);
+      allow list: if isSignedIn() && (request.auth.uid in existing().participantIds);
       allow create: if isSignedIn() && isValidId(txId) &&
                        incoming().senderId == request.auth.uid &&
                        request.auth.uid in incoming().participantIds &&
@@ -819,8 +767,8 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      allow get: if isSignedIn() && isValidId(notificationId) && (existing().recipientId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (existing().recipientId == request.auth.uid || isAdmin());
+      allow get: if isSignedIn() && isValidId(notificationId) && (existing().recipientId == request.auth.uid);
+      allow list: if isSignedIn() && (existing().recipientId == request.auth.uid);
       allow create: if isSignedIn() && isValidId(notificationId) &&
                        incoming().senderId == request.auth.uid &&
                        isValidNotification(incoming()) &&
@@ -833,31 +781,21 @@ service cloud.firestore {
     }
 
     match /reports/{reportId} {
-      allow get: if isSignedIn() && isValidId(reportId) && (existing().reporterId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (existing().reporterId == request.auth.uid || isAdmin());
+      allow get: if isSignedIn() && isValidId(reportId) && (existing().reporterId == request.auth.uid);
+      allow list: if isSignedIn() && (existing().reporterId == request.auth.uid);
       allow create: if isSignedIn() && isValidId(reportId) &&
                        incoming().reporterId == request.auth.uid &&
                        incoming().status == 'OPEN' &&
                        isValidReport(incoming()) &&
                        isValidTs(incoming().createdAt) &&
                        isValidTs(incoming().updatedAt);
-      allow update: if isSignedIn() && isValidId(reportId) &&
-                       isAdmin() &&
-                       isValidReport(incoming()) &&
-                       incoming().reporterId == existing().reporterId &&
-                       incoming().createdAt == existing().createdAt &&
-                       isValidTs(incoming().updatedAt);
-      allow delete: if isAdmin();
+      allow update, delete: if false;
     }
 
     match /gifts_catalog/{giftId} {
-      allow get: if isSignedIn() && isValidId(giftId) && (existing().active == true || isAdmin());
-      allow list: if isSignedIn() && (existing().active == true || isAdmin());
-      allow create, update: if isSignedIn() && isValidId(giftId) &&
-                               isAdmin() &&
-                               isValidGiftCatalogItem(incoming()) &&
-                               isValidTs(incoming().updatedAt);
-      allow delete: if isAdmin();
+      allow get: if isSignedIn() && isValidId(giftId) && (existing().active == true);
+      allow list: if isSignedIn() && (existing().active == true);
+      allow create, update, delete: if false;
     }
   }
 }

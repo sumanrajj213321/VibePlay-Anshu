@@ -121,14 +121,15 @@ fun ShopScreen(
                 }
                 else -> items(VibeShopCatalog.titles, key = { it.id }) { item ->
                     val owned = profile.isTitleActive(item.id)
-                    val equipped = profile.activeTitleId == item.id && profile.isTitleActive(item.id)
+                    val equipped = item.id in profile.equippedTitleIds
+                    val canEquip = equipped || profile.equippedTitleIds.size < 4
                     ShopCard(
                         title = item.title,
                         subtitle = item.subtitle + " · Valid for 15 days",
                         price = item.coinPrice,
                         accent = Color(item.colorArgb),
-                        status = when { equipped -> "Equipped"; owned -> "Equip"; else -> "Purchase" },
-                        enabled = !equipped && (owned || profile.coinBalance >= item.coinPrice),
+                        status = when { equipped -> "Unequip"; owned && canEquip -> "Equip"; owned -> "Limit 4"; else -> "Purchase" },
+                        enabled = if (owned) canEquip else profile.coinBalance >= item.coinPrice,
                         onClick = { if (owned) onEquip("TITLE", item.id) else onPurchase("TITLE", item.id) },
                         icon = "🏷️"
                     )
@@ -141,10 +142,11 @@ fun ShopScreen(
                     }
                 }
             }
-            if (selectedTab == 2 && profile.isTitleActive(profile.activeTitleId)) {
+            if (selectedTab == 2 && profile.equippedTitleIds.isNotEmpty()) {
                 item {
+                    Text("${profile.equippedTitleIds.size}/4 titles equipped", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                     Button(onClick = { onEquip("TITLE", null) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = VibeViolet)) {
-                        Text("Remove profile title")
+                        Text("Remove all profile titles")
                     }
                 }
             }

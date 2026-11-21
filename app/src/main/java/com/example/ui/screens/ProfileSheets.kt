@@ -905,31 +905,6 @@ fun PublicProfileSheet(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(targetUser.username, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-                        VibeShopCatalog.titles.firstOrNull { it.id == targetUser.activeTitleId && targetUser.isTitleActive(it.id) }?.let { title ->
-                            Surface(
-                                shape = RoundedCornerShape(9.dp),
-                                color = Color(title.colorArgb).copy(alpha = 0.16f),
-                                border = BorderStroke(
-                                    1.dp,
-                                    androidx.compose.ui.graphics.Brush.linearGradient(
-                                        listOf(
-                                            Color(title.colorArgb).copy(alpha = 0.95f),
-                                            Color.White.copy(alpha = 0.48f),
-                                            Color(title.colorArgb).copy(alpha = 0.78f)
-                                        )
-                                    )
-                                ),
-                                shadowElevation = 2.dp
-                            ) {
-                                Text(
-                                    text = title.title.uppercase(),
-                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color(title.colorArgb),
-                                    fontWeight = FontWeight.ExtraBold
-                                )
-                            }
-                        }
                         if (targetUser.userId == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
                             Surface(
                                 shape = RoundedCornerShape(9.dp),
@@ -957,6 +932,18 @@ fun PublicProfileSheet(
                             compact = true
                         )
                         if (targetUser.isVipActive) VipBadgePill(targetUser.vipLevel)
+                    }
+                    targetUser.equippedTitleIds.forEach { titleId ->
+                        VibeShopCatalog.titles.firstOrNull { it.id == titleId }?.let { title ->
+                            Surface(
+                                shape = RoundedCornerShape(9.dp),
+                                color = Color(title.colorArgb).copy(alpha = 0.16f),
+                                border = BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(title.colorArgb).copy(alpha = 0.95f), Color.White.copy(alpha = 0.48f), Color(title.colorArgb).copy(alpha = 0.78f)))),
+                                shadowElevation = 2.dp
+                            ) {
+                                Text(text = title.title.uppercase(), modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), style = MaterialTheme.typography.labelMedium, color = Color(title.colorArgb), fontWeight = FontWeight.ExtraBold)
+                            }
+                        }
                     }
                     val ageSuffix = if (targetUser.showAge && targetUser.formattedAge != null) " · ${targetUser.formattedAge}" else ""
                     Row(

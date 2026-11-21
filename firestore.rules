@@ -509,6 +509,7 @@ service cloud.firestore {
          getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.status == 'ACCEPTED' &&
          get(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.status == 'INVITED' &&
          getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex in [1, 2, 3, 4, 5, 6, 7, 8] &&
+         getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/$(string(getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex))).data.occupantId == request.auth.uid &&
          incoming().status == existing().status &&
          incoming().hostId == existing().hostId &&
          incoming().featured == existing().featured &&

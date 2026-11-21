@@ -99,14 +99,21 @@ class RoomRepository(
             .collection("room_sessions").document(uid)
             .get().await()
         if (!sessionSnapshot.exists()) return@flow
+        val joinedAt = sessionSnapshot.getTimestamp("joinedAt") ?: return@flow
 
+        // Query from the latest session boundary. A new session overwrites joinedAt,
+        // so messages from every earlier visit stay hidden after rejoining.
         emitAll(
             db.collection("rooms").document(roomId).collection("messages")
-                .whereIn("type", listOf("TEXT", "GIFT", "SYSTEM"))
+                .whereGreaterThanOrEqualTo("createdAt", joinedAt)
                 .snapshots()
                 .map { snapshot ->
                     snapshot.toObjects(RoomMessage::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
-                        .filter { it.type in listOf("TEXT", "GIFT", "SYSTEM") }
+                        .filter { message ->
+                            message.type in listOf("TEXT", "GIFT", "SYSTEM") &&
+                                message.createdAt != null &&
+                                message.createdAt.compareTo(joinedAt) >= 0
+                        }
                         .sortedBy { it.createdAt?.seconds ?: Long.MAX_VALUE }
                 }
         )

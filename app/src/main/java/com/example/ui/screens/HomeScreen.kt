@@ -89,6 +89,7 @@ fun HomeScreen(
     onOpenRoom: (VoiceRoom) -> Unit,
     onCreateRoomClick: () -> Unit,
     onOpenNotifications: () -> Unit,
+    onOpenGiftRanking: () -> Unit,
     onClaimDailyReward: () -> Unit,
     onOpenUserProfile: (UserProfile) -> Unit,
     onVerifyPasscode: (VoiceRoom, String) -> Boolean
@@ -197,6 +198,32 @@ fun HomeScreen(
                             )
                         }
                     }
+                }
+            }
+        }
+
+        item {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .clickable(onClick = onOpenGiftRanking)
+                    .testTag("home_total_ranking"),
+                shape = RoundedCornerShape(20.dp),
+                color = VibeViolet.copy(alpha = 0.18f),
+                border = BorderStroke(1.dp, VibeViolet.copy(alpha = 0.65f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(Icons.Filled.CardGiftcard, contentDescription = null, tint = VibeGold, modifier = Modifier.size(30.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Total Ranking", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Top Gifters · Top Receivers", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text("View", color = VibeCyan, fontWeight = FontWeight.Bold)
                 }
             }
         }

@@ -623,18 +623,18 @@ test("No global admin account or moderation bypass exists", async () => {
   );
 });
 
-test("Speaker requests: prevent duplicates, allow cancel, support reject/re-request/approve, prevent overlapping seat occupation, and reuse vacated seat", async () => {
+test("Open speaker seats: users join directly, locked or occupied seats reject joins, and duplicate seats are prevented", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
   const charlieUid = "charlie_uid_3";
   const charlieDb = testEnv.authenticatedContext(charlieUid).firestore();
   const ts = pastDate(5000);
+  const roomRef = aliceDb.collection("rooms").doc("room_open_seats");
 
-  const roomRef = aliceDb.collection("rooms").doc("room_seats_tx");
   const setupBatch = aliceDb.batch();
   setupBatch.set(aliceDb.collection("room_creation_locks").doc(ALICE_UID), {
     userId: ALICE_UID,
-    roomId: "room_seats_tx",
+    roomId: "room_open_seats",
     createdAt: ts,
   });
   setupBatch.set(roomRef, {
@@ -642,8 +642,8 @@ test("Speaker requests: prevent duplicates, allow cancel, support reject/re-requ
     hostId: ALICE_UID,
     hostName: "Alice",
     hostAvatarUrl: "",
-    title: "Seat Governance Stage",
-    announcement: "Ask to speak!",
+    title: "Open Seats Stage",
+    announcement: "Join an open seat",
     category: "Music",
     coverKey: "party_stage",
     tags: ["Music"],
@@ -685,93 +685,37 @@ test("Speaker requests: prevent duplicates, allow cancel, support reject/re-requ
   }
   await assertSucceeds(setupBatch.commit());
 
-  // 1. Listener Bob sends Request to Speak with preferredSeatIndex = 3
-  const bobReqRef = bobDb.collection("rooms").doc("room_seats_tx").collection("speaker_requests").doc(BOB_UID);
-  await assertSucceeds(
-    bobReqRef.set({
-      userId: BOB_UID,
-      hostId: ALICE_UID,
-      username: "Bob",
-      avatarUrl: "",
-      vipLevel: 0,
-      preferredSeatIndex: 3,
-      status: "PENDING",
-      createdAt: pastDate(),
-      updatedAt: pastDate(),
-    })
-  );
+  const bobRoomRef = bobDb.collection("rooms").doc("room_open_seats");
+  await assertSucceeds(bobRoomRef.collection("room_sessions").doc(BOB_UID).set({
+    userId: BOB_UID,
+    joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+  await assertSucceeds(bobRoomRef.collection("listeners").doc(BOB_UID).set({
+    userId: BOB_UID,
+    username: "Bob",
+    avatarUrl: "",
+    vipLevel: 0,
+    gender: "UNSPECIFIED",
+    role: "LISTENER",
+    joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
 
-  // 2. Prevent duplicate request documents under another ID
-  await assertFails(
-    bobDb.collection("rooms").doc("room_seats_tx").collection("speaker_requests").doc("dup_req_id").set({
-      userId: BOB_UID,
-      hostId: ALICE_UID,
-      username: "Bob",
-      avatarUrl: "",
-      vipLevel: 0,
-      preferredSeatIndex: 4,
-      status: "PENDING",
-      createdAt: pastDate(),
-      updatedAt: pastDate(),
-    })
-  );
+  // User-created speak requests are no longer allowed.
+  await assertFails(bobRoomRef.collection("speaker_requests").doc(BOB_UID).set({
+    userId: BOB_UID,
+    hostId: ALICE_UID,
+    username: "Bob",
+    avatarUrl: "",
+    vipLevel: 0,
+    preferredSeatIndex: 3,
+    status: "PENDING",
+    createdAt: pastDate(),
+    updatedAt: pastDate(),
+  }));
 
-  // 3. Prevent duplicate PENDING->PENDING update by Bob while still pending
-  await assertFails(
-    bobReqRef.update({
-      status: "PENDING",
-      preferredSeatIndex: 4,
-      updatedAt: pastDate(),
-    })
-  );
-
-  // 4. Bob cancels his pending request
-  await assertSucceeds(bobReqRef.delete());
-
-  // 5. Bob submits a new request, and Host Alice rejects it
-  await assertSucceeds(
-    bobReqRef.set({
-      userId: BOB_UID,
-      hostId: ALICE_UID,
-      username: "Bob",
-      avatarUrl: "",
-      vipLevel: 0,
-      preferredSeatIndex: 3,
-      status: "PENDING",
-      createdAt: pastDate(),
-      updatedAt: pastDate(),
-    })
-  );
-  await assertSucceeds(
-    aliceDb.collection("rooms").doc("room_seats_tx").collection("speaker_requests").doc(BOB_UID).update({
-      status: "REJECTED",
-      updatedAt: pastDate(),
-    })
-  );
-
-  // 6. After rejection, Bob can submit a fresh PENDING request for Seat 2
-  await assertSucceeds(
-    bobReqRef.update({
-      status: "PENDING",
-      preferredSeatIndex: 2,
-      username: "Bob",
-      avatarUrl: "",
-      vipLevel: 0,
-      updatedAt: pastDate(),
-    })
-  );
-
-  // 7. Host invites Bob to Seat 2; Bob accepts and joins in one transaction.
-  await assertSucceeds(
-    aliceDb.collection("rooms").doc("room_seats_tx").collection("speaker_requests").doc(BOB_UID).update({
-      status: "INVITED",
-      preferredSeatIndex: 2,
-      updatedAt: pastDate(),
-    })
-  );
-  const bobRoomRef = bobDb.collection("rooms").doc("room_seats_tx");
-  const acceptBatch = bobDb.batch();
-  acceptBatch.update(bobRoomRef.collection("seats").doc("2"), {
+  // Bob joins an open seat directly; listener and room counters update atomically.
+  const bobJoin = bobDb.batch();
+  bobJoin.update(bobRoomRef.collection("seats").doc("3"), {
     occupantId: BOB_UID,
     occupantName: "Bob",
     occupantAvatarUrl: "",
@@ -781,66 +725,94 @@ test("Speaker requests: prevent duplicates, allow cancel, support reject/re-requ
     speaking: false,
     updatedAt: pastDate(),
   });
-  acceptBatch.update(bobRoomRef.collection("speaker_requests").doc(BOB_UID), {
-    status: "ACCEPTED",
-    updatedAt: pastDate(),
-  });
-  acceptBatch.update(bobRoomRef, {
+  bobJoin.delete(bobRoomRef.collection("listeners").doc(BOB_UID));
+  bobJoin.update(bobRoomRef, {
+    listenerCount: 1,
     activeSpeakersCount: 2,
-    listenerCount: 2,
     updatedAt: pastDate(),
   });
-  await assertSucceeds(acceptBatch.commit());
+  await assertSucceeds(bobJoin.commit());
 
-  // 8. Prevent two users occupying Seat 2 (even Host cannot overwrite occupied Seat 2 without vacating first)
+  // A user already seated cannot take a second seat.
+  await assertFails(bobRoomRef.collection("seats").doc("4").update({
+    occupantId: BOB_UID,
+    occupantName: "Bob",
+    occupantAvatarUrl: "",
+    occupantVipLevel: 0,
+    occupantGender: "UNSPECIFIED",
+    muted: false,
+    speaking: false,
+    updatedAt: pastDate(),
+  }));
+
+  // Another user cannot overwrite an occupied seat.
   await assertFails(
-    charlieDb.collection("rooms").doc("room_seats_tx").collection("seats").doc("2").update({
+    charlieDb.collection("rooms").doc("room_open_seats").collection("seats").doc("3").update({
       occupantId: charlieUid,
       occupantName: "Charlie",
       occupantAvatarUrl: "",
       occupantVipLevel: 0,
-      muted: false,
-      speaking: false,
-      updatedAt: pastDate(),
-    })
-  );
-  await assertFails(
-    roomRef.collection("seats").doc("2").update({
-      occupantId: charlieUid,
-      occupantName: "Charlie",
-      occupantAvatarUrl: "",
-      occupantVipLevel: 0,
+      occupantGender: "UNSPECIFIED",
       muted: false,
       speaking: false,
       updatedAt: pastDate(),
     })
   );
 
-  // 9. Bob vacates Seat 2 -> Seat 2 becomes empty and reusable
-  await assertSucceeds(
-    bobDb.collection("rooms").doc("room_seats_tx").collection("seats").doc("2").update({
-      occupantId: "",
-      occupantName: "",
-      occupantAvatarUrl: "",
-      occupantVipLevel: 0,
-      muted: true,
-      speaking: false,
-      updatedAt: pastDate(),
-    })
-  );
+  const charlieRoomRef = charlieDb.collection("rooms").doc("room_open_seats");
+  await assertSucceeds(charlieRoomRef.collection("room_sessions").doc(charlieUid).set({
+    userId: charlieUid,
+    joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+  await assertSucceeds(charlieRoomRef.collection("listeners").doc(charlieUid).set({
+    userId: charlieUid,
+    username: "Charlie",
+    avatarUrl: "",
+    vipLevel: 0,
+    gender: "UNSPECIFIED",
+    role: "LISTENER",
+    joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
 
-  // 10. Host assigns Charlie into newly available Seat 2
-  await assertSucceeds(
-    roomRef.collection("seats").doc("2").update({
-      occupantId: charlieUid,
-      occupantName: "Charlie",
-      occupantAvatarUrl: "",
-      occupantVipLevel: 0,
-      muted: false,
-      speaking: false,
-      updatedAt: pastDate(),
-    })
-  );
+  // Host-locked seats cannot be self-selected.
+  await assertSucceeds(roomRef.collection("seats").doc("4").update({
+    seatLocked: true,
+    updatedAt: pastDate(),
+  }));
+  await assertFails(charlieRoomRef.collection("seats").doc("4").update({
+    occupantId: charlieUid,
+    occupantName: "Charlie",
+    occupantAvatarUrl: "",
+    occupantVipLevel: 0,
+    occupantGender: "UNSPECIFIED",
+    muted: false,
+    speaking: false,
+    updatedAt: pastDate(),
+  }));
+
+  // Once the Host unlocks the seat, Charlie can join it directly.
+  await assertSucceeds(roomRef.collection("seats").doc("4").update({
+    seatLocked: false,
+    updatedAt: pastDate(),
+  }));
+  const charlieJoin = charlieDb.batch();
+  charlieJoin.update(charlieRoomRef.collection("seats").doc("4"), {
+    occupantId: charlieUid,
+    occupantName: "Charlie",
+    occupantAvatarUrl: "",
+    occupantVipLevel: 0,
+    occupantGender: "UNSPECIFIED",
+    muted: false,
+    speaking: false,
+    updatedAt: pastDate(),
+  });
+  charlieJoin.delete(charlieRoomRef.collection("listeners").doc(charlieUid));
+  charlieJoin.update(charlieRoomRef, {
+    listenerCount: 0,
+    activeSpeakersCount: 3,
+    updatedAt: pastDate(),
+  });
+  await assertSucceeds(charlieJoin.commit());
 });
 
 test("Exact age, pinned chats, cross-user followers/following list reads, room owner exit with active admin vs no active admin, and group chats", async () => {

@@ -1198,15 +1198,22 @@ class RoomRepository(
         val path = "rooms/$roomId/seats/${seat.seatIndex}"
         return try {
             requireUserId()
-            db.collection("rooms").document(roomId)
+            val seatRef = db.collection("rooms").document(roomId)
                 .collection("seats").document(seat.seatIndex.toString())
-                .update(
-                    mapOf(
-                        "muted" to muted,
-                        "speaking" to !muted,
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    )
-                ).await()
+            seatRef.update(
+                mapOf(
+                    "muted" to muted,
+                    "speaking" to !muted,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            val verifiedSeat = seatRef.get(Source.SERVER).await()
+            val actualMuted = verifiedSeat.getBoolean("muted")
+                ?: throw IllegalStateException("Microphone state is missing on the server.")
+            check(actualMuted == muted) {
+                "Microphone state was not saved. Server still reports the mic as " +
+                    (if (actualMuted) "muted." else "unmuted.")
+            }
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e

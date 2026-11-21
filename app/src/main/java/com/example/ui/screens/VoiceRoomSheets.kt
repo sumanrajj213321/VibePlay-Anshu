@@ -582,13 +582,10 @@ fun SpeakerRequestsAndListenersSheet(
     isHost: Boolean,
     isOwner: Boolean = isHost,
     currentUserId: String = "",
-    requests: List<SpeakerRequest>,
     onlineUsers: List<RoomOnlineMember> = emptyList(),
     listeners: List<RoomListener>,
     hasOpenSpeakerSeat: Boolean = false,
     onAssignListenerToOpenSeat: ((RoomListener) -> Unit)? = null,
-    onApprove: (SpeakerRequest) -> Unit,
-    onReject: (SpeakerRequest) -> Unit,
     onOpenUserProfile: ((String) -> Unit)? = null,
     onToggleRoomAdmin: ((userId: String, username: String, promote: Boolean) -> Unit)? = null,
     onReportListener: (RoomListener) -> Unit,
@@ -611,83 +608,6 @@ fun SpeakerRequestsAndListenersSheet(
             contentPadding = PaddingValues(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (isHost) {
-                item {
-                    Text(
-                        text = "Speaker Requests (${requests.size})",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                if (requests.isEmpty()) {
-                    item {
-                        Text(
-                            text = "No pending requests to speak.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else {
-                    items(requests, key = { it.id }) { req ->
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .then(
-                                            if (onOpenUserProfile != null) {
-                                                Modifier.clickable {
-                                                    onDismiss()
-                                                    onOpenUserProfile(req.userId)
-                                                }
-                                            } else {
-                                                Modifier
-                                            }
-                                        )
-                                ) {
-                                    VibeAvatar(req.avatarUrl, req.username, size = 40.dp, vipLevel = req.vipLevel)
-                                    Column {
-                                        Text(req.username, fontWeight = FontWeight.SemiBold)
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            VipBadgePill(req.vipLevel)
-                                            if (req.preferredSeatIndex in 1L..8L) {
-                                                Text(
-                                                    text = "Seat ${req.preferredSeatIndex}",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = VibeCyan
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                                Row {
-                                    IconButton(onClick = { onReject(req) }) {
-                                        Icon(Icons.Filled.Close, contentDescription = "Reject request", tint = VibeCoral)
-                                    }
-                                    IconButton(onClick = { onApprove(req) }) {
-                                        Icon(Icons.Filled.Check, contentDescription = "Send seat invitation", tint = VibeEmerald)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
             item {
                 Text(
                     text = "Online in Room (${displayMembers.size})",
@@ -986,7 +906,6 @@ fun InviteSpeakerSheet(
     targetSeatIndex: Int,
     room: VoiceRoom,
     stage: VoiceStage,
-    requests: List<SpeakerRequest>,
     listeners: List<RoomListener>,
     followingProfiles: List<UserProfile>,
     followingIds: Set<String> = emptySet(),
@@ -994,8 +913,6 @@ fun InviteSpeakerSheet(
     onOpenUserProfile: ((String) -> Unit)? = null,
     onAssignToSeat: (userId: String, username: String, avatarUrl: String, vipLevel: Long, gender: String) -> Unit,
     onInviteUserToRoom: (userId: String) -> Unit,
-    onApproveRequest: (SpeakerRequest) -> Unit,
-    onRejectRequest: (SpeakerRequest) -> Unit,
     onDismiss: () -> Unit
 ) {
     val targetSeat = stage.speakerSeats.firstOrNull { it.seatIndex.toInt() == targetSeatIndex }
@@ -1080,200 +997,7 @@ fun InviteSpeakerSheet(
                 }
             }
 
-            // Section 1: Pending Speaker Requests
-            item {
-                Text(
-                    text = "Pending Speaker Requests (${requests.size})",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = VibeGold
-                )
-            }
-            if (requests.isEmpty()) {
-                item {
-                    Text(
-                        text = "No pending requests to speak right now.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                items(requests, key = { "req_${it.id}" }) { req ->
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .then(
-                                        if (onOpenUserProfile != null) {
-                                            Modifier.clickable {
-                                                onDismiss()
-                                                onOpenUserProfile(req.userId)
-                                            }
-                                        } else {
-                                            Modifier
-                                        }
-                                    ),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                VibeAvatar(req.avatarUrl, req.username, size = 40.dp, vipLevel = req.vipLevel)
-                                Column {
-                                    Text(req.username, fontWeight = FontWeight.SemiBold)
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        VipBadgePill(req.vipLevel)
-                                        Text(
-                                            text = if (req.preferredSeatIndex in 1L..8L) "Seat ${req.preferredSeatIndex}" else "Any Seat",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = VibeCyan
-                                        )
-                                    }
-                                }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                OutlinedButton(
-                                    onClick = { onRejectRequest(req) },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = VibeCoral),
-                                    modifier = Modifier.testTag("invite_sheet_reject_${req.userId}")
-                                ) {
-                                    Icon(Icons.Filled.Close, contentDescription = "Reject ${req.username}", modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Reject")
-                                }
-                                Button(
-                                    onClick = {
-                                        onApproveRequest(req)
-                                        onDismiss()
-                                    },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = VibeEmerald),
-                                    modifier = Modifier.testTag("invite_sheet_approve_${req.userId}")
-                                ) {
-                                    Icon(Icons.Filled.Check, contentDescription = "Approve ${req.username}", modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Invite")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
 
-            // Section 2: Room Listeners
-            item {
-                Text(
-                    text = "Room Listeners (${unseatedListeners.size})",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = VibeCyan
-                )
-            }
-            if (unseatedListeners.isEmpty()) {
-                item {
-                    Text(
-                        text = "No listeners currently waiting in the room.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                items(unseatedListeners, key = { "listener_${it.userId}" }) { listener ->
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .then(
-                                        if (onOpenUserProfile != null) {
-                                            Modifier.clickable {
-                                                onDismiss()
-                                                onOpenUserProfile(listener.userId)
-                                            }
-                                        } else {
-                                            Modifier
-                                        }
-                                    ),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                VibeAvatar(listener.avatarUrl, listener.username, size = 38.dp, vipLevel = listener.vipLevel)
-                                Column {
-                                    Text(listener.username, fontWeight = FontWeight.Medium)
-                                    Text("Listening in room", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                            Button(
-                                onClick = {
-                                    onAssignToSeat(listener.userId, listener.username, listener.avatarUrl, listener.vipLevel, listener.gender)
-                                    onDismiss()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = VibeViolet),
-                                modifier = Modifier.testTag("invite_sheet_assign_listener_${listener.userId}")
-                            ) {
-                                Icon(Icons.Filled.PersonAdd, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Invite")
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Section 3: Following Contacts
-            item {
-                Text(
-                    text = "Following Contacts (${availableFollowing.size})",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = VibePink
-                )
-            }
-            if (availableFollowing.isEmpty()) {
-                item {
-                    Text(
-                        text = "Follow users from Explore to invite them straight to your stage.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                items(availableFollowing, key = { "following_${it.userId}" }) { contact ->
-                    val isInRoom = contact.userId in listenerIds
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(
                                 modifier = Modifier

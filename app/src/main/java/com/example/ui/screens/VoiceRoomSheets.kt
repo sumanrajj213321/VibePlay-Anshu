@@ -293,8 +293,22 @@ fun HostSettingsSheet(
     var newPassword by remember { mutableStateOf("") }
     var transferTarget by remember { mutableStateOf<VoiceSeat?>(null) }
     var confirmEndRoom by remember { mutableStateOf(false) }
+    var pendingRoomCoverUri by remember { mutableStateOf<Uri?>(null) }
     val coverPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) onUploadCover(uri)
+        if (uri != null) pendingRoomCoverUri = uri
+    }
+
+    pendingRoomCoverUri?.let { selectedUri ->
+        ImageCropDialog(
+            imageUri = selectedUri,
+            title = "Adjust Room Cover",
+            aspectRatio = 16f / 9f,
+            onCancel = { pendingRoomCoverUri = null },
+            onApply = { croppedUri ->
+                pendingRoomCoverUri = null
+                onUploadCover(croppedUri)
+            }
+        )
     }
 
     val eligibleSpeakers = remember(stage.speakerSeats) {

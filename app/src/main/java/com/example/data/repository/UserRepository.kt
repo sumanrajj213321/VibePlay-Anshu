@@ -81,6 +81,8 @@ class UserRepository(
 
     suspend fun ensureCurrentUserProfile(user: FirebaseUser): Result<UserProfile> {
         val docPath = "users/${user.uid}"
+        var failingOperation = OperationType.GET
+        var failingPath = docPath
         return try {
             val userRef = db.collection("users").document(user.uid)
             val snap = userRef.get().await()
@@ -128,6 +130,8 @@ class UserRepository(
                     "createdAt" to FieldValue.serverTimestamp(),
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
+                failingOperation = OperationType.CREATE
+                failingPath = docPath
                 userRef.set(payload).await()
 
                 val privatePayload = mapOf(
@@ -137,15 +141,15 @@ class UserRepository(
                     "pinnedConversationIds" to emptyList<String>(),
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
+                failingOperation = OperationType.CREATE
+                failingPath = "$docPath/private/account"
                 userRef.collection("private").document("account").set(privatePayload).await()
-            } else {
-                // Do not mutate an existing profile during sign-in.
             }
 
-            // The welcome inbox is a best-effort side effect, not a prerequisite
-            // for loading the signed-in user's profile. A stale or partially-created
-            // welcome conversation must never lock the user out of the whole app.
+            // Welcome inbox setup is deliberately best-effort and must not block profile loading.
             try {
+                failingOperation = OperationType.GET
+                failingPath = docPath
                 val latestProfile = userRef.get().await()
                 if (latestProfile.getBoolean("welcomeBonusGranted") == true) {
                     ensureWelcomeInbox(
@@ -160,6 +164,8 @@ class UserRepository(
                 android.util.Log.w("VibePlayUserRepository", "Welcome inbox setup failed; continuing profile initialization.", e)
             }
 
+            failingOperation = OperationType.GET
+            failingPath = docPath
             val refreshed = userRef.get().await()
                 .toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
                 ?: UserProfile(userId = user.uid, username = user.displayName ?: "VibeStar")
@@ -167,7 +173,7 @@ class UserRepository(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.WRITE, docPath)
+            handleFirestoreError(e, failingOperation, failingPath)
             Result.failure(e)
         }
     }

@@ -95,6 +95,7 @@ import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.InboxScreen
 import com.example.ui.screens.NotificationsCenterSheet
 import com.example.ui.screens.ProfileScreen
+import com.example.ui.screens.ShopScreen
 import com.example.ui.screens.PublicProfileSheet
 import com.example.ui.screens.RoomsHubScreen
 import com.example.ui.screens.VoiceRoomScreen
@@ -630,7 +631,18 @@ private fun AuthenticatedVibePlayApp(
                                         onOpenAdminPanel = {
                                             navController.navigate(ROUTE_ADMIN) { launchSingleTop = true }
                                         },
-                                        onSignOut = signOutAction
+                                        onSignOut = signOutAction,
+                                        onOpenShop = { navController.navigate("shop") }
+                                    )
+                                }
+
+                                composable("shop") {
+                                    ShopScreen(
+                                        profile = currentUser,
+                                        onBack = { navController.popBackStack() },
+                                        onUpgradeVip = { tier -> viewModel.upgradeVip(currentUser, tier) },
+                                        onPurchase = { category, itemId -> viewModel.purchaseShopCosmetic(category, itemId) },
+                                        onEquip = { category, itemId -> viewModel.equipShopCosmetic(category, itemId) }
                                     )
                                 }
 

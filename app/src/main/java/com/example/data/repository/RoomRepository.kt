@@ -1476,6 +1476,25 @@ class RoomRepository(
         }
     }
 
+    suspend fun updateRoomCoverUrl(roomId: String, coverUrl: String): Result<Unit> {
+        val path = "rooms/$roomId"
+        return try {
+            require(coverUrl.isNotBlank() && coverUrl.length <= 1000) { "Invalid room cover URL." }
+            db.collection("rooms").document(roomId).update(
+                mapOf(
+                    "coverUrl" to coverUrl,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, path)
+            Result.failure(e)
+        }
+    }
+
     suspend fun transferOwnershipSafely(
         room: VoiceRoom,
         targetSeat: VoiceSeat

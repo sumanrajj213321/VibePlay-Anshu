@@ -499,7 +499,7 @@ fun HostSettingsSheet(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                VibeAvatar(seat.occupantAvatarUrl, seat.occupantName, size = 36.dp)
+                                VibeAvatar(seat.occupantAvatarUrl, seat.occupantName, size = 36.dp, vipLevel = seat.occupantVipLevel, frameColorArgb = seat.occupantFrameColorArgb)
                                 Text("${seat.occupantName} (Seat ${seat.seatIndex})", style = MaterialTheme.typography.bodyMedium)
                             }
                             OutlinedButton(onClick = { transferTarget = seat }) {

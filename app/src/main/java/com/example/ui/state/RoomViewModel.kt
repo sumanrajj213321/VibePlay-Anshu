@@ -343,7 +343,7 @@ class RoomViewModel(
             roomRepository.resolveSpeakerRequest(room, request, approve)
                 .onSuccess {
                     _roomError.value = if (approve) {
-                        "${request.username} approved to speak!"
+                        "Seat invitation sent to ${request.username}. They must accept it first."
                     } else {
                         "Declined ${request.username}'s request."
                     }

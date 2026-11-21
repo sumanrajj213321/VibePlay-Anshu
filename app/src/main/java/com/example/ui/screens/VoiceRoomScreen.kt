@@ -138,7 +138,6 @@ fun VoiceRoomScreen(
     val messages by roomViewModel.messages.collectAsStateWithLifecycle()
     val listeners by roomViewModel.listeners.collectAsStateWithLifecycle()
     val onlineUsers by roomViewModel.onlineUsers.collectAsStateWithLifecycle()
-    val myPendingRequest by roomViewModel.myPendingSpeakerRequest.collectAsStateWithLifecycle()
     val voiceConnection by roomViewModel.voiceConnectionState.collectAsStateWithLifecycle()
     val giftBurst by roomViewModel.giftBurst.collectAsStateWithLifecycle()
     val vipEntrance by roomViewModel.vipEntrance.collectAsStateWithLifecycle()
@@ -178,7 +177,6 @@ fun VoiceRoomScreen(
         messages = messages,
         listeners = listeners,
         onlineUsers = onlineUsers,
-        myPendingRequest = myPendingRequest,
         voiceConnection = voiceConnection,
         giftBurst = giftBurst,
         vipEntrance = vipEntrance,
@@ -246,7 +244,6 @@ internal fun VoiceRoomStageContent(
     messages: List<RoomMessage>,
     listeners: List<RoomListener>,
     onlineUsers: List<RoomOnlineMember> = emptyList(),
-    myPendingRequest: SpeakerRequest?,
     voiceConnection: VoiceConnectionState,
     giftBurst: GiftBurstEvent?,
     vipEntrance: UserProfile? = null,
@@ -266,8 +263,6 @@ internal fun VoiceRoomStageContent(
     onToggleSeatLock: (VoiceSeat, Boolean) -> Unit = { _, _ -> },
     onMuteAllSpeakers: () -> Unit = {},
     onJoinSpeakerSeat: (seatIndex: Int) -> Unit,
-    onAcceptSeatInvitation: (SpeakerRequest) -> Unit = {},
-    onRejectSeatInvitation: (SpeakerRequest) -> Unit = {},
     onClearGiftBurst: () -> Unit,
     onClearVipEntrance: () -> Unit = {},
     onSendGift: (recipientId: String, recipientName: String, gift: GiftCatalogItem, quantity: Long) -> Unit,
@@ -296,13 +291,6 @@ internal fun VoiceRoomStageContent(
     var showListenersAndRequests by remember { mutableStateOf(false) }
     var showSetupGuide by remember { mutableStateOf(false) }
     var inviteTargetSeatIndex by remember { mutableStateOf<Int?>(null) }
-    var showPendingRequestDialog by remember { mutableStateOf(false) }
-
-    LaunchedEffect(myPendingRequest?.id, myPendingRequest?.status) {
-        if (myPendingRequest?.status == "INVITED") {
-            showPendingRequestDialog = true
-        }
-    }
     var activeSeatDialog by remember { mutableStateOf<VoiceSeat?>(null) }
     var reportTarget by remember { mutableStateOf<Triple<String, String, String>?>(null) }
 
@@ -437,7 +425,6 @@ internal fun VoiceRoomStageContent(
                                                 onToggleSeatMute(mySeat)
                                             }
                                         }
-                                        myPendingRequest != null -> showPendingRequestDialog = true
                                         else -> {
                                             scope.launch {
                                                 snackbarHostState.showSnackbar("Tap an open seat or Raise Hand to request speaking.")
@@ -464,7 +451,6 @@ internal fun VoiceRoomStageContent(
                         // Button 2: Raise Hand / Requests Queue (always visible)
                         val raiseHandBg = when {
                             isManager -> MaterialTheme.colorScheme.surfaceVariant
-                            myPendingRequest != null -> VibeGold
                             mySeat != null -> VibeEmerald
                             else -> VibeCyan
                         }
@@ -482,8 +468,7 @@ internal fun VoiceRoomStageContent(
                                     when {
                                         isManager -> showListenersAndRequests = true
                                         mySeat != null -> activeSeatDialog = mySeat
-                                        myPendingRequest != null -> showPendingRequestDialog = true
-                                        else -> onRequestToSpeak(0)
+                                        else -> onLeaveRoom()
                                     }
                                 },
                                 modifier = Modifier
@@ -493,9 +478,6 @@ internal fun VoiceRoomStageContent(
                                 if (isManager) {
                                     BadgedBox(
                                         badge = {
-                                            if (speakerRequests.isNotEmpty()) {
-                                                Badge { Text("${speakerRequests.size}") }
-                                            }
                                         }
                                     ) {
                                         Icon(
@@ -508,7 +490,6 @@ internal fun VoiceRoomStageContent(
                                     Icon(
                                         imageVector = Icons.Filled.PanTool,
                                         contentDescription = when {
-                                            myPendingRequest != null -> "Speak request pending"
                                             mySeat != null -> "On speaker seat ${mySeat.seatIndex}"
                                             else -> "Raise hand to speak"
                                         },
@@ -716,54 +697,6 @@ internal fun VoiceRoomStageContent(
                     }
                 }
 
-                // Clear pending speaker request status pill with Cancel option
-                myPendingRequest?.let { pendingReq ->
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = VibeGold.copy(alpha = 0.16f),
-                        border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.6f)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("pending_speak_request_banner")
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(Icons.Filled.PanTool, contentDescription = null, tint = VibeGold, modifier = Modifier.size(16.dp))
-                                Text(
-                                    text = if (pendingReq.preferredSeatIndex in 1L..8L) {
-                                        "Request pending for Seat ${pendingReq.preferredSeatIndex}"
-                                    } else {
-                                        "Request to speak pending approval"
-                                    },
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = VibeGold,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            TextButton(
-                                onClick = onCancelSpeakerRequest,
-                                modifier = Modifier.testTag("banner_cancel_request_button")
-                            ) {
-                                Icon(Icons.Filled.Close, contentDescription = null, tint = VibeCoral, modifier = Modifier.size(15.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Cancel", color = VibeCoral, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-
                 // 3. THE STRICT 9-SEAT STAGE (1 Host Seat + 8 Regular Speaker Seats)
                 Surface(
                     shape = RoundedCornerShape(24.dp),
@@ -798,7 +731,7 @@ internal fun VoiceRoomStageContent(
                                     horizontalArrangement = Arrangement.SpaceEvenly
                                 ) {
                                     rowSeats.forEach { seat ->
-                                        val isPendingForSeat = myPendingRequest?.preferredSeatIndex == seat.seatIndex
+                                        val isPendingForSeat = false
                                         SpeakerSeatTile(
                                             seat = seat,
                                             isPendingForSeat = isPendingForSeat,
@@ -813,13 +746,12 @@ internal fun VoiceRoomStageContent(
                                                             snackbarHostState.showSnackbar("You are already speaking on Seat ${mySeat.seatIndex}.")
                                                         }
                                                     }
-                                                    myPendingRequest != null -> showPendingRequestDialog = true
                                                     seat.seatLocked -> {
                                                         scope.launch {
                                                             snackbarHostState.showSnackbar("Seat ${seat.seatIndex} is locked.")
                                                         }
                                                     }
-                                                    else -> onRequestToSpeak(seat.seatIndex.toInt())
+                                                    else -> onJoinSpeakerSeat(seat.seatIndex.toInt())
                                                 }
                                             }
                                         )
@@ -957,7 +889,6 @@ internal fun VoiceRoomStageContent(
                 targetSeatIndex = seatIndex,
                 room = currentRoom,
                 stage = currentStage,
-                requests = speakerRequests,
                 listeners = listeners,
                 followingProfiles = followingProfiles,
                 followingIds = followingIds,
@@ -981,25 +912,7 @@ internal fun VoiceRoomStageContent(
                         snackbarHostState.showSnackbar("Room invitation sent!")
                     }
                 },
-                onApproveRequest = { req ->
-                    onResolveSpeakerRequest(req, true)
-                },
-                onRejectRequest = { req ->
-                    onResolveSpeakerRequest(req, false)
-                },
                 onDismiss = { inviteTargetSeatIndex = null }
-            )
-        }
-    }
-
-    if (showPendingRequestDialog) {
-        myPendingRequest?.let { pendingReq ->
-            PendingRequestStatusDialog(
-                request = pendingReq,
-                onCancelRequest = onCancelSpeakerRequest,
-                onAcceptInvitation = { onAcceptSeatInvitation(pendingReq) },
-                onRejectInvitation = { onRejectSeatInvitation(pendingReq) },
-                onDismiss = { showPendingRequestDialog = false }
             )
         }
     }
@@ -1010,7 +923,6 @@ internal fun VoiceRoomStageContent(
             isHost = isManager,
             isOwner = isOwner,
             currentUserId = currentUser.userId,
-            requests = speakerRequests,
             onlineUsers = computedOnlineUsers,
             listeners = listeners,
             hasOpenSpeakerSeat = firstOpenSeat != null,
@@ -1026,12 +938,6 @@ internal fun VoiceRoomStageContent(
                     )
                     showListenersAndRequests = false
                 }
-            },
-            onApprove = { req ->
-                onResolveSpeakerRequest(req, true)
-            },
-            onReject = { req ->
-                onResolveSpeakerRequest(req, false)
             },
             onOpenUserProfile = onOpenUserProfile,
             onToggleRoomAdmin = onPromoteOrDemoteAdmin,

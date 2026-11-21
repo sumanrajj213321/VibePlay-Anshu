@@ -271,7 +271,7 @@ class UserRepository(
     }
     private suspend fun saveCoverToStorage(uid: String, uri: Uri): String {
         val coverRef = FirebaseStorage.getInstance().reference
-            .child("profile-covers/$uid/cover.jpg")
+            .child("profile-covers/$uid/cover_${System.currentTimeMillis()}.jpg")
         coverRef.putFile(uri).await()
         return coverRef.downloadUrl.await().toString()
     }
@@ -297,7 +297,7 @@ class UserRepository(
             val cleanBio = bio.trim().take(200)
             val savedAvatarUrl = if (avatarUrl.startsWith("content://") || avatarUrl.startsWith("file://")) {
                 saveAvatarToFirestore(currentUid, Uri.parse(avatarUrl))
-                "firestore-avatar://$currentUid"
+                "firestore-avatar://$currentUid?updated=${System.currentTimeMillis()}"
             } else {
                 avatarUrl
             }

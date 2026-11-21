@@ -204,10 +204,15 @@ fun ProfileScreen(
                 ) {
                     Text(
                         text = profile.username,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f, fill = false),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onSurface
+                    )
+                    BiologicalGenderBadge(
+                        gender = profile.gender,
+                        showGender = true,
+                        compact = true
                     )
                     if (profile.isVipActive) {
                         VipBadgePill(profile.vipLevel)

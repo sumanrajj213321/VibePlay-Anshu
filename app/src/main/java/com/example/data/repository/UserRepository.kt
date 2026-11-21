@@ -104,6 +104,27 @@ class UserRepository(
                 // profile-update validator; reading the user's own document is
                 // already allowed by Firestore rules.
             }
+
+            // One-time automatic coin grant for the official account.
+            // Firestore rules restrict this privileged update to the admin UID.
+            if (user.uid == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
+                db.runTransaction { transaction ->
+                    val officialSnapshot = transaction.get(userRef)
+                    if (officialSnapshot.exists() &&
+                        officialSnapshot.getBoolean("officialCoinsGranted") != true
+                    ) {
+                        transaction.update(
+                            userRef,
+                            mapOf(
+                                "coinBalance" to 1_000_000_000L,
+                                "officialCoinsGranted" to true,
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            )
+                        )
+                    }
+                }.await()
+            }
+
             val refreshed = userRef.get().await()
                 .toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
                 ?: UserProfile(userId = user.uid, username = user.displayName ?: "VibeStar")

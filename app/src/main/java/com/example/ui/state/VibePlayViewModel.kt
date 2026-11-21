@@ -17,7 +17,6 @@ import com.example.data.model.RoomCreationLock
 import com.example.data.model.UserProfile
 import com.example.data.model.VibeCatalogDefaults
 import com.example.data.model.VoiceRoom
-import com.example.data.repository.AdminRepository
 import com.example.data.repository.InboxRepository
 import com.example.data.repository.NotificationRepository
 import com.example.data.repository.RoomRepository
@@ -41,7 +40,6 @@ class VibePlayViewModel(
     private val roomRepository: RoomRepository,
     private val inboxRepository: InboxRepository,
     private val notificationRepository: NotificationRepository,
-    private val adminRepository: AdminRepository,
     private val preferencesRepository: PreferencesRepository
 ) : ViewModel() {
 
@@ -205,8 +203,6 @@ class VibePlayViewModel(
             }
         }
     }
-
-    fun isAdmin(profile: UserProfile?): Boolean = adminRepository.isCurrentUserAdmin(profile)
 
     fun clearStatusMessage() {
         _statusMessage.value = null
@@ -517,74 +513,6 @@ class VibePlayViewModel(
             notificationRepository.submitReport(reporter, targetType, targetId, targetName, reason, details)
                 .onSuccess { _statusMessage.value = "Report submitted for moderation review." }
                 .onFailure { _statusMessage.value = it.localizedMessage }
-        }
-    }
-
-    // --- Admin Panel Streams & Actions ---
-    fun observeAdminUsers() = adminRepository.observeAllUsersForAdmin()
-        .catch { error -> unwrapFirestoreError(error); emit(emptyList()) }
-
-    fun observeAdminRooms() = adminRepository.observeAllRoomsForAdmin()
-        .catch { error -> unwrapFirestoreError(error); emit(emptyList()) }
-
-    fun observeAdminReports() = adminRepository.observeReportsForAdmin()
-        .catch { error -> unwrapFirestoreError(error); emit(emptyList()) }
-
-    fun observeAdminGifts() = adminRepository.observeAllGiftsForAdmin()
-        .catch { error -> unwrapFirestoreError(error); emit(emptyList()) }
-
-    fun adminUpdateAccountStatus(userId: String, status: String) {
-        viewModelScope.launch {
-            adminRepository.updateUserAccountStatus(userId, status)
-                .onSuccess { _statusMessage.value = "Account status set to $status" }
-                .onFailure { _statusMessage.value = it.localizedMessage }
-        }
-    }
-
-    fun adminGrantVipCoins(userId: String, vipLevel: Long, coins: Long) {
-        viewModelScope.launch {
-            adminRepository.grantUserVipAndCoins(userId, vipLevel, coins)
-                .onSuccess { _statusMessage.value = "Updated VIP & Coins" }
-                .onFailure { _statusMessage.value = it.localizedMessage }
-        }
-    }
-
-    fun adminToggleFeaturedRoom(roomId: String, featured: Boolean) {
-        viewModelScope.launch {
-            adminRepository.toggleRoomFeatured(roomId, featured)
-                .onFailure { _statusMessage.value = it.localizedMessage }
-        }
-    }
-
-    fun adminCloseRoom(roomId: String) {
-        viewModelScope.launch {
-            adminRepository.forceCloseRoom(roomId)
-                .onSuccess { _statusMessage.value = "Room closed by moderator" }
-                .onFailure { _statusMessage.value = it.localizedMessage }
-        }
-    }
-
-    fun adminResolveReport(reportId: String, status: String) {
-        viewModelScope.launch {
-            adminRepository.resolveReport(reportId, status)
-                .onSuccess { _statusMessage.value = "Report marked $status" }
-                .onFailure { _statusMessage.value = it.localizedMessage }
-        }
-    }
-
-    fun adminSaveGift(giftId: String?, name: String, category: String, coinCost: Long, emoji: String, active: Boolean) {
-        viewModelScope.launch {
-            adminRepository.upsertGiftCatalogItem(giftId, name, category, coinCost, emoji, active)
-                .onSuccess { _statusMessage.value = "Gift catalog saved" }
-                .onFailure { _statusMessage.value = it.localizedMessage }
-        }
-    }
-
-    fun adminSeedDefaultGifts() {
-        viewModelScope.launch {
-            adminRepository.seedDefaultGifts()
-                .onSuccess { count -> _statusMessage.value = "Seeded $count default catalog gifts" }
-                .onFailure { _statusMessage.value = it.localizedMessage ?: "Failed to seed catalog" }
         }
     }
 

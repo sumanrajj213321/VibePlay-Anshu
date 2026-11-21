@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: vibeplay-main-pipeline
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   firestore-rules-tests:
@@ -24,7 +24,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

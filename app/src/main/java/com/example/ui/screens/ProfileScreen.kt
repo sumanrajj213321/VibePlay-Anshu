@@ -339,7 +339,7 @@ fun ProfileScreen(
                             )
                             Text(
                                 text = profile.vibeId,
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.ExtraBold
                             )
@@ -376,7 +376,7 @@ fun ProfileScreen(
                             )
                             Text(
                                 text = "LEVEL ${profile.level}",
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.bodyLarge,
                                 color = VibeGold,
                                 fontWeight = FontWeight.Black
                             )

@@ -104,7 +104,7 @@ fun ShopScreen(
                 }
                 1 -> items(VibeShopCatalog.frames, key = { it.id }) { item ->
                     val owned = profile.isFrameActive(item.id)
-                    val equipped = profile.activeFrameId == item.id
+                    val equipped = profile.activeFrameId == item.id && profile.isFrameActive(item.id)
                     ShopCard(
                         title = item.title,
                         subtitle = item.subtitle + " · Valid for 7 days",
@@ -118,7 +118,7 @@ fun ShopScreen(
                 }
                 else -> items(VibeShopCatalog.titles, key = { it.id }) { item ->
                     val owned = profile.isTitleActive(item.id)
-                    val equipped = profile.activeTitleId == item.id
+                    val equipped = profile.activeTitleId == item.id && profile.isTitleActive(item.id)
                     ShopCard(
                         title = item.title,
                         subtitle = item.subtitle + " · Valid for 15 days",
@@ -131,14 +131,14 @@ fun ShopScreen(
                     )
                 }
             }
-            if (selectedTab == 1 && profile.activeFrameId.isNotBlank()) {
+            if (selectedTab == 1 && profile.isFrameActive(profile.activeFrameId)) {
                 item {
                     Button(onClick = { onEquip("FRAME", null) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = VibeViolet)) {
                         Text("Remove equipped frame")
                     }
                 }
             }
-            if (selectedTab == 2 && profile.activeTitleId.isNotBlank()) {
+            if (selectedTab == 2 && profile.isTitleActive(profile.activeTitleId)) {
                 item {
                     Button(onClick = { onEquip("TITLE", null) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = VibeViolet)) {
                         Text("Remove profile title")

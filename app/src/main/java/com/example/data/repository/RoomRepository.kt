@@ -1628,6 +1628,7 @@ class RoomRepository(
                     mapOf(
                         "coinBalance" to (liveCoins - totalCost),
                         "totalGiftsSent" to (liveSent + safeQty),
+                        "totalGiftCoinsSent" to ((senderSnap.getLong("totalGiftCoinsSent") ?: 0L) + totalCost),
                         "xp" to newSenderXp,
                         "level" to LevelProgression.levelForXp(newSenderXp),
                         "updatedAt" to FieldValue.serverTimestamp()
@@ -1642,6 +1643,7 @@ class RoomRepository(
                         recipientRef,
                         mapOf(
                             "totalGiftsReceived" to (recReceived + safeQty),
+                            "totalGiftCoinsReceived" to ((recipientSnap.getLong("totalGiftCoinsReceived") ?: 0L) + totalCost),
                             "xp" to updatedRecXp,
                             "level" to LevelProgression.levelForXp(updatedRecXp),
                             "updatedAt" to FieldValue.serverTimestamp()

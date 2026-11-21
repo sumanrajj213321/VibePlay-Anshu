@@ -109,7 +109,8 @@ fun VibeAvatar(
     vipLevel: Long = 0L,
     online: Boolean = false,
     speaking: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    frameColorArgb: Long? = null
 ) {
     val firestoreAvatar = avatarUrl.startsWith("firestore-avatar://")
     val firestoreAvatarUid = if (firestoreAvatar) avatarUrl.removePrefix("firestore-avatar://") else ""
@@ -140,6 +141,7 @@ fun VibeAvatar(
     )
 
     val borderBrush = when {
+        frameColorArgb != null -> Brush.linearGradient(listOf(Color(frameColorArgb), Color(frameColorArgb).copy(alpha = 0.55f), Color.White.copy(alpha = 0.85f)))
         speaking -> Brush.linearGradient(listOf(VibeCyan, VibePink.copy(alpha = pulseAlpha)))
         vipColor != null -> Brush.linearGradient(listOf(vipColor, VibeGold))
         else -> Brush.linearGradient(
@@ -159,7 +161,7 @@ fun VibeAvatar(
                 .fillMaxSize()
                 .clip(CircleShape)
                 .border(
-                    width = if (speaking || vipLevel > 0) 2.5.dp else 1.5.dp,
+                    width = if (frameColorArgb != null || speaking || vipLevel > 0) 3.5.dp else 1.5.dp,
                     brush = borderBrush,
                     shape = CircleShape
                 )

@@ -72,12 +72,11 @@ service cloud.firestore {
              data.ownedTitleIds.hasAll(('ownedTitleIds' in oldData) ? oldData.ownedTitleIds : []) &&
              data.ownedTitleIds.size() == (('ownedTitleIds' in oldData) ? oldData.ownedTitleIds.size() : 0) + 1 &&
              itemId in data.ownedTitleIds &&
-             data.activeTitleId == itemId &&
              data.titleExpiresAt is map &&
              data.titleExpiresAt[itemId] is timestamp &&
              data.titleExpiresAt[itemId] > request.time - duration.value(1, 'm') &&
              data.titleExpiresAt[itemId] <= request.time + duration.value(15, 'd') + duration.value(1, 'm') &&
-             data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'activeTitleId', 'titleExpiresAt', 'updatedAt']);
+             data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'titleExpiresAt', 'updatedAt']);
     }
 
     function shopFramePrice(itemId) {

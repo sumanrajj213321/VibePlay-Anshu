@@ -527,16 +527,7 @@ service cloud.firestore {
          getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.status == 'ACCEPTED' &&
          get(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.status == 'INVITED' &&
          getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex in [1, 2, 3, 4, 5, 6, 7, 8] &&
-         (
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 1 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId == request.auth.uid) ||
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 2 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId == request.auth.uid) ||
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 3 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/3).data.occupantId == request.auth.uid) ||
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 4 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/4).data.occupantId == request.auth.uid) ||
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 5 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/5).data.occupantId == request.auth.uid) ||
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 6 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/6).data.occupantId == request.auth.uid) ||
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 7 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/7).data.occupantId == request.auth.uid) ||
-          (getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 8 && getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId == request.auth.uid)
-         ) &&
+         getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/$(getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex)).data.occupantId == request.auth.uid &&
          incoming().status == existing().status &&
          incoming().hostId == existing().hostId &&
          incoming().featured == existing().featured &&

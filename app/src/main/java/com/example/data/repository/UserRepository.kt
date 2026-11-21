@@ -78,6 +78,8 @@ class UserRepository(
                     "coinBalance" to 500L,
                     "totalGiftsReceived" to 0L,
                     "totalGiftsSent" to 0L,
+                    "totalGiftCoinsReceived" to 0L,
+                    "totalGiftCoinsSent" to 0L,
                     "followersCount" to 0L,
                     "followingCount" to 0L,
                     "accountStatus" to "ACTIVE",
@@ -151,6 +153,14 @@ class UserRepository(
             Result.failure(e)
         }
     }
+
+    fun observeGiftRankings(): Flow<List<UserProfile>> =
+        db.collection("users")
+            .whereEqualTo("accountStatus", "ACTIVE")
+            .snapshots()
+            .map { snapshot ->
+                snapshot.toObjects(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+            }
 
     fun observeUserProfile(userId: String): Flow<UserProfile?> =
         db.collection("users").document(userId)

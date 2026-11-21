@@ -451,10 +451,12 @@ class UserRepository(
                 require(coins >= item.coinPrice) { "Not enough coins. Need ${item.coinPrice} coins." }
                 val durationDays = if (category == "TITLE") 15L else 7L
                 val expiresAt = Timestamp(java.util.Date(System.currentTimeMillis() + durationDays * 24L * 60L * 60L * 1000L))
+                val updatedExpiries = expiries.filterValues { it != null }.mapValues { it.value!! }.toMutableMap()
+                updatedExpiries[itemId] = expiresAt
                 tx.update(userRef, mapOf(
                     "coinBalance" to coins - item.coinPrice,
                     ownedField to if (itemId in owned) owned else FieldValue.arrayUnion(itemId),
-                    expiryField to mapOf(itemId to expiresAt),
+                    expiryField to updatedExpiries,
                     activeField to itemId,
                     "updatedAt" to FieldValue.serverTimestamp()
                 ))
@@ -478,8 +480,11 @@ class UserRepository(
                 require(snap.exists()) { "Profile not found." }
                 val ownedField = if (category == "TITLE") "ownedTitleIds" else "ownedFrameIds"
                 val activeField = if (category == "TITLE") "activeTitleId" else "activeFrameId"
+                val expiryField = if (category == "TITLE") "titleExpiresAt" else "frameExpiresAt"
                 val owned = (snap.get(ownedField) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-                require(itemId.isNullOrBlank() || itemId in owned) { "Purchase this item first." }
+                val expiryMap = (snap.get(expiryField) as? Map<*, *>) ?: emptyMap<Any, Any>()
+                val expiry = itemId?.let { expiryMap[it] as? Timestamp }
+                require(itemId.isNullOrBlank() || (itemId in owned && expiry?.toDate()?.after(java.util.Date()) == true)) { "This item has expired. Purchase it again." }
                 tx.update(userRef, mapOf(
                     activeField to (itemId ?: ""),
                     "updatedAt" to FieldValue.serverTimestamp()
@@ -505,7 +510,9 @@ class UserRepository(
 
             db.runTransaction { tx ->
                 val snap = tx.get(userRef)
-                val currentVip = snap.getLong("vipLevel") ?: profile.vipLevel
+                val storedVip = snap.getLong("vipLevel") ?: profile.vipLevel
+                val storedExpiry = snap.getTimestamp("vipExpiresAt")
+                val currentVip = if (storedExpiry?.toDate()?.after(java.util.Date()) == true) storedVip else 0L
                 val currentCoins = snap.getLong("coinBalance") ?: profile.coinBalance
                 require(targetTierLevel > currentVip) { "You already hold this VIP tier or higher." }
                 require(currentCoins >= tier.coinPrice) { "Insufficient coins. Need ${tier.coinPrice} coins." }

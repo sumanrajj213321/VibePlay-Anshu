@@ -196,7 +196,7 @@ fun ExploreScreen(
                             size = 52.dp,
                             vipLevel = user.vipLevel,
                             online = user.online && user.showOnlineStatus,
-                            frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == user.activeFrameId }?.colorArgb
+                            frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == user.activeFrameId && user.isFrameActive(it.id) }?.colorArgb
                         )
                         Column(
                             modifier = Modifier.weight(1f),

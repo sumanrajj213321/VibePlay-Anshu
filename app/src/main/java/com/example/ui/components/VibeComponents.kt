@@ -120,13 +120,24 @@ fun VibeAvatar(
     val firestoreAvatarUid = if (firestoreAvatar) avatarUrl.removePrefix("firestore-avatar://").substringBefore("?") else ""
     var firestoreAvatarBytes by remember(avatarUrl) { mutableStateOf<ByteArray?>(null) }
     LaunchedEffect(avatarUrl) {
-        firestoreAvatarBytes = null
         if (firestoreAvatar && firestoreAvatarUid.isNotBlank()) {
-            firestoreAvatarBytes = runCatching {
-                val snapshot = FirebaseFirestore.getInstance().collection("users").document(firestoreAvatarUid).collection("avatar").document("image").get().await()
-                val encoded = snapshot.getString("data") ?: return@runCatching null
-                Base64.decode(encoded, Base64.DEFAULT)
-            }.getOrNull()
+            // Avatar reads can fail briefly during reconnects. Retry instead of
+            // permanently replacing a real photo with the initials fallback.
+            repeat(3) { attempt ->
+                val loaded = runCatching {
+                    val snapshot = FirebaseFirestore.getInstance()
+                        .collection("users").document(firestoreAvatarUid)
+                        .collection("avatar").document("image")
+                        .get().await()
+                    val encoded = snapshot.getString("data")
+                    if (encoded.isNullOrBlank()) null else Base64.decode(encoded, Base64.DEFAULT)
+                }.getOrNull()
+                if (loaded != null && loaded.isNotEmpty()) {
+                    firestoreAvatarBytes = loaded
+                    return@LaunchedEffect
+                }
+                if (attempt < 2) delay(500L * (attempt + 1))
+            }
         }
     }
     val vipColor = remember(vipLevel) {

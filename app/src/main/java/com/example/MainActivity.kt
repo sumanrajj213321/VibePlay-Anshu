@@ -90,6 +90,7 @@ import com.example.data.repository.UserRepository
 import com.example.ui.screens.AdminPanelScreen
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.ExploreScreen
+import com.example.ui.screens.GiftRankingScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.InboxScreen
 import com.example.ui.screens.NotificationsCenterSheet
@@ -195,6 +196,7 @@ private fun AuthenticatedVibePlayApp(
     val conversations by viewModel.conversations.collectAsStateWithLifecycle()
     val notifications by viewModel.notifications.collectAsStateWithLifecycle()
     val giftHistory by viewModel.giftHistory.collectAsStateWithLifecycle()
+    val giftRankings by viewModel.giftRankings.collectAsStateWithLifecycle()
     val activeGifts by viewModel.activeGiftsCatalog.collectAsStateWithLifecycle()
     val recentRoomIds by viewModel.recentRoomIds.collectAsStateWithLifecycle()
     val darkTheme by viewModel.darkTheme.collectAsStateWithLifecycle()
@@ -470,11 +472,22 @@ private fun AuthenticatedVibePlayApp(
                                         onOpenRoom = tryOpenRoom,
                                         onCreateRoomClick = { switchTab(MainTab.Rooms) },
                                         onOpenNotifications = { showNotificationsSheet = true },
+                                        onOpenGiftRanking = { navController.navigate("gift_rankings") },
                                         onClaimDailyReward = { viewModel.claimDailyReward(currentUser) },
                                         onOpenUserProfile = { target ->
                                             viewModel.inspectUser(target.userId, target) { inspectedUser = it }
                                         },
                                         onVerifyPasscode = { r, pin -> viewModel.verifyRoomPasscode(r, pin) }
+                                    )
+                                }
+
+                                composable("gift_rankings") {
+                                    GiftRankingScreen(
+                                        users = giftRankings,
+                                        onBack = { navController.popBackStack() },
+                                        onOpenUserProfile = { target ->
+                                            viewModel.inspectUser(target.userId, target) { inspectedUser = it }
+                                        }
                                     )
                                 }
 

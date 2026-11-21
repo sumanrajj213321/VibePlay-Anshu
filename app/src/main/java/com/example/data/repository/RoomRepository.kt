@@ -141,7 +141,9 @@ class RoomRepository(
             // even if the online-users query temporarily fails.
             .catch { emit(emptyMap()) }
         return combine(seatsFlow, sessionsFlow, onlineUsersFlow, observeRoom(roomId)) { seats, sessionIds, onlineFrameColors, room ->
-            val activeSessionIds = sessionIds.intersect(onlineFrameColors.keys)
+            // Room sessions are authoritative for active speakers. The global users/{uid}.online
+            // flag can lag behind room presence and must not erase a valid seat or mic controls.
+            val activeSessionIds = sessionIds
             seats.map { seat ->
                 val isOfflineOwnerSeat = room != null &&
                     !room.effectiveOwnerOnline &&

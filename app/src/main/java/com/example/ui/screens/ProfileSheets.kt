@@ -652,7 +652,7 @@ fun PublicProfileSheet(
                 )
                 TextButton(onClick = onDismiss) { Text("Close") }
             }
-            Box(modifier = Modifier.fillMaxWidth().height(150.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().height(165.dp)) {
                 if (targetUser.coverUrl.isNotBlank()) {
                     AsyncImage(
                         model = targetUser.coverUrl,
@@ -676,14 +676,14 @@ fun PublicProfileSheet(
                 VibeAvatar(
                     avatarUrl = targetUser.avatarUrl,
                     username = targetUser.username,
-                    size = 68.dp,
+                    size = 86.dp,
                     vipLevel = if (targetUser.isVipActive) targetUser.vipLevel else 0L,
                     online = targetUser.online && targetUser.showOnlineStatus,
                     frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == targetUser.activeFrameId && targetUser.isFrameActive(it.id) }?.colorArgb
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(targetUser.username, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(targetUser.username, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
                         VibeShopCatalog.titles.firstOrNull { it.id == targetUser.activeTitleId && targetUser.isTitleActive(it.id) }?.let { title ->
                             Surface(
                                 shape = RoundedCornerShape(9.dp),
@@ -735,16 +735,63 @@ fun PublicProfileSheet(
                             showGender = targetUser.showGender,
                             compact = true
                         )
-                        LevelBadge(targetUser.level)
                         if (targetUser.isVipActive) VipBadgePill(targetUser.vipLevel)
                     }
                     val ageSuffix = if (targetUser.showAge && targetUser.formattedAge != null) " · ${targetUser.formattedAge}" else ""
-                    Text(
-                        text = "${targetUser.vibeId}$ageSuffix",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = VibeCyan,
-                        modifier = Modifier.testTag("public_profile_id_age")
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            color = VibeCyan.copy(alpha = 0.09f),
+                            border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.42f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = "VIBEPLAY ID NUMBER",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = VibeCyan,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "${targetUser.vibeId}$ageSuffix",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.testTag("public_profile_id_age")
+                                )
+                            }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(13.dp),
+                            color = VibeGold.copy(alpha = 0.13f),
+                            border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.65f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = "ID LEVEL",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = VibeGold,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "LEVEL ${targetUser.level}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = VibeGold,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
                 }
             }
 

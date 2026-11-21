@@ -107,6 +107,7 @@ class RoomRepository(
         emitAll(
             db.collection("rooms").document(roomId).collection("messages")
                 .whereGreaterThanOrEqualTo("createdAt", joinedAt)
+                .whereIn("type", listOf("TEXT", "GIFT", "SYSTEM"))
                 .snapshots()
                 .map { snapshot ->
                     snapshot.toObjects(RoomMessage::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)

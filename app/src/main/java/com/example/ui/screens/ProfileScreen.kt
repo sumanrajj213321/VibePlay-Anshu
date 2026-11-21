@@ -111,7 +111,9 @@ fun ProfileScreen(
     val (xpInLevel, xpNeededForNextLevel) = LevelProgression.progressInLevel(profile.xp)
     val giftCoinsIn = giftHistory.filter { it.recipientId == profile.userId }.sumOf { it.coinCost }
     val giftCoinsOut = giftHistory.filter { it.senderId == profile.userId }.sumOf { it.coinCost }
-    val xpProgress = (xpInLevel.toFloat() / xpNeededForNextLevel.toFloat()).coerceIn(0f, 1f)
+    val equippedTitle = VibeShopCatalog.titles.firstOrNull {
+        it.id == profile.activeTitleId && profile.isTitleActive(it.id)
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -184,105 +186,154 @@ fun ProfileScreen(
             }
         }
 
-        // Identity & Stats
+        // Premium identity: username/VIP, ID number, level and equipped title.
         item {
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(11.dp)
             ) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(9.dp)
                 ) {
                     Text(
                         text = profile.username,
+                        modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    VibeShopCatalog.titles.firstOrNull { it.id == profile.activeTitleId && profile.isTitleActive(it.id) }?.let { title ->
+                    if (profile.isVipActive) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(title.colorArgb).copy(alpha = 0.18f),
-                            border = BorderStroke(1.dp, Color(title.colorArgb).copy(alpha = 0.75f))
+                            shape = RoundedCornerShape(50),
+                            color = VibePink.copy(alpha = 0.18f),
+                            border = BorderStroke(1.dp, VibePink.copy(alpha = 0.85f))
                         ) {
                             Text(
-                                text = title.title,
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = Color(title.colorArgb),
+                                text = "💎 VIP ${profile.vipLevel}",
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = VibePink,
                                 fontWeight = FontWeight.ExtraBold
                             )
                         }
                     }
-                    if (profile.userId == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = VibeCyan.copy(alpha = 0.16f)
-                        ) {
+                }
+
+                if (profile.userId == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
+                    Surface(
+                        shape = RoundedCornerShape(9.dp),
+                        color = VibeCyan.copy(alpha = 0.14f),
+                        border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.55f))
+                    ) {
+                        Text(
+                            text = "✦ VibePlay Official",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = VibeCyan,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            clipboardManager.setText(AnnotatedString(profile.vibeId))
+                            onCopyVibeId?.invoke(profile.vibeId)
+                        }
+                        .testTag("profile_id_age_line"),
+                    shape = RoundedCornerShape(14.dp),
+                    color = VibeCyan.copy(alpha = 0.09f),
+                    border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.42f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(9.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
-                                text = "VibePlay Official",
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                text = "VIBEPLAY ID NUMBER",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = VibeCyan,
                                 fontWeight = FontWeight.Bold
                             )
+                            Text(
+                                text = profile.vibeId,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.ExtraBold
+                            )
                         }
+                        Icon(
+                            imageVector = Icons.Filled.ContentCopy,
+                            contentDescription = "Copy Vibe ID",
+                            tint = VibeCyan,
+                            modifier = Modifier.size(19.dp)
+                        )
                     }
-                    BiologicalGenderBadge(
-                        gender = profile.gender,
-                        showGender = profile.showGender
-                    )
-                    LevelBadge(profile.level)
-                    if (profile.isVipActive) VipBadgePill(profile.vipLevel)
                 }
 
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.clickable {
-                        clipboardManager.setText(AnnotatedString(profile.vibeId))
-                        onCopyVibeId?.invoke(profile.vibeId)
-                    }
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val ageSuffix = if (profile.showAge && profile.formattedAge != null) " · ${profile.formattedAge}" else ""
-                    Text(
-                        text = "ID: ${profile.vibeId}$ageSuffix",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = VibeCyan,
-                        modifier = Modifier.testTag("profile_id_age_line")
-                    )
-                    Icon(
-                        imageVector = Icons.Filled.ContentCopy,
-                        contentDescription = "Copy Vibe ID",
-                        tint = VibeCyan,
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
-
-                if (profile.bio.isNotBlank()) {
-                    Text(
-                        text = profile.bio,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(13.dp),
+                        color = VibeGold.copy(alpha = 0.13f),
+                        border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.65f))
                     ) {
-                        Text("Level ${profile.level} XP", style = MaterialTheme.typography.labelSmall)
-                        Text("$xpInLevel/$xpNeededForNextLevel XP", style = MaterialTheme.typography.labelSmall, color = VibeCyan)
+                        Column(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = "ID LEVEL",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = VibeGold,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "LEVEL ${profile.level}",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = VibeGold,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
                     }
-                    LinearProgressIndicator(
-                        progress = { xpProgress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(7.dp)
-                            .clip(RoundedCornerShape(50)),
-                        color = VibeViolet
-                    )
+
+                    Surface(
+                        modifier = Modifier.weight(1.45f),
+                        shape = RoundedCornerShape(13.dp),
+                        color = (equippedTitle?.let { Color(it.colorArgb) } ?: VibeViolet).copy(alpha = 0.13f),
+                        border = BorderStroke(
+                            1.dp,
+                            (equippedTitle?.let { Color(it.colorArgb) } ?: VibeViolet).copy(alpha = 0.72f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = "EQUIPPED TITLE",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = equippedTitle?.let { Color(it.colorArgb) } ?: VibeViolet,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = equippedTitle?.title ?: "No title equipped",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = equippedTitle?.let { Color(it.colorArgb) } ?: MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
                 }
 
                 // Stats Row

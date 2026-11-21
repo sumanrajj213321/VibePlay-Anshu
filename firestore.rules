@@ -324,7 +324,6 @@ service cloud.firestore {
                        (!('hasCreatedRoom' in incoming()) || incoming().hasCreatedRoom == false) &&
                        (!('createdRoomId' in incoming()) || incoming().createdRoomId == '') &&
                        incoming().keys().hasAll(['userId', 'vibeId', 'username', 'accountStatus', 'role', 'coinBalance', 'vipLevel', 'createdAt', 'updatedAt']) &&
-                       isValidUserProfile(incoming()) &&
                        isValidTs(incoming().createdAt) &&
                        isValidTs(incoming().updatedAt);
 
@@ -333,7 +332,11 @@ service cloud.firestore {
                        incoming().userId == existing().userId &&
                        incoming().createdAt == existing().createdAt &&
                        isValidTs(incoming().updatedAt) && (
-        (isAdmin() && (
+        (isAdmin() &&
+         incoming().role == existing().role &&
+         incoming().accountStatus in ['ACTIVE', 'SUSPENDED', 'BANNED'] &&
+         incoming().vipLevel is int && incoming().vipLevel >= 0 && incoming().vipLevel <= 30 &&
+         incoming().coinBalance is int && incoming().coinBalance >= 0 && (
           (!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false ||
            (incoming().hasCreatedRoom == true && (!('createdRoomId' in existing()) || incoming().createdRoomId == existing().createdRoomId))) ||
           (userId == '1fLIHgOyAJV6LNbHBXNeVg9JR6v1' &&
@@ -359,7 +362,7 @@ service cloud.firestore {
              incoming().vipExpiresAt > request.time - duration.value(1, 'm') &&
              incoming().vipExpiresAt <= request.time + duration.value(30, 'd') + duration.value(1, 'm'))))
         )) ||
-        (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
+        (request.auth.uid == userId && isValidUserProfile(incoming()) && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
           (incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
            incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarUrl', 'coverUrl', 'gender', 'genderChangeCount', 'age', 'ageRange', 'showAge', 'showGender', 'showOnlineStatus', 'online', 'followingCount', 'followersCount', 'updatedAt']) &&
            ((incoming().gender == existing().gender && incoming().genderChangeCount == (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0)) ||
@@ -625,15 +628,7 @@ service cloud.firestore {
              getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.hostId == get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId &&
              getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.status == 'ACCEPTED' &&
              (
-               (seatIndex == '1' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 1) ||
-               (seatIndex == '2' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 2) ||
-               (seatIndex == '3' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 3) ||
-               (seatIndex == '4' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 4) ||
-               (seatIndex == '5' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 5) ||
-               (seatIndex == '6' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 6) ||
-               (seatIndex == '7' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 7) ||
-               (seatIndex == '8' && getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == 8)
-             ) &&
+               getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == incoming().seatIndex
              incoming().diff(existing()).affectedKeys().hasOnly(['occupantId', 'occupantName', 'occupantAvatarUrl', 'occupantVipLevel', 'occupantGender', 'muted', 'speaking', 'updatedAt']))
           ))
         );

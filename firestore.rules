@@ -54,8 +54,6 @@ service cloud.firestore {
              data.coinBalance is int && data.coinBalance >= 0 &&
              (!('welcomeBonusGranted' in data) || data.welcomeBonusGranted is bool) &&
              (!('welcomeBonusGrantedAt' in data) || data.welcomeBonusGrantedAt is timestamp) &&
-             (!('welcomeBonusGranted' in data) || data.welcomeBonusGranted is bool) &&
-             (!('welcomeBonusGrantedAt' in data) || data.welcomeBonusGrantedAt is timestamp) &&
              (!('totalGiftsReceived' in data) || (data.totalGiftsReceived is int && data.totalGiftsReceived >= 0)) &&
              (!('totalGiftsSent' in data) || (data.totalGiftsSent is int && data.totalGiftsSent >= 0)) &&
              (!('totalGiftCoinsSent' in data) || (data.totalGiftCoinsSent is int && data.totalGiftCoinsSent >= 0)) &&

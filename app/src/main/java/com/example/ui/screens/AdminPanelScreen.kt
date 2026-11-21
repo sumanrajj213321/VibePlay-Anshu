@@ -204,8 +204,8 @@ internal fun AdminPanelContent(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = vipText,
-                        onValueChange = { vipText = it.filter(Char::isDigit).take(1) },
-                        label = { Text("VIP Level (0 - 5)") },
+                        onValueChange = { vipText = it.filter(Char::isDigit).take(2) },
+                        label = { Text("VIP Level (0 - 30)") },
                         singleLine = true
                     )
                     OutlinedTextField(
@@ -218,7 +218,7 @@ internal fun AdminPanelContent(
             },
             confirmButton = {
                 Button(onClick = {
-                    val vip = vipText.toLongOrNull()?.coerceIn(0L, 5L) ?: target.vipLevel
+                    val vip = vipText.toLongOrNull()?.coerceIn(0L, 30L) ?: target.vipLevel
                     val coins = coinsText.toLongOrNull()?.coerceAtLeast(0L) ?: target.coinBalance
                     onGrantVipCoins(target.userId, vip, coins)
                     grantTargetUser = null

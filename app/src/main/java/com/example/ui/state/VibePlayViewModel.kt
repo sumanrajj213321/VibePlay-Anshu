@@ -167,6 +167,14 @@ class VibePlayViewModel(
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
 
+    val giftRankings: StateFlow<List<UserProfile>> =
+        userRepository.observeGiftRankings()
+            .catch { error ->
+                unwrapFirestoreError(error)
+                emit(emptyList())
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
+
     val activeGiftsCatalog: StateFlow<List<GiftCatalogItem>> =
         roomRepository.observeActiveGifts()
             .map { remote -> remote.ifEmpty { VibeCatalogDefaults.defaultGifts } }

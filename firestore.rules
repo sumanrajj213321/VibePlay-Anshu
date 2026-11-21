@@ -509,7 +509,6 @@ service cloud.firestore {
                        incoming().createdAt == existing().createdAt &&
                        (!('creatorId' in existing()) || incoming().creatorId == existing().creatorId) &&
                        isValidTs(incoming().updatedAt) && (
-        false ||
         (isRoomOwner(existing()) && existing().status == 'LIVE' &&
          incoming().featured == existing().featured &&
          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'coverUrl', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'status', 'hostId', 'hostName', 'hostAvatarUrl', 'ownerId', 'ownerName', 'ownerOnline', 'adminIds', 'activeAdminIds', 'listenerCount', 'activeSpeakersCount', 'updatedAt'])) ||
@@ -559,7 +558,6 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(roomId) && (
         isRoomOwner(existing()) ||
         (isRoomAdminUser(existing()) && (!('ownerOnline' in existing()) || existing().ownerOnline == false)) ||
-        false
       );
 
       // Strict 9-Seat Stage: 0 = Host, 1..8 = 8 Regular Speaker Seats
@@ -582,7 +580,6 @@ service cloud.firestore {
                           incoming().occupantId == getAfter(/databases/$(database)/documents/rooms/$(roomId)).data.hostId ||
                           incoming().occupantId == effectiveRoomOwnerId(getAfter(/databases/$(database)/documents/rooms/$(roomId)).data)) &&
                          (seatIndex == '0' || existing().occupantId == '' || incoming().occupantId == '' || incoming().occupantId == existing().occupantId) && (
-          false ||
           (isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
            (seatIndex == '0' ||
             incoming().occupantId == existing().occupantId ||

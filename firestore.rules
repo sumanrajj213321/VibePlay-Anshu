@@ -312,6 +312,15 @@ service cloud.firestore {
 
       allow delete: if isAdmin();
 
+      match /avatar/{avatarDocId} {
+        allow get: if isSignedIn() && avatarDocId == 'image';
+        allow list: if false;
+        allow create, update: if isSignedIn() && request.auth.uid == userId && avatarDocId == 'image' &&
+                                 incoming().keys().hasOnly(['data', 'contentType', 'updatedAt']) &&
+                                 incoming().data is string && incoming().data.size() <= 420000 &&
+                                 incoming().contentType == 'image/jpeg' && isValidTs(incoming().updatedAt);
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
       match /private/{docId} {
         allow get, list: if isSignedIn() && (request.auth.uid == userId || isAdmin());
         allow create, update: if isSignedIn() && isValidId(userId) && isValidId(docId) &&

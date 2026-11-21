@@ -361,7 +361,7 @@ class RoomRepository(
         coverKey: String,
         locked: Boolean,
         rawPassword: String
-    ): Result<String> = createRoomMutex.withLock {
+    ): Result<String> = createRoomMutex.withLock<Result<String>> {
         val path = "rooms"
         try {
             val uid = requireUserId()
@@ -505,6 +505,7 @@ class RoomRepository(
                         "createdAt" to FieldValue.serverTimestamp()
                     )
                 )
+                        Unit
                     }.await()
                     return@withLock Result.success(roomRef.id)
                 } catch (collision: RoomIdCollisionException) {

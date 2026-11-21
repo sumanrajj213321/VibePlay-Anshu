@@ -761,47 +761,32 @@ fun PublicProfileSheet(
                             color = VibeCyan.copy(alpha = 0.09f),
                             border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.42f))
                         ) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Text(
-                                    text = "VIBEPLAY ID NUMBER",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = VibeCyan,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "${targetUser.vibeId}$ageSuffix",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.testTag("public_profile_id_age")
-                                )
-                            }
+                            Text(
+                                text = "ID-${targetUser.vibeId}$ageSuffix",
+                                modifier = Modifier
+                                    .padding(horizontal = 10.dp, vertical = 10.dp)
+                                    .testTag("public_profile_id_age"),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                         Surface(
+                            modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(13.dp),
                             color = VibeGold.copy(alpha = 0.13f),
                             border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.65f))
                         ) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Text(
-                                    text = "ID LEVEL",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = VibeGold,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "LEVEL ${targetUser.level}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = VibeGold,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                            Text(
+                                text = "Level ${targetUser.level}",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = VibeGold,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
                         }
                     }
                 }

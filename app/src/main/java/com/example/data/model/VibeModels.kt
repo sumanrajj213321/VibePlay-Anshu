@@ -225,6 +225,7 @@ data class VoiceStage(
                 // Keep the owner's avatar available for the faded OFFLINE host tile.
                 occupantAvatarUrl = rawHost?.occupantAvatarUrl?.ifBlank { room.hostAvatarUrl } ?: room.hostAvatarUrl,
                 occupantVipLevel = rawHost?.occupantVipLevel ?: 0L,
+                occupantFrameColorArgb = rawHost?.occupantFrameColorArgb,
                 occupantGender = rawHost?.occupantGender ?: "UNSPECIFIED",
                 muted = if (!ownerOnline) true else (rawHost?.muted ?: false),
                 seatLocked = false,
@@ -245,6 +246,7 @@ data class VoiceStage(
                     occupantName = if (validOccupant) found!!.occupantName else "",
                     occupantAvatarUrl = if (validOccupant) found!!.occupantAvatarUrl else "",
                     occupantVipLevel = if (validOccupant) found!!.occupantVipLevel else 0L,
+                    occupantFrameColorArgb = if (validOccupant) found!!.occupantFrameColorArgb else null,
                     occupantGender = if (validOccupant) found!!.occupantGender else "UNSPECIFIED",
                     muted = found?.muted ?: true,
                     seatLocked = found?.seatLocked ?: false,

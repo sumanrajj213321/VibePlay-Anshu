@@ -343,8 +343,9 @@ service cloud.firestore {
                        incoming().createdAt == existing().createdAt &&
                        isValidTs(incoming().updatedAt) && (
         
-        (request.auth.uid == userId && isValidUserProfile(incoming()) && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
+        (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
           (incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarUrl', 'coverUrl', 'gender', 'genderChangeCount', 'age', 'ageRange', 'showAge', 'showGender', 'showOnlineStatus', 'online', 'followingCount', 'followersCount', 'updatedAt']) &&
+           isValidUserProfile(incoming()) &&
            incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
            ((incoming().gender == existing().gender && incoming().genderChangeCount == (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0)) ||
             (incoming().gender != existing().gender && (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0) == 0 && incoming().genderChangeCount == 1))) ||

@@ -40,8 +40,9 @@ service cloud.firestore {
              (seatIndex == '8' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId != request.auth.uid);
     }
     function isDirectSpeakerSeatJoin(roomId, roomData) {
-      let seatIndex = roomData.lastSpeakerSeatJoinSeatIndex;
-      return roomData.lastSpeakerSeatJoinUserId == request.auth.uid &&
+      let seatIndex = ('lastSpeakerSeatJoinSeatIndex' in roomData) ? roomData.lastSpeakerSeatJoinSeatIndex : -1;
+      return ('lastSpeakerSeatJoinUserId' in roomData) &&
+             roomData.lastSpeakerSeatJoinUserId == request.auth.uid &&
              seatIndex is int && seatIndex >= 1 && seatIndex <= 8 &&
              getAfter(/databases/$(database)/documents/rooms/$(roomId)/seats/$(seatIndex)).data.occupantId == request.auth.uid &&
              get(/databases/$(database)/documents/rooms/$(roomId)/seats/$(seatIndex)).data.occupantId == '';

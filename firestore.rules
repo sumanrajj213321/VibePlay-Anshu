@@ -34,6 +34,27 @@ service cloud.firestore {
 
     // --- Validation Helpers ---
 
+
+    function shopTitlePrice(itemId) {
+      return itemId == 'singer' ? 12000 :
+             itemId == 'charming' ? 15000 :
+             itemId == 'princess' ? 18000 :
+             itemId == 'prince' ? 18000 :
+             itemId == 'queen' ? 25000 :
+             itemId == 'king' ? 25000 :
+             itemId == 'boss' ? 30000 :
+             itemId == 'filthy_rich' ? 50000 :
+             itemId == 'legend' ? 65000 :
+             itemId == 'royal_star' ? 80000 : -1;
+    }
+    function shopFramePrice(itemId) {
+      return itemId == 'neon_cyan' ? 15000 :
+             itemId == 'rose_gold' ? 25000 :
+             itemId == 'royal_gold' ? 40000 :
+             itemId == 'galaxy' ? 60000 :
+             itemId == 'aurora' ? 80000 : -1;
+    }
+
     function isValidUserProfile(data) {
       return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
              data.vibeId is string && data.vibeId.size() >= 3 && data.vibeId.size() <= 24 &&
@@ -51,6 +72,10 @@ service cloud.firestore {
              (!('level' in data) || (data.level is int && data.level >= 1 && data.level <= 999)) &&
              (!('xp' in data) || (data.xp is int && data.xp >= 0)) &&
              data.vipLevel is int && data.vipLevel >= 0 && data.vipLevel <= 30 &&
+             (!('ownedTitleIds' in data) || (data.ownedTitleIds is list && data.ownedTitleIds.size() <= 20)) &&
+             (!('activeTitleId' in data) || (data.activeTitleId is string && data.activeTitleId.size() <= 40)) &&
+             (!('ownedFrameIds' in data) || (data.ownedFrameIds is list && data.ownedFrameIds.size() <= 20)) &&
+             (!('activeFrameId' in data) || (data.activeFrameId is string && data.activeFrameId.size() <= 40)) &&
              data.coinBalance is int && data.coinBalance >= 0 &&
              (!('welcomeBonusGranted' in data) || data.welcomeBonusGranted is bool) &&
              (!('welcomeBonusGrantedAt' in data) || data.welcomeBonusGrantedAt is timestamp) &&
@@ -311,6 +336,34 @@ service cloud.firestore {
            existsAfter(/databases/$(database)/documents/room_creation_locks/$(userId)) &&
            getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
            incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
+          (incoming().vipLevel == existing().vipLevel &&
+           incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
+           incoming().ownedTitleIds is list &&
+           incoming().ownedTitleIds.size() == (('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0) + 1 &&
+           incoming().ownedTitleIds.hasAll(('ownedTitleIds' in existing()) ? existing().ownedTitleIds : []) &&
+           incoming().activeTitleId == (('activeTitleId' in existing()) ? existing().activeTitleId : '') &&
+           shopTitlePrice(incoming().ownedTitleIds[(('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0)]) >= 0 &&
+           incoming().coinBalance == existing().coinBalance - shopTitlePrice(incoming().ownedTitleIds[(('ownedTitleIds' in existing()) ? existing().ownedTitleIds.size() : 0)]) &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'activeTitleId', 'updatedAt'])) ||
+          (incoming().vipLevel == existing().vipLevel &&
+           incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
+           incoming().ownedFrameIds is list &&
+           incoming().ownedFrameIds.size() == (('ownedFrameIds' in existing()) ? existing().ownedFrameIds.size() : 0) + 1 &&
+           incoming().ownedFrameIds.hasAll(('ownedFrameIds' in existing()) ? existing().ownedFrameIds : []) &&
+           incoming().activeFrameId == (('activeFrameId' in existing()) ? existing().activeFrameId : '') &&
+           shopFramePrice(incoming().ownedFrameIds[(('ownedFrameIds' in existing()) ? existing().ownedFrameIds.size() : 0)]) >= 0 &&
+           incoming().coinBalance == existing().coinBalance - shopFramePrice(incoming().ownedFrameIds[(('ownedFrameIds' in existing()) ? existing().ownedFrameIds.size() : 0)]) &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'updatedAt'])) ||
+          (incoming().coinBalance == existing().coinBalance &&
+           incoming().vipLevel == existing().vipLevel &&
+           incoming().activeTitleId is string &&
+           (incoming().activeTitleId == '' || (incoming().ownedTitleIds is list && incoming().activeTitleId in incoming().ownedTitleIds)) &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['activeTitleId', 'updatedAt'])) ||
+          (incoming().coinBalance == existing().coinBalance &&
+           incoming().vipLevel == existing().vipLevel &&
+           incoming().activeFrameId is string &&
+           (incoming().activeFrameId == '' || (incoming().ownedFrameIds is list && incoming().activeFrameId in incoming().ownedFrameIds)) &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['activeFrameId', 'updatedAt'])) ||
           (incoming().vipLevel == existing().vipLevel && incoming().coinBalance == existing().coinBalance + 150 &&
            (!('lastDailyClaimDay' in existing()) || incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'lastDailyClaimDay', 'xp', 'level', 'updatedAt'])) ||

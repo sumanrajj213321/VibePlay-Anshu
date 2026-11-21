@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddComment
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Group
@@ -81,6 +82,8 @@ import com.example.data.model.AppNotification
 import com.example.data.model.Conversation
 import com.example.data.model.DirectMessage
 import com.example.data.model.FollowEdge
+import com.example.data.model.GiftCatalogItem
+import com.example.data.model.VibeCatalogDefaults
 import com.example.data.model.UserProfile
 import com.example.ui.components.ReportUserOrRoomDialog
 import com.example.ui.components.VibeAvatar
@@ -112,6 +115,8 @@ fun InboxScreen(
     onUpdateGroupDetails: (Conversation, String, String) -> Unit = { _, _, _ -> },
     onLeaveGroup: (Conversation) -> Unit = {},
     onTogglePinConversation: (conversationId: String, pin: Boolean) -> Unit = { _, _ -> },
+    activeGifts: List<GiftCatalogItem> = VibeCatalogDefaults.defaultGifts,
+    onSendGift: (Conversation, GiftCatalogItem, Long) -> Unit = { _, _, _ -> },
     observeMessages: (String) -> Flow<List<DirectMessage>>,
     onSendMessage: (Conversation, String, String?) -> Unit,
     onMarkConversationRead: (Conversation) -> Unit,
@@ -141,6 +146,8 @@ fun InboxScreen(
             onSendMessage = { text, imageUri -> onSendMessage(selectedConversation, text, imageUri) },
             onMarkRead = { onMarkConversationRead(selectedConversation) },
             onTogglePin = { pin -> onTogglePinConversation(selectedConversation.id, pin) },
+            activeGifts = activeGifts,
+            onSendGift = { gift, quantity -> onSendGift(selectedConversation, gift, quantity) },
             onInspectPeer = { peerId -> onOpenUserById(peerId) },
             onAddGroupMembers = { newMembers -> onAddGroupMembers(selectedConversation, newMembers) },
             onRemoveGroupMember = { targetUid -> onRemoveGroupMember(selectedConversation, targetUid) },
@@ -505,6 +512,8 @@ private fun ChatDetailScreen(
     onSendMessage: (String, String?) -> Unit,
     onMarkRead: () -> Unit,
     onTogglePin: (Boolean) -> Unit,
+    activeGifts: List<GiftCatalogItem>,
+    onSendGift: (GiftCatalogItem, Long) -> Unit,
     onInspectPeer: (String) -> Unit,
     onAddGroupMembers: (List<UserProfile>) -> Unit,
     onRemoveGroupMember: (String) -> Unit,
@@ -535,6 +544,7 @@ private fun ChatDetailScreen(
     var pendingImageUri by remember { mutableStateOf<String?>(null) }
     var showReportDialog by remember { mutableStateOf(false) }
     var showGroupInfoSheet by remember { mutableStateOf(false) }
+    var showGiftPicker by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -830,6 +840,19 @@ private fun ChatDetailScreen(
                 Icon(Icons.Filled.Image, contentDescription = "Share image", tint = VibeCyan)
             }
 
+            if (!isGroup) {
+                IconButton(
+                    onClick = { showGiftPicker = true },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(VibeGold.copy(alpha = 0.16f))
+                        .testTag("inbox_send_gift_button")
+                ) {
+                    Icon(Icons.Filled.CardGiftcard, contentDescription = "Send gift", tint = VibeGold)
+                }
+            }
+
             OutlinedTextField(
                 value = inputText,
                 onValueChange = { inputText = it.take(1000) },
@@ -858,6 +881,46 @@ private fun ChatDetailScreen(
                     .testTag("chat_send_button")
             ) {
                 Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send message", tint = Color.White)
+            }
+        }
+    }
+
+    if (showGiftPicker && !isGroup) {
+        ModalBottomSheet(onDismissRequest = { showGiftPicker = false }) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("Send a gift to $headerTitle", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Your current balance: ${currentUser.coinBalance} coins", style = MaterialTheme.typography.bodySmall, color = VibeGold)
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().height(360.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(activeGifts, key = { it.id }) { gift ->
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                onSendGift(gift, 1L)
+                                showGiftPicker = false
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text(gift.emoji, style = MaterialTheme.typography.headlineMedium)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(gift.name, fontWeight = FontWeight.SemiBold)
+                                    Text("${gift.coinCost} coins", color = VibeGold, style = MaterialTheme.typography.labelSmall)
+                                }
+                                Text("Send", color = VibeCyan, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
             }
         }
     }

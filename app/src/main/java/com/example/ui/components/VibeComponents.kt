@@ -117,7 +117,7 @@ fun VibeAvatar(
     frameColorArgb: Long? = null
 ) {
     val firestoreAvatar = avatarUrl.startsWith("firestore-avatar://")
-    val firestoreAvatarUid = if (firestoreAvatar) avatarUrl.removePrefix("firestore-avatar://") else ""
+    val firestoreAvatarUid = if (firestoreAvatar) avatarUrl.removePrefix("firestore-avatar://").substringBefore("?") else ""
     var firestoreAvatarBytes by remember(avatarUrl) { mutableStateOf<ByteArray?>(null) }
     LaunchedEffect(avatarUrl) {
         firestoreAvatarBytes = null

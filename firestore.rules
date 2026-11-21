@@ -292,6 +292,11 @@ service cloud.firestore {
            incoming().coinBalance == 1000000000 &&
            incoming().vipLevel == existing().vipLevel &&
            incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'officialCoinsGranted', 'updatedAt']))
+          || ((!('welcomeBonusGranted' in existing()) || existing().welcomeBonusGranted == false) &&
+              incoming().welcomeBonusGranted == true &&
+              incoming().coinBalance == existing().coinBalance + 1000000 &&
+              incoming().vipLevel == existing().vipLevel &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'welcomeBonusGranted', 'welcomeBonusGrantedAt', 'updatedAt']))
         )) ||
         (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
           (incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&

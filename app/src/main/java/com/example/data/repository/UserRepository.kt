@@ -413,6 +413,7 @@ class UserRepository(
                     mapOf(
                         "coinBalance" to currentCoins + 150L,
                         "lastDailyClaimDay" to today,
+                        "lastDailyClaimAt" to FieldValue.serverTimestamp(),
                         "xp" to newXp,
                         "level" to newLevel,
                         "updatedAt" to FieldValue.serverTimestamp()

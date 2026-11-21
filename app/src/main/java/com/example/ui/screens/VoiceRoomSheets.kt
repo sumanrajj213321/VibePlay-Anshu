@@ -6,7 +6,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -386,11 +385,7 @@ fun HostSettingsSheet(
                                     contentDescription = preset.label,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(82.dp)
-                                        .then(
-                                            if (selected) Modifier.border(3.dp, VibeCyan, RoundedCornerShape(12.dp))
-                                            else Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-                                        ),
+                                        .height(82.dp),
                                     contentScale = androidx.compose.ui.layout.ContentScale.Crop
                                 )
                                 Text(

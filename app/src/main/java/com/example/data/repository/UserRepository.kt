@@ -299,8 +299,15 @@ class UserRepository(
                 require(snapshot.exists()) { "Profile not found." }
                 val oldGender = snapshot.getString("gender") ?: "UNSPECIFIED"
                 val genderChanges = snapshot.getLong("genderChangeCount") ?: 0L
-                require(oldGender == gender || genderChanges < 1L) {
-                    "Gender can only be changed once in a lifetime. This change has already been used."
+                require(gender in setOf("UNSPECIFIED", "FEMALE", "MALE", "NON_BINARY")) {
+                    "Please select a valid gender."
+                }
+                require(
+                    oldGender == gender ||
+                        (oldGender == "UNSPECIFIED" && genderChanges == 0L &&
+                            gender in setOf("FEMALE", "MALE", "NON_BINARY"))
+                ) {
+                    "Gender is permanent after your first selection and cannot be changed."
                 }
                 val updates = mutableMapOf<String, Any>(
                     "username" to cleanName,

@@ -540,7 +540,11 @@ service cloud.firestore {
                           incoming().occupantId == effectiveRoomOwnerId(getAfter(/databases/$(database)/documents/rooms/$(roomId)).data)) &&
                          (seatIndex == '0' || existing().occupantId == '' || incoming().occupantId == '' || incoming().occupantId == existing().occupantId) && (
           isAdmin() ||
-          isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) ||
+          (isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
+           (seatIndex == '0' ||
+            incoming().occupantId == existing().occupantId ||
+            incoming().occupantId == '' ||
+            incoming().occupantId == request.auth.uid)) ||
           (seatIndex != '0' && (
             (existing().occupantId == request.auth.uid &&
              (incoming().occupantId == request.auth.uid || incoming().occupantId == '') &&

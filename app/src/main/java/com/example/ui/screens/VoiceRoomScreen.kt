@@ -368,51 +368,6 @@ internal fun VoiceRoomStageContent(
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    AnimatedVisibility(
-                        visible = chatInput.isNotEmpty() || isChatInputFocused || isImeVisible
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .clickable(enabled = onOpenUserProfile != null) {
-                                        onOpenUserProfile?.invoke(currentUser.userId)
-                                    }
-                                    .minimumInteractiveComponentSize()
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    .testTag("room_chat_input_user_identity"),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                VibeAvatar(
-                                    avatarUrl = currentUser.avatarUrl,
-                                    username = currentUser.username,
-                                    size = 28.dp,
-                                    vipLevel = currentUser.vipLevel
-                                )
-                                Text(
-                                    text = currentUser.username,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
-                                )
-                            }
-                            Text(
-                                text = "Typing as you",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = VibeCyan
-                            )
-                        }
-                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

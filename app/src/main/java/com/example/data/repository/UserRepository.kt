@@ -132,12 +132,19 @@ class UserRepository(
             // The callable is idempotent and the server verifies the admin UID.
             if (user.uid == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
                 try {
-                    FirebaseFunctions.getInstance("asia-south1")
+                    val migration = FirebaseFunctions.getInstance("asia-south1")
                         .getHttpsCallable("grantWelcomeBonusToExistingUsers")
-                        .call()
-                        .await()
+                    var cursor: String? = null
+                    var hasMore: Boolean
+                    do {
+                        val result = migration.call(mapOf("cursor" to cursor)).await()
+                        val data = result.data as? Map<*, *> ?: break
+                        hasMore = data["hasMore"] == true
+                        cursor = data["nextCursor"] as? String
+                    } while (hasMore && !cursor.isNullOrBlank())
                 } catch (_: Exception) {
                     // Keep sign-in available if Functions has not been deployed yet.
+                    // The migration can safely resume on the next official-account sign-in.
                 }
             }
 

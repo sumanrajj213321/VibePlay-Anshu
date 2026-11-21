@@ -102,6 +102,17 @@ fun RoomsHubScreen(
                 it.creatorId == currentUser.userId ||
                 it.ownerId == currentUser.userId ||
                 it.hostId == currentUser.userId
+        } ?: createdRoomId.takeIf { hasCreatedRoom && it.isNotBlank() }?.let { roomId ->
+            // Keep the permanent-room entry available even if the public LIVE-room
+            // feed has not loaded yet. Navigation opens the room by its document ID.
+            VoiceRoom(
+                id = roomId,
+                creatorId = currentUser.userId,
+                hostId = currentUser.userId,
+                ownerId = currentUser.userId,
+                hostName = currentUser.username,
+                ownerName = currentUser.username
+            )
         }
     }
 

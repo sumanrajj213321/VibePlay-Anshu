@@ -578,7 +578,7 @@ fun HostSettingsSheet(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SpeakerRequestsAndListenersSheet(
+fun RoomOnlineMembersSheet(
     isHost: Boolean,
     isOwner: Boolean = isHost,
     currentUserId: String = "",
@@ -955,7 +955,7 @@ fun InviteSpeakerSheet(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Invite a room listener or someone you follow to this seat. They must accept before being seated, or approve a pending speak request.",
+                        text = "Invite a room listener or someone you follow to this seat. They must accept the seat invitation before being seated.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

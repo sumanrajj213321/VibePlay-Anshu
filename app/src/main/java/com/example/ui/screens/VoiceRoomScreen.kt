@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.Manifest
+import android.net.Uri
 import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
@@ -211,6 +212,7 @@ fun VoiceRoomScreen(
         onUpdateRoomSettings = { t, ann, cat, cover, lock, pwd ->
             roomViewModel.updateRoomSettings(t, ann, cat, cover, lock, pwd)
         },
+        onUploadRoomCover = { uri -> roomViewModel.uploadRoomCover(uri) },
         onTransferOwnership = { targetSeat ->
             roomViewModel.transferOwnership(currentRoom, targetSeat)
         },
@@ -279,6 +281,7 @@ internal fun VoiceRoomStageContent(
     onClearVipEntrance: () -> Unit = {},
     onSendGift: (recipientId: String, recipientName: String, gift: GiftCatalogItem, quantity: Long) -> Unit,
     onUpdateRoomSettings: (title: String, announcement: String, category: String, coverKey: String, locked: Boolean, passcode: String?) -> Unit,
+    onUploadRoomCover: (Uri) -> Unit,
     onTransferOwnership: (VoiceSeat) -> Unit,
     onPromoteOrDemoteAdmin: (userId: String, username: String, promote: Boolean) -> Unit = { _, _, _ -> },
     onEndRoom: () -> Unit,
@@ -935,6 +938,7 @@ internal fun VoiceRoomStageContent(
             onSaveSettings = { t, ann, cat, cover, lock, pwd ->
                 onUpdateRoomSettings(t, ann, cat, cover, lock, pwd)
             },
+            onUploadCover = onUploadRoomCover,
             onMuteAllSpeakers = onMuteAllSpeakers,
             onTransferOwnership = { targetSeat ->
                 onTransferOwnership(targetSeat)

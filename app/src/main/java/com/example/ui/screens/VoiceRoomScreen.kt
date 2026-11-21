@@ -205,6 +205,8 @@ fun VoiceRoomScreen(
             }
         },
         onCancelSpeakerRequest = { roomViewModel.cancelSpeakerRequest(currentUser.userId) },
+        onAcceptSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, true) },
+        onRejectSeatInvitation = { req -> roomViewModel.respondToSeatInvitation(req, false) },
         onClearGiftBurst = { roomViewModel.clearGiftBurst() },
         onClearVipEntrance = { roomViewModel.clearVipEntrance() },
         onSendGift = { recId, recName, gift, qty ->
@@ -275,6 +277,8 @@ internal fun VoiceRoomStageContent(
     onMuteAllSpeakers: () -> Unit = {},
     onRequestToSpeak: (preferredSeatIndex: Int) -> Unit,
     onCancelSpeakerRequest: () -> Unit,
+    onAcceptSeatInvitation: (SpeakerRequest) -> Unit = {},
+    onRejectSeatInvitation: (SpeakerRequest) -> Unit = {},
     onClearGiftBurst: () -> Unit,
     onClearVipEntrance: () -> Unit = {},
     onSendGift: (recipientId: String, recipientName: String, gift: GiftCatalogItem, quantity: Long) -> Unit,
@@ -304,6 +308,12 @@ internal fun VoiceRoomStageContent(
     var showSetupGuide by remember { mutableStateOf(false) }
     var inviteTargetSeatIndex by remember { mutableStateOf<Int?>(null) }
     var showPendingRequestDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(myPendingRequest?.id, myPendingRequest?.status) {
+        if (myPendingRequest?.status == "INVITED") {
+            showPendingRequestDialog = true
+        }
+    }
     var activeSeatDialog by remember { mutableStateOf<VoiceSeat?>(null) }
     var reportTarget by remember { mutableStateOf<Triple<String, String, String>?>(null) }
 
@@ -986,6 +996,8 @@ internal fun VoiceRoomStageContent(
             PendingRequestStatusDialog(
                 request = pendingReq,
                 onCancelRequest = onCancelSpeakerRequest,
+                onAcceptInvitation = { onAcceptSeatInvitation(pendingReq) },
+                onRejectInvitation = { onRejectSeatInvitation(pendingReq) },
                 onDismiss = { showPendingRequestDialog = false }
             )
         }

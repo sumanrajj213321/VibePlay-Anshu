@@ -304,8 +304,8 @@ fun ProfileScreen(
                                 .testTag("profile_following_stat")
                         )
                         ProfileStat(
-                            value = "$giftCoinsIn",
-                            label = "Gift In Coins",
+                            value = "${profile.totalGiftCoinsReceived.takeIf { it > 0L } ?: giftCoinsIn}",
+                            label = "Total Gifts",
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                         )
                     }

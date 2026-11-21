@@ -785,26 +785,50 @@ internal fun VoiceRoomStageContent(
                             }
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(9.dp)
                             ) {
                                 if (msg.type != "SYSTEM") {
                                     VibeAvatar(
                                         avatarUrl = msg.senderAvatarUrl,
                                         username = msg.senderName,
-                                        size = 24.dp,
+                                        size = 36.dp,
                                         vipLevel = msg.senderVipLevel
                                     )
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = msg.senderName.ifBlank { "User" },
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            if (msg.senderVipLevel > 0) {
+                                                VipBadgePill(msg.senderVipLevel)
+                                            }
+                                        }
+                                        Text(
+                                            text = msg.text,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (msg.type == "GIFT") VibeGold else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        text = msg.text,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                                if (msg.senderVipLevel > 0) {
-                                    VipBadgePill(msg.senderVipLevel)
-                                }
-                                Text(
-                                    text = if (msg.type == "SYSTEM") msg.text else "${msg.senderName}: ${msg.text}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (msg.type == "GIFT") VibeGold else MaterialTheme.colorScheme.onSurface
-                                )
                             }
                         }
                     }

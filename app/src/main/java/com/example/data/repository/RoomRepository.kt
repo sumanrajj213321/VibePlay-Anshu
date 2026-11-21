@@ -1307,6 +1307,9 @@ class RoomRepository(
                     if (currentStatus == "PENDING") {
                         throw IllegalStateException("Your speak request is already pending approval.")
                     }
+                    if (currentStatus == "INVITED") {
+                        throw IllegalStateException("You have a seat invitation. Accept or reject it first.")
+                    }
                     tx.update(
                         reqRef,
                         mapOf(
@@ -1373,86 +1376,58 @@ class RoomRepository(
             check(room.isManager(uid)) { "Only the Room Owner or a Room Admin can resolve speaker requests." }
             val roomRef = db.collection("rooms").document(room.id)
             val reqRef = roomRef.collection("speaker_requests").document(request.id)
-            val listenerRef = roomRef.collection("listeners").document(request.userId)
-            val requesterUserRef = db.collection("users").document(request.userId)
 
             db.runTransaction { tx ->
                 val roomSnap = tx.get(roomRef)
                 val reqSnap = tx.get(reqRef)
                 val seatSnaps = if (approve) {
-                    (0..VoiceStage.SPEAKER_SEAT_COUNT).map { idx ->
+                    (1..VoiceStage.SPEAKER_SEAT_COUNT).map { idx ->
                         tx.get(roomRef.collection("seats").document(idx.toString()))
                     }
                 } else {
                     emptyList()
                 }
-                val listenerSnap = if (approve) tx.get(listenerRef) else null
-                val requesterSnap = if (approve) tx.get(requesterUserRef) else null
 
                 check(reqSnap.exists() && reqSnap.getString("status") == "PENDING") {
                     "This speaker request is no longer pending."
                 }
 
                 if (approve) {
-                    val loadedRoom = roomSnap.toObject(VoiceRoom::class.java) ?: room
-                    check(loadedRoom.isManager(uid)) { "Only the Room Owner or a Room Admin can resolve speaker requests." }
+                    val loadedRoom = roomSnap.toObject(VoiceRoom::class.java)
+                        ?: throw IllegalStateException("Room not found.")
+                    check(loadedRoom.isManager(uid)) {
+                        "Only the Room Owner or a Room Admin can resolve speaker requests."
+                    }
+                    check(loadedRoom.status == "LIVE" && !loadedRoom.locked) {
+                        "This room is not accepting seat invitations."
+                    }
+                    check(seatSnaps.none { it.getString("occupantId") == request.userId }) {
+                        "${request.username} is already on a speaker seat."
+                    }
                     val seats = seatSnaps.mapNotNull { it.toObject(VoiceSeat::class.java) }
                     val stage = VoiceStage.buildStrictNineSeatStage(loadedRoom, seats)
-
-                    val alreadySeated = (listOf(stage.hostSeat) + stage.speakerSeats)
-                        .firstOrNull { it.occupantId == request.userId }
-                    if (alreadySeated != null) {
-                        throw IllegalStateException("${request.username} is already on Seat ${alreadySeated.seatIndex}.")
-                    }
-
                     val openSeat = VoiceStage.findAvailableSpeakerSeat(
                         stage = stage,
                         preferredSeatIndex = request.preferredSeatIndex.toInt()
                     ) ?: throw IllegalStateException("All 8 speaker seats are currently occupied or locked.")
 
-                    val resolvedGender = requesterSnap?.getString("gender")
-                        ?: listenerSnap?.getString("gender")
-                        ?: "UNSPECIFIED"
-
                     tx.update(
-                        roomRef.collection("seats").document(openSeat.seatIndex.toString()),
+                        reqRef,
                         mapOf(
-                            "occupantId" to request.userId,
-                            "occupantName" to request.username,
-                            "occupantAvatarUrl" to request.avatarUrl,
-                            "occupantVipLevel" to request.vipLevel,
-                            "occupantGender" to resolvedGender,
-                            "muted" to false,
-                            "speaking" to false,
+                            "status" to "INVITED",
+                            "preferredSeatIndex" to openSeat.seatIndex,
                             "updatedAt" to FieldValue.serverTimestamp()
                         )
                     )
-
-                    var nextListenerCount = loadedRoom.listenerCount
-                    if (listenerSnap != null && listenerSnap.exists()) {
-                        tx.delete(listenerRef)
-                        nextListenerCount = (nextListenerCount - 1L).coerceAtLeast(0L)
-                    }
-                    val hostCount = if (loadedRoom.effectiveOwnerOnline) 1L else 0L
-                    val nextActiveSpeakers = (hostCount + stage.speakerSeats.count { it.isOccupied } + 1L).coerceIn(1L, 9L)
+                } else {
                     tx.update(
-                        roomRef,
+                        reqRef,
                         mapOf(
-                            "listenerCount" to nextListenerCount,
-                            "activeSpeakersCount" to nextActiveSpeakers,
+                            "status" to "REJECTED",
                             "updatedAt" to FieldValue.serverTimestamp()
                         )
                     )
-
                 }
-
-                tx.update(
-                    reqRef,
-                    mapOf(
-                        "status" to if (approve) "APPROVED" else "REJECTED",
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    )
-                )
             }.await()
             Result.success(Unit)
         } catch (e: CancellationException) {

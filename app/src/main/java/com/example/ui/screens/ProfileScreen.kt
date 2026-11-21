@@ -1,6 +1,13 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -246,18 +253,66 @@ fun ProfileScreen(
                 }
 
                 if (profile.userId == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
+                    val officialShimmer = rememberInfiniteTransition(label = "official_title_shimmer")
+                    val shimmerOffset by officialShimmer.animateFloat(
+                        initialValue = -260f,
+                        targetValue = 520f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 2300, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "official_title_shimmer_offset"
+                    )
+                    val officialGold = Color(0xFFFFD76A)
+                    val officialShine = Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF9B6A16),
+                            Color(0xFFFFD76A),
+                            Color(0xFFFFF4C2),
+                            Color(0xFFFFC83D),
+                            Color(0xFF9B6A16)
+                        ),
+                        start = Offset(shimmerOffset, 0f),
+                        end = Offset(shimmerOffset + 260f, 0f)
+                    )
                     Surface(
-                        shape = RoundedCornerShape(9.dp),
-                        color = VibeCyan.copy(alpha = 0.14f),
-                        border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.55f))
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFF080807),
+                        border = BorderStroke(
+                            1.2.dp,
+                            Brush.linearGradient(
+                                listOf(Color(0xFF8A641F), Color(0xFFFFE6A0), Color(0xFF9C711F))
+                            )
+                        ),
+                        shadowElevation = 7.dp
                     ) {
-                        Text(
-                            text = "✦ VibePlay Official",
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = VibeCyan,
-                            fontWeight = FontWeight.ExtraBold
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                                tint = officialGold,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "VibePlay Official",
+                                modifier = Modifier,
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    brush = officialShine,
+                                    letterSpacing = 0.75f.sp
+                                ),
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                                tint = officialGold,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
                 }
 

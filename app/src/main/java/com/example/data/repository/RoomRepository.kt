@@ -306,6 +306,7 @@ class RoomRepository(
         announcement: String,
         category: String,
         coverKey: String,
+        keepCustomCover: Boolean,
         locked: Boolean,
         rawPassword: String
     ): Result<String> = createRoomMutex.withLock {
@@ -1457,11 +1458,13 @@ class RoomRepository(
                 "announcement" to announcement.trim().take(200),
                 "locked" to locked,
                 "coverKey" to coverKey,
-                "coverUrl" to "",
                 "updatedAt" to FieldValue.serverTimestamp()
             )
             if (!category.isNullOrBlank()) {
                 updates["category"] = category
+            }
+            if (!keepCustomCover) {
+                updates["coverUrl"] = ""
             }
             if (newRawPassword != null) {
                 updates["hasPassword"] = newRawPassword.isNotBlank()

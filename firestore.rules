@@ -554,6 +554,11 @@ service cloud.firestore {
              get(/databases/$(database)/documents/rooms/$(roomId)).data.locked == false &&
              incoming().occupantId == request.auth.uid &&
              incoming().seatLocked == false &&
+             existsAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)) &&
+             getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.userId == request.auth.uid &&
+             getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.hostId == get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId &&
+             getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.status == 'ACCEPTED' &&
+             getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.preferredSeatIndex == int(seatIndex) &&
              incoming().diff(existing()).affectedKeys().hasOnly(['occupantId', 'occupantName', 'occupantAvatarUrl', 'occupantVipLevel', 'occupantGender', 'muted', 'speaking', 'updatedAt']))
           ))
         );

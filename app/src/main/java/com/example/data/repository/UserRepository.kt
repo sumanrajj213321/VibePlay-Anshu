@@ -270,14 +270,20 @@ class UserRepository(
         original.recycle()
     }
     private suspend fun saveCoverToStorage(uid: String, uri: Uri): String {
-        val storage = FirebaseStorage.getInstance("gs://vibeplay-anshu.firebasestorage.app")
-        val coverRef = storage.reference
+        // Use the bucket configured in google-services.json so upload and URL lookup
+        // always address the same Firebase Storage bucket.
+        val coverRef = FirebaseStorage.getInstance().reference
             .child("profile-covers/$uid/cover_${System.currentTimeMillis()}.jpg")
         val metadata = com.google.firebase.storage.StorageMetadata.Builder()
             .setContentType("image/jpeg")
             .build()
-        coverRef.putFile(uri, metadata).await()
-        return coverRef.downloadUrl.await().toString()
+
+        // Resolve the reference returned by the completed upload, then verify the
+        // object exists before requesting its download URL.
+        val uploadedRef = coverRef.putFile(uri, metadata).await().storage
+        val uploadedMetadata = uploadedRef.metadata.await()
+        require(uploadedMetadata.sizeBytes > 0L) { "Cover photo upload completed but the stored file is empty." }
+        return uploadedRef.downloadUrl.await().toString()
     }
 
     suspend fun updateProfile(
@@ -336,6 +342,7 @@ class UserRepository(
                     "showGender" to showGender,
                     "showOnlineStatus" to showOnlineStatus,
                     "genderChangeCount" to if (oldGender == gender) genderChanges else genderChanges + 1L,
+                if (showOnlineStatus) updates["online"] = true
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
                 if (oldGender != gender) updates["gender"] = gender

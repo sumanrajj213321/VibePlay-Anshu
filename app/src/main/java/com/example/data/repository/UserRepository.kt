@@ -23,6 +23,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.snapshots
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -268,6 +269,13 @@ class UserRepository(
         if (resized !== original) resized.recycle()
         original.recycle()
     }
+    private suspend fun saveCoverToStorage(uid: String, uri: Uri): String {
+        val coverRef = FirebaseStorage.getInstance().reference
+            .child("profile-covers/$uid/cover.jpg")
+        coverRef.putFile(uri).await()
+        return coverRef.downloadUrl.await().toString()
+    }
+
     suspend fun updateProfile(
         username: String,
         bio: String,
@@ -293,6 +301,11 @@ class UserRepository(
             } else {
                 avatarUrl
             }
+            val savedCoverUrl = if (coverUrl.startsWith("content://") || coverUrl.startsWith("file://")) {
+                saveCoverToStorage(currentUid, Uri.parse(coverUrl))
+            } else {
+                coverUrl
+            }
             val profileRef = db.collection("users").document(currentUid)
             db.runTransaction { transaction ->
                 val snapshot = transaction.get(profileRef)
@@ -313,7 +326,7 @@ class UserRepository(
                     "username" to cleanName,
                     "bio" to cleanBio,
                     "avatarUrl" to savedAvatarUrl.take(500),
-                    "coverUrl" to coverUrl.take(500),
+                    "coverUrl" to savedCoverUrl.take(500),
                     "age" to age,
                     "showAge" to showAge,
                     "showGender" to showGender,

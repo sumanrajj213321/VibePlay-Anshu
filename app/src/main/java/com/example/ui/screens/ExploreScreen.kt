@@ -194,7 +194,7 @@ fun ExploreScreen(
                             avatarUrl = user.avatarUrl,
                             username = user.username,
                             size = 52.dp,
-                            vipLevel = user.vipLevel,
+                            vipLevel = if (user.isVipActive) user.vipLevel else 0L,
                             online = user.online && user.showOnlineStatus,
                             frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == user.activeFrameId && user.isFrameActive(it.id) }?.colorArgb
                         )
@@ -215,7 +215,7 @@ fun ExploreScreen(
                                     modifier = Modifier.weight(1f, fill = false)
                                 )
                                 LevelBadge(user.level)
-                                VipBadgePill(user.vipLevel)
+                                if (user.isVipActive) VipBadgePill(user.vipLevel)
                             }
                             val ageTag = if (user.showAge && user.formattedAge != null) " · ${user.formattedAge}" else ""
                             Text(

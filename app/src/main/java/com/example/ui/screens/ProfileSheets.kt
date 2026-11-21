@@ -968,23 +968,41 @@ fun PublicProfileSheet(
                         }
                     }
                     val ageSuffix = if (targetUser.showAge && targetUser.formattedAge != null) " · ${targetUser.formattedAge}" else ""
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            color = VibeCyan.copy(alpha = 0.09f),
-                            border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.42f))
+                    Surface(
+                        Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = VibeCyan.copy(alpha = 0.09f),
+                        border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.42f))
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("ID-${targetUser.vibeId}$ageSuffix", Modifier.padding(horizontal = 8.dp, vertical = 8.dp).testTag("public_profile_id_age"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                "USER ID",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = VibeCyan,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Text(
+                                "ID-${targetUser.vibeId}$ageSuffix",
+                                Modifier.weight(1f).testTag("public_profile_id_age"),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
-                        Surface(
-                            Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            color = VibeGold.copy(alpha = 0.13f),
-                            border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.65f))
-                        ) {
-                            Text("Level ${targetUser.level}", Modifier.padding(horizontal = 8.dp, vertical = 8.dp), style = MaterialTheme.typography.labelSmall, color = VibeGold, fontWeight = FontWeight.Bold, maxLines = 1)
-                        }
+                    }
+                    Surface(
+                        Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = VibeGold.copy(alpha = 0.13f),
+                        border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.65f))
+                    ) {
+                        Text("Level ${targetUser.level}", Modifier.padding(horizontal = 10.dp, vertical = 9.dp), style = MaterialTheme.typography.labelSmall, color = VibeGold, fontWeight = FontWeight.Bold, maxLines = 1)
                     }
                     Surface(
                         Modifier.fillMaxWidth(),

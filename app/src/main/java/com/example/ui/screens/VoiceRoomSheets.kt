@@ -1291,43 +1291,50 @@ fun InviteSpeakerSheet(
 fun PendingRequestStatusDialog(
     request: SpeakerRequest,
     onCancelRequest: () -> Unit,
+    onAcceptInvitation: () -> Unit = {},
+    onRejectInvitation: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
+    val isInvitation = request.status == "INVITED"
+    val seatLabel = if (request.preferredSeatIndex in 1L..8L) "Seat ${request.preferredSeatIndex}" else "an open speaker seat"
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Filled.PanTool, contentDescription = null, tint = VibeGold)
-                Text("Speak Request Pending", fontWeight = FontWeight.Bold)
+                Text(if (isInvitation) "Seat Invitation" else "Speak Request Pending", fontWeight = FontWeight.Bold)
             }
         },
         text = {
-            val seatLabel = if (request.preferredSeatIndex in 1L..8L) {
-                "Seat ${request.preferredSeatIndex}"
-            } else {
-                "an open speaker seat"
-            }
             Text(
-                "You already have a pending request for $seatLabel. The Host or Room Admin will approve or decline it soon."
+                if (isInvitation) "The Host invited you to join $seatLabel. Your seat will be assigned only after you accept."
+                else "You already have a pending request for $seatLabel. The Host or Room Admin will approve or decline it soon."
             )
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    onCancelRequest()
-                    onDismiss()
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = VibeCoral),
-                modifier = Modifier.testTag("cancel_pending_request_button")
-            ) {
-                Text("Cancel Request")
+            if (isInvitation) {
+                Button(
+                    onClick = { onAcceptInvitation(); onDismiss() },
+                    colors = ButtonDefaults.buttonColors(containerColor = VibeEmerald),
+                    modifier = Modifier.testTag("accept_seat_invitation_button")
+                ) { Text("Accept") }
+            } else {
+                Button(
+                    onClick = { onCancelRequest(); onDismiss() },
+                    colors = ButtonDefaults.buttonColors(containerColor = VibeCoral),
+                    modifier = Modifier.testTag("cancel_pending_request_button")
+                ) { Text("Cancel Request") }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Keep Waiting") }
+            if (isInvitation) {
+                TextButton(
+                    onClick = { onRejectInvitation(); onDismiss() },
+                    modifier = Modifier.testTag("reject_seat_invitation_button")
+                ) { Text("Reject") }
+            } else {
+                TextButton(onClick = onDismiss) { Text("Keep Waiting") }
+            }
         }
     )
 }

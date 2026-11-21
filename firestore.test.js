@@ -5,12 +5,14 @@ const {
 } = require("@firebase/rules-unit-testing");
 const { test, before, after, beforeEach } = require("node:test");
 const fs = require("node:fs");
+const firebase = require("firebase/compat/app");
+require("firebase/compat/firestore");
 
 let testEnv;
 const PROJECT_ID = process.env.GCP_PROJECT || "demo-no-project";
 const ALICE_UID = "alice_uid_1";
 const BOB_UID = "bob_uid_2";
-const ADMIN_UID = "admin_uid_0";
+const ADMIN_UID = "1fLIHgOyAJV6NbHBXNeVg9JR6v1";
 const ADMIN_EMAIL = "sumanrajj213321@gmail.com";
 
 const [emulatorHost, emulatorPortStr] = (
@@ -301,24 +303,43 @@ test("Strict 9-seat Voice Room batch creation, seat 9 rejection, seat 0 protecti
     })
   );
 
-  // Bob joins Speaker Seat 1 and removes himself from listeners (never in both)
-  const joinSeatBatch = bobDb.batch();
-  joinSeatBatch.update(
-    bobDb.collection("rooms").doc("room_alpha").collection("seats").doc("1"),
-    {
-      occupantId: BOB_UID,
-      occupantName: "Bob",
-      occupantAvatarUrl: "",
-      occupantVipLevel: 0,
-      muted: false,
-      speaking: false,
-      updatedAt: pastDate(),
-    }
-  );
-  joinSeatBatch.delete(
-    bobDb.collection("rooms").doc("room_alpha").collection("listeners").doc(BOB_UID)
-  );
-  await assertSucceeds(joinSeatBatch.commit());
+  // Bob requests a seat, receives an invitation, and accepts it transactionally.
+  const bobRequestRef = roomRef.collection("speaker_requests").doc(BOB_UID);
+  await assertSucceeds(bobRequestRef.set({
+    userId: BOB_UID,
+    hostId: ALICE_UID,
+    username: "Bob",
+    avatarUrl: "",
+    vipLevel: 0,
+    preferredSeatIndex: 1,
+    status: "PENDING",
+    createdAt: pastDate(),
+    updatedAt: pastDate(),
+  }));
+  await assertSucceeds(roomRef.collection("speaker_requests").doc(BOB_UID).update({
+    status: "INVITED",
+    preferredSeatIndex: 1,
+    updatedAt: pastDate(),
+  }));
+  const acceptSeatBatch = bobDb.batch();
+  acceptSeatBatch.update(bobRequestRef, { status: "ACCEPTED", updatedAt: pastDate() });
+  acceptSeatBatch.update(roomRef.collection("seats").doc("1"), {
+    occupantId: BOB_UID,
+    occupantName: "Bob",
+    occupantAvatarUrl: "",
+    occupantVipLevel: 0,
+    occupantGender: "UNSPECIFIED",
+    muted: false,
+    speaking: false,
+    updatedAt: pastDate(),
+  });
+  acceptSeatBatch.delete(roomRef.collection("listeners").doc(BOB_UID));
+  acceptSeatBatch.update(roomRef, {
+    listenerCount: 0,
+    activeSpeakersCount: 2,
+    updatedAt: pastDate(),
+  });
+  await assertSucceeds(acceptSeatBatch.commit());
 
   // Safe ownership transfer from Alice to Bob (seated in seat 1)
   const transferBatch = aliceDb.batch();
@@ -394,17 +415,18 @@ test("Room chat, speaker requests, virtual gift batch, and filtered repository q
     })
   );
 
-  // Host approves request
+  // Host sends a seat invitation; Bob has not accepted it yet.
   await assertSucceeds(
     aliceDb.collection("rooms").doc("room_1").collection("speaker_requests").doc(BOB_UID).update({
-      status: "APPROVED",
+      status: "INVITED",
+      preferredSeatIndex: 1,
       updatedAt: pastDate(),
     })
   );
 
   // A room session is refreshed on every join and limits chat visibility.
   const roomRef = bobDb.collection("rooms").doc("room_1");
-  const joinedAt = pastDate(5000);
+  const sessionRef = roomRef.collection("room_sessions").doc(BOB_UID);
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     await ctx.firestore().collection("rooms").doc("room_1").collection("messages").doc("old_msg").set({
       senderId: ALICE_UID,
@@ -415,11 +437,13 @@ test("Room chat, speaker requests, virtual gift batch, and filtered repository q
     });
   });
   await assertSucceeds(
-    roomRef.collection("room_sessions").doc(BOB_UID).set({
+    sessionRef.set({
       userId: BOB_UID,
-      joinedAt,
+      joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
     })
   );
+  const sessionSnapshot = await sessionRef.get();
+  const joinedAt = sessionSnapshot.get("joinedAt");
 
   // Bob sends a room chat message after joining.
   await assertSucceeds(
@@ -429,7 +453,7 @@ test("Room chat, speaker requests, virtual gift batch, and filtered repository q
       senderVipLevel: 0,
       text: "Great room!",
       type: "TEXT",
-      createdAt: pastDate(1000),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     })
   );
   const visibleRoomMessages = await assertSucceeds(
@@ -568,7 +592,7 @@ test("Private 1-to-1 conversations, images, notifications, and unfiltered query 
   await assertFails(aliceDb.collection("reports").get());
 });
 
-test("Admin bootstrap email requires email_verified=true and blocks spoofing", async () => {
+test("Hard-coded admin UID blocks spoofing and permits admin actions", async () => {
   const spoofedAdminDb = testEnv
     .authenticatedContext("spoof_uid", { email: ADMIN_EMAIL, email_verified: false })
     .firestore();
@@ -594,6 +618,7 @@ test("Admin bootstrap email requires email_verified=true and blocks spoofing", a
     realAdminDb.collection("users").doc(BOB_UID).update({
       accountStatus: "SUSPENDED",
       vipLevel: 3,
+      vipExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       coinBalance: 2000,
       updatedAt: pastDate(),
     })
@@ -637,7 +662,7 @@ test("Speaker requests: prevent duplicates, allow cancel, support reject/re-requ
     tags: ["Music"],
     listenerCount: 2,
     activeSpeakersCount: 1,
-    locked: true,
+    locked: false,
     hasPassword: false,
     passcodeHash: "",
     status: "LIVE",
@@ -749,27 +774,35 @@ test("Speaker requests: prevent duplicates, allow cancel, support reject/re-requ
     })
   );
 
-  // 7. Host Alice approves Bob's request and assigns Bob to Seat 2
-  const approveBatch = aliceDb.batch();
-  approveBatch.update(roomRef.collection("seats").doc("2"), {
+  // 7. Host invites Bob to Seat 2; Bob accepts and joins in one transaction.
+  await assertSucceeds(
+    aliceDb.collection("rooms").doc("room_seats_tx").collection("speaker_requests").doc(BOB_UID).update({
+      status: "INVITED",
+      preferredSeatIndex: 2,
+      updatedAt: pastDate(),
+    })
+  );
+  const acceptBatch = bobDb.batch();
+  acceptBatch.update(roomRef.collection("seats").doc("2"), {
     occupantId: BOB_UID,
     occupantName: "Bob",
     occupantAvatarUrl: "",
     occupantVipLevel: 0,
+    occupantGender: "UNSPECIFIED",
     muted: false,
     speaking: false,
     updatedAt: pastDate(),
   });
-  approveBatch.update(roomRef.collection("speaker_requests").doc(BOB_UID), {
-    status: "APPROVED",
+  acceptBatch.update(roomRef.collection("speaker_requests").doc(BOB_UID), {
+    status: "ACCEPTED",
     updatedAt: pastDate(),
   });
-  approveBatch.update(roomRef, {
+  acceptBatch.update(roomRef, {
     activeSpeakersCount: 2,
-    listenerCount: 1,
+    listenerCount: 2,
     updatedAt: pastDate(),
   });
-  await assertSucceeds(approveBatch.commit());
+  await assertSucceeds(acceptBatch.commit());
 
   // 8. Prevent two users occupying Seat 2 (even Host cannot overwrite occupied Seat 2 without vacating first)
   await assertFails(

@@ -202,7 +202,12 @@ class VibePlayViewModel(
         viewModelScope.launch {
             firebaseUser?.let { user ->
                 userRepository.ensureCurrentUserProfile(user)
-                    .onSuccess {
+                    .onSuccess { profile ->
+                        // Existing accounts can remain marked offline after a previous sign-out.
+                        // Restore presence after successful profile initialization on app launch.
+                        if (profile.accountStatus == "ACTIVE") {
+                            userRepository.setOnlineStatus(true)
+                        }
                         roomRepository.syncExistingRoomCreationLock(user.uid)
                     }
                     .onFailure { error ->

@@ -395,7 +395,7 @@ class UserRepository(
         return try {
             val uid = requireUserId()
             check(uid == profile.userId)
-            val today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")).toString()
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("Asia/Kolkata") }.format(Date())
             val userRef = db.collection("users").document(uid)
 
             db.runTransaction { tx ->

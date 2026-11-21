@@ -65,6 +65,7 @@ import com.example.data.model.FollowEdge
 import com.example.data.model.GiftTransaction
 import com.example.data.model.LevelProgression
 import com.example.data.model.UserProfile
+import com.example.data.model.VibeShopCatalog
 import com.example.ui.components.BackendIntegrationGuideSheet
 import com.example.ui.components.BiologicalGenderBadge
 import com.example.ui.components.LevelBadge
@@ -96,7 +97,8 @@ fun ProfileScreen(
     onUnblockUser: (String) -> Unit,
     onOpenNotifications: () -> Unit,
     onOpenAdminPanel: () -> Unit,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    onOpenShop: () -> Unit = {}
 ) {
     val clipboardManager = LocalClipboardManager.current
     var showEditSheet by remember { mutableStateOf(false) }
@@ -166,7 +168,8 @@ fun ProfileScreen(
                         username = profile.username,
                         size = 86.dp,
                         vipLevel = profile.vipLevel,
-                        online = profile.online && profile.showOnlineStatus
+                        online = profile.online && profile.showOnlineStatus,
+                        frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == profile.activeFrameId }?.colorArgb
                     )
                     OutlinedButton(
                         onClick = { showEditSheet = true },
@@ -196,6 +199,21 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
+                    VibeShopCatalog.titles.firstOrNull { it.id == profile.activeTitleId }?.let { title ->
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(title.colorArgb).copy(alpha = 0.18f),
+                            border = BorderStroke(1.dp, Color(title.colorArgb).copy(alpha = 0.75f))
+                        ) {
+                            Text(
+                                text = title.title,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color(title.colorArgb),
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
                     if (profile.userId == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
@@ -476,6 +494,14 @@ fun ProfileScreen(
                         )
                     }
                 }
+
+                ProfileActionRow(
+                    icon = Icons.Filled.AutoAwesome,
+                    title = "VibePlay Shop",
+                    subtitle = "Buy VIP, premium frames and profile titles with coins",
+                    accentTint = VibeGold,
+                    onClick = onOpenShop
+                )
 
                 ProfileActionRow(
                     icon = Icons.Filled.CloudQueue,

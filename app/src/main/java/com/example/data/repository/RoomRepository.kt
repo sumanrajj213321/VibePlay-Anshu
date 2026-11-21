@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
@@ -64,43 +65,36 @@ class RoomRepository(
     }
 
     fun observeLiveRooms(): Flow<List<VoiceRoom>> =
-        db.collection("rooms")
-            .whereEqualTo("status", "LIVE")
-            .snapshots()
-            .map { snapshot ->
-                snapshot.toObjects(VoiceRoom::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
-            }
+        db.collection("rooms").whereEqualTo("status", "LIVE").snapshots()
+            .map { it.toObjects(VoiceRoom::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE) }
             .flatMapLatest { rooms ->
-                if (rooms.isEmpty()) {
-                    flowOf(emptyList())
-                } else {
+                if (rooms.isEmpty()) flowOf(emptyList())
+                else {
                     val onlineUsersFlow = db.collection("users")
-                        .whereEqualTo("accountStatus", "ACTIVE")
-                        .whereEqualTo("online", true)
-                        .snapshots()
-                        .map { users -> users.documents.map { it.id }.toSet() }
+                        .whereEqualTo("accountStatus", "ACTIVE").whereEqualTo("online", true)
+                        .snapshots().map { users -> users.documents.map { it.id }.toSet() }
+                        .onStart { emit(emptySet()) }
                     val roomCountFlows = rooms.map { room ->
                         val roomRef = db.collection("rooms").document(room.id)
                         val sessionsFlow = roomRef.collection("room_sessions").snapshots()
-                            .map { sessions -> sessions.documents.map { it.id }.toSet() }
+                            .map { it.documents.map { doc -> doc.id }.toSet() }
+                            .onStart { emit(emptySet()) }
                         val seatsFlow = roomRef.collection("seats").snapshots()
-                            .map { seats -> seats.documents.mapNotNull { it.getString("occupantId") }.filter { it.isNotBlank() }.toSet() }
-                        combine(sessionsFlow, seatsFlow, onlineUsersFlow) { sessionIds, seatedIds, onlineUserIds ->
-                            // A stored session/seat alone is not proof that the user is currently online.
-                            val activeSessionIds = sessionIds.intersect(onlineUserIds)
-                            val activeSeatedIds = seatedIds.intersect(activeSessionIds)
-                            val speakerCount = activeSeatedIds.size.toLong()
-                            val listenerCount = (activeSessionIds - activeSeatedIds).size.toLong()
+                            .map { snap -> snap.documents.mapNotNull { it.getString("occupantId") }.filter { it.isNotBlank() }.toSet() }
+                            .onStart { emit(emptySet()) }
+                        combine(sessionsFlow, seatsFlow, onlineUsersFlow) { sessionIds, seatedIds, onlineIds ->
+                            val activeSessions = sessionIds.intersect(onlineIds)
+                            val activeSeats = seatedIds.intersect(activeSessions)
                             room.copy(
-                                listenerCount = listenerCount,
-                                activeSpeakersCount = speakerCount
+                                listenerCount = (activeSessions - activeSeats).size.toLong(),
+                                activeSpeakersCount = activeSeats.size.toLong()
                             )
                         }
                     }
-                    combine(roomCountFlows) { updatedRooms ->
-                        updatedRooms.toList().sortedByDescending {
-                            (if (it.featured) 100000L else 0L) + it.listenerCount + it.activeSpeakersCount
-                        }
+                    combine(roomCountFlows) { updated ->
+                        updated.toList().sortedByDescending { (if (it.featured) 100000L else 0L) + it.listenerCount + it.activeSpeakersCount }
+                    }.onStart {
+                        emit(rooms.sortedByDescending { (if (it.featured) 100000L else 0L) + it.listenerCount + it.activeSpeakersCount })
                     }
                 }
             }
@@ -258,6 +252,13 @@ class RoomRepository(
             .map { snapshot ->
                 snapshot.toObjects(GiftCatalogItem::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
                     .sortedBy { it.coinCost }
+            }
+
+    fun observeRoomGiftTransactions(roomId: String): Flow<List<GiftTransaction>> =
+        db.collection("gift_transactions").whereEqualTo("roomId", roomId).snapshots()
+            .map { snapshot ->
+                snapshot.toObjects(GiftTransaction::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+                    .sortedByDescending { it.createdAt?.seconds ?: 0L }
             }
 
     fun observeGiftHistory(userId: String): Flow<List<GiftTransaction>> =

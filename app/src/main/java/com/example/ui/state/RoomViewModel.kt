@@ -9,6 +9,7 @@ import com.example.data.livekit.LiveKitVoiceEngine
 import com.example.data.livekit.VoiceConnectionState
 import com.example.data.model.GiftBurstEvent
 import com.example.data.model.GiftCatalogItem
+import com.example.data.model.GiftTransaction
 import com.example.data.model.RoomListener
 import com.example.data.model.RoomMessage
 import com.example.data.model.RoomOnlineMember
@@ -74,6 +75,9 @@ class RoomViewModel(
         currentRoom?.let { VoiceStage.buildStrictNineSeatStage(it, seats) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
+    private val _roomGiftTransactions = MutableStateFlow<List<GiftTransaction>>(emptyList())
+    val roomGiftTransactions: StateFlow<List<GiftTransaction>> = _roomGiftTransactions.asStateFlow()
+
     private val _messages = MutableStateFlow<List<RoomMessage>>(emptyList())
     val messages: StateFlow<List<RoomMessage>> = _messages.asStateFlow()
 
@@ -101,6 +105,7 @@ class RoomViewModel(
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
+    private var roomGiftTransactionsJob: Job? = null
     private var roomMessagesJob: Job? = null
     private var roomJoinJob: Job? = null
     private var joinedListenerDone = false
@@ -182,6 +187,15 @@ class RoomViewModel(
             roomRepository.joinAsListener(loadedRoom, currentUser)
                 .onSuccess {
                     joinedListenerDone = true
+                    roomGiftTransactionsJob?.cancel()
+                    roomGiftTransactionsJob = launch {
+                        roomRepository.observeRoomGiftTransactions(roomId)
+                            .catch { error ->
+                                Log.w(TAG, "Room gift rankings stream failed", unwrapFirestoreError(error))
+                                emit(emptyList())
+                            }
+                            .collect { _roomGiftTransactions.value = it }
+                    }
                     roomMessagesJob?.cancel()
                     roomMessagesJob = launch {
                         roomRepository.observeRoomMessages(roomId)
@@ -409,6 +423,9 @@ class RoomViewModel(
         voiceEngine.disconnect()
         roomMessagesJob?.cancel()
         roomMessagesJob = null
+        roomGiftTransactionsJob?.cancel()
+        roomGiftTransactionsJob = null
+        _roomGiftTransactions.value = emptyList()
         _messages.value = emptyList()
         _giftBurst.value = null
 

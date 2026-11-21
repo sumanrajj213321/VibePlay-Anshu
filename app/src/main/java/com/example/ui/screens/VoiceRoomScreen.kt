@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -81,6 +82,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -93,6 +95,7 @@ import coil.compose.AsyncImage
 import com.example.data.livekit.VoiceConnectionState
 import com.example.data.model.GiftBurstEvent
 import com.example.data.model.GiftCatalogItem
+import com.example.data.model.GiftTransaction
 import com.example.data.model.RoomListener
 import com.example.data.model.RoomMessage
 import com.example.data.model.RoomOnlineMember
@@ -116,6 +119,8 @@ import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
 import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.TimeZone
 
 @Composable
 fun VoiceRoomScreen(
@@ -135,6 +140,7 @@ fun VoiceRoomScreen(
     val room by roomViewModel.room.collectAsStateWithLifecycle()
     val stage by roomViewModel.voiceStage.collectAsStateWithLifecycle()
     val messages by roomViewModel.messages.collectAsStateWithLifecycle()
+    val roomGiftTransactions by roomViewModel.roomGiftTransactions.collectAsStateWithLifecycle()
     val listeners by roomViewModel.listeners.collectAsStateWithLifecycle()
     val onlineUsers by roomViewModel.onlineUsers.collectAsStateWithLifecycle()
     val mySeatInvitation by roomViewModel.mySeatInvitation.collectAsStateWithLifecycle()
@@ -175,6 +181,7 @@ fun VoiceRoomScreen(
         currentStage = currentStage,
         currentUser = currentUser,
         messages = messages,
+        giftTransactions = roomGiftTransactions,
         listeners = listeners,
         onlineUsers = onlineUsers,
         voiceConnection = voiceConnection,
@@ -243,6 +250,7 @@ internal fun VoiceRoomStageContent(
     currentStage: VoiceStage,
     currentUser: UserProfile,
     messages: List<RoomMessage>,
+    giftTransactions: List<GiftTransaction> = emptyList(),
     listeners: List<RoomListener>,
     onlineUsers: List<RoomOnlineMember> = emptyList(),
     voiceConnection: VoiceConnectionState,
@@ -662,6 +670,8 @@ internal fun VoiceRoomStageContent(
                         }
                     }
                 }
+
+                RoomGiftRankingStrip(giftTransactions, onOpenUserProfile)
 
                 // 2. Honest LiveKit Connection Status Banner + Announcement
                 LiveKitStatusPill(
@@ -1289,6 +1299,133 @@ private fun SpeakerSeatTile(
                 maxLines = 1
             )
 
+        }
+    }
+}
+
+
+private data class RoomGiftRankingEntry(val userId: String, val username: String, val coins: Long)
+
+private fun aggregateRoomGiftRanks(
+    transactions: List<GiftTransaction>,
+    receivers: Boolean,
+    cutoffMillis: Long
+): List<RoomGiftRankingEntry> = transactions
+    .filter { (it.createdAt?.toDate()?.time ?: 0L) >= cutoffMillis }
+    .groupBy { if (receivers) it.recipientId else it.senderId }
+    .mapNotNull { (userId, rows) ->
+        if (userId.isBlank()) null else {
+            val first = rows.first()
+            RoomGiftRankingEntry(
+                userId,
+                (if (receivers) first.recipientName else first.senderName).ifBlank { "Vibe User" },
+                rows.sumOf { it.coinCost.coerceAtLeast(0L) }
+            )
+        }
+    }
+    .sortedByDescending { it.coins }
+    .take(10)
+
+@Composable
+private fun RoomGiftRankingStrip(
+    transactions: List<GiftTransaction>,
+    onOpenUserProfile: ((String) -> Unit)?
+) {
+    var showRanking by remember { mutableStateOf(false) }
+    var selectedType by remember { mutableStateOf(0) }
+    var selectedPeriod by remember { mutableStateOf(2) }
+    val timezone = remember { TimeZone.getTimeZone("Asia/Kolkata") }
+    val cutoffMillis = remember(selectedPeriod) {
+        when (selectedPeriod) {
+            0 -> Calendar.getInstance(timezone).apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            1 -> Calendar.getInstance(timezone).apply {
+                firstDayOfWeek = Calendar.MONDAY
+                set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            else -> 0L
+        }
+    }
+    val topGifter = remember(transactions) { aggregateRoomGiftRanks(transactions, false, 0L).firstOrNull() }
+    val topReceiver = remember(transactions) { aggregateRoomGiftRanks(transactions, true, 0L).firstOrNull() }
+    val ranking = remember(transactions, selectedType, cutoffMillis) {
+        aggregateRoomGiftRanks(transactions, selectedType == 1, cutoffMillis)
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable { showRanking = true }.testTag("room_gift_rankings_entry"),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f),
+        border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.35f))
+    ) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("🏆", style = MaterialTheme.typography.titleMedium)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Room Gift Rankings", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    "Gifter: ${topGifter?.username ?: "—"}  ·  Receiver: ${topReceiver?.username ?: "—"}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Text("View ›", style = MaterialTheme.typography.labelMedium, color = VibeGold, fontWeight = FontWeight.Bold)
+        }
+    }
+
+    if (showRanking) Dialog(onDismissRequest = { showRanking = false }) {
+        Surface(
+            Modifier.fillMaxWidth(0.96f),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.5f))
+        ) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Room Gift Rankings", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    TextButton(onClick = { showRanking = false }) { Text("Close") }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Top Gifters", "Top Receivers").forEachIndexed { index, label ->
+                        Surface(
+                            Modifier.weight(1f).clickable { selectedType = index },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (selectedType == index) VibeViolet.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Text(label, Modifier.padding(vertical = 9.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    listOf("Daily", "Weekly", "Total").forEachIndexed { index, label ->
+                        TextButton(onClick = { selectedPeriod = index }) {
+                            Text(label, color = if (selectedPeriod == index) VibeGold else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = if (selectedPeriod == index) FontWeight.Bold else FontWeight.Normal)
+                        }
+                    }
+                }
+                if (ranking.isEmpty()) {
+                    Text("No room gifts for this period yet.", Modifier.fillMaxWidth().padding(vertical = 22.dp), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        itemsIndexed(ranking, key = { _, row -> row.userId }) { index, row ->
+                            Surface(
+                                Modifier.fillMaxWidth().clickable { onOpenUserProfile?.invoke(row.userId); showRanking = false },
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                            ) {
+                                Row(Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Text("#${index + 1}", color = if (index == 0) VibeGold else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                                    Text(row.username, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
+                                    Text("%,d coins".format(row.coins), color = VibeGold, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

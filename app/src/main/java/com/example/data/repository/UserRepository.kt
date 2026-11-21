@@ -342,9 +342,9 @@ class UserRepository(
                     "showGender" to showGender,
                     "showOnlineStatus" to showOnlineStatus,
                     "genderChangeCount" to if (oldGender == gender) genderChanges else genderChanges + 1L,
-                if (showOnlineStatus) updates["online"] = true
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
+                if (showOnlineStatus) updates["online"] = true
                 if (oldGender != gender) updates["gender"] = gender
                 transaction.update(profileRef, updates)
             }.await()

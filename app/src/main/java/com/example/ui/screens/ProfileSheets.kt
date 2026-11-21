@@ -924,100 +924,75 @@ fun PublicProfileSheet(
                     )
                 }
             }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 VibeAvatar(
                     avatarUrl = targetUser.avatarUrl,
                     username = targetUser.username,
-                    size = 86.dp,
+                    size = 78.dp,
                     vipLevel = if (targetUser.isVipActive) targetUser.vipLevel else 0L,
                     online = targetUser.online && targetUser.showOnlineStatus,
                     frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == targetUser.activeFrameId && targetUser.isFrameActive(it.id) }?.colorArgb
                 )
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(targetUser.username, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(targetUser.username, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (targetUser.userId == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
                             Surface(
                                 shape = RoundedCornerShape(9.dp),
                                 color = Color(0xFF080807),
-                                border = BorderStroke(
-                                    1.2.dp,
-                                    androidx.compose.ui.graphics.Brush.linearGradient(
-                                        listOf(Color(0xFF8A641F), Color(0xFFFFE6A0), Color(0xFF9C711F))
-                                    )
-                                ),
+                                border = BorderStroke(1.2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF8A641F), Color(0xFFFFE6A0), Color(0xFF9C711F)))),
                                 shadowElevation = 5.dp
                             ) {
-                                Text(
-                                    text = "★ VibePlay Official ★",
-                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color(0xFFFFD76A),
-                                    fontWeight = FontWeight.ExtraBold
-                                )
+                                Text("★ VibePlay Official ★", Modifier.padding(horizontal = 7.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = Color(0xFFFFD76A), fontWeight = FontWeight.ExtraBold, maxLines = 1)
                             }
                         }
-                        BiologicalGenderBadge(
-                            gender = targetUser.gender,
-                            showGender = targetUser.showGender,
-                            compact = true
-                        )
-                        if (targetUser.isVipActive) VipBadgePill(targetUser.vipLevel)
+                        BiologicalGenderBadge(gender = targetUser.gender, showGender = targetUser.showGender, compact = true)
                     }
-                    targetUser.equippedTitleIds.forEach { titleId ->
-                        VibeShopCatalog.titles.firstOrNull { it.id == titleId }?.let { title ->
-                            Surface(
-                                shape = RoundedCornerShape(9.dp),
-                                color = Color(title.colorArgb).copy(alpha = 0.16f),
-                                border = BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(title.colorArgb).copy(alpha = 0.95f), Color.White.copy(alpha = 0.48f), Color(title.colorArgb).copy(alpha = 0.78f)))),
-                                shadowElevation = 2.dp
-                            ) {
-                                Text(text = title.title.uppercase(), modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), style = MaterialTheme.typography.labelMedium, color = Color(title.colorArgb), fontWeight = FontWeight.ExtraBold)
+                    if (targetUser.isVipActive) Row(Modifier.fillMaxWidth()) { VipBadgePill(targetUser.vipLevel) }
+                    targetUser.equippedTitleIds.chunked(2).forEach { titleRow ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            titleRow.forEach { titleId ->
+                                VibeShopCatalog.titles.firstOrNull { it.id == titleId }?.let { title ->
+                                    Surface(
+                                        Modifier.weight(1f),
+                                        shape = RoundedCornerShape(9.dp),
+                                        color = Color(title.colorArgb).copy(alpha = 0.16f),
+                                        border = BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(title.colorArgb).copy(alpha = 0.95f), Color.White.copy(alpha = 0.48f), Color(title.colorArgb).copy(alpha = 0.78f)))),
+                                        shadowElevation = 2.dp
+                                    ) {
+                                        Text(title.title.uppercase(), Modifier.padding(horizontal = 5.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall, color = Color(title.colorArgb), fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                }
                             }
+                            if (titleRow.size == 1) Spacer(Modifier.weight(1f))
                         }
                     }
                     val ageSuffix = if (targetUser.showAge && targetUser.formattedAge != null) " · ${targetUser.formattedAge}" else ""
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(9.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
                         Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(14.dp),
+                            Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
                             color = VibeCyan.copy(alpha = 0.09f),
                             border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.42f))
                         ) {
-                            Text(
-                                text = "ID-${targetUser.vibeId}$ageSuffix",
-                                modifier = Modifier
-                                    .padding(horizontal = 10.dp, vertical = 10.dp)
-                                    .testTag("public_profile_id_age"),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Text("ID-${targetUser.vibeId}$ageSuffix", Modifier.padding(horizontal = 8.dp, vertical = 8.dp).testTag("public_profile_id_age"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(13.dp),
+                            Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
                             color = VibeGold.copy(alpha = 0.13f),
                             border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.65f))
                         ) {
-                            Text(
-                                text = "Level ${targetUser.level}",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = VibeGold,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1
-                            )
+                            Text("Level ${targetUser.level}", Modifier.padding(horizontal = 8.dp, vertical = 8.dp), style = MaterialTheme.typography.labelSmall, color = VibeGold, fontWeight = FontWeight.Bold, maxLines = 1)
                         }
+                    }
+                    Surface(
+                        Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = VibePink.copy(alpha = 0.10f),
+                        border = BorderStroke(1.dp, VibePink.copy(alpha = 0.35f))
+                    ) {
+                        Text("🎁 ${targetUser.totalGiftsReceived} Total Gifts", Modifier.padding(horizontal = 10.dp, vertical = 8.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1059,17 +1034,6 @@ fun PublicProfileSheet(
                     ) {
                         Text("${targetUser.followingCount}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text("Following", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            "${targetUser.totalGiftCoinsReceived}",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text("Total Gifts", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

@@ -781,8 +781,16 @@ service cloud.firestore {
     }
 
     match /gift_transactions/{txId} {
-      allow get: if isSignedIn() && isValidId(txId) && (request.auth.uid in existing().participantIds);
-      allow list: if isSignedIn() && (request.auth.uid in existing().participantIds);
+      allow get: if isSignedIn() && isValidId(txId) && (
+        request.auth.uid in existing().participantIds ||
+        (existing().roomId is string &&
+         exists(/databases/$(database)/documents/rooms/$(existing().roomId)/room_sessions/$(request.auth.uid)))
+      );
+      allow list: if isSignedIn() && (
+        request.auth.uid in existing().participantIds ||
+        (existing().roomId is string &&
+         exists(/databases/$(database)/documents/rooms/$(existing().roomId)/room_sessions/$(request.auth.uid)))
+      );
       allow create: if isSignedIn() && isValidId(txId) &&
                        incoming().senderId == request.auth.uid &&
                        request.auth.uid in incoming().participantIds &&

@@ -510,6 +510,35 @@ class RoomRepository(
         }
     }
 
+    suspend fun cleanupCurrentUserPresenceInLiveRooms(): Result<Unit> {
+        return try {
+            val uid = requireUserId()
+            val liveRooms = db.collection("rooms")
+                .whereEqualTo("status", "LIVE")
+                .get()
+                .await()
+
+            for (roomDoc in liveRooms.documents) {
+                val room = roomDoc.toObject(VoiceRoom::class.java) ?: continue
+                val roomRef = roomDoc.reference
+                val listenerExists = roomRef.collection("listeners").document(uid).get().await().exists()
+                val sessionExists = roomRef.collection("room_sessions").document(uid).get().await().exists()
+                val seats = roomRef.collection("seats").get().await()
+                val occupiesSeat = seats.documents.any { it.getString("occupantId") == uid }
+                val isOnlineOwner = room.isOwner(uid) && room.effectiveOwnerOnline
+
+                if (listenerExists || sessionExists || occupiesSeat || isOnlineOwner) {
+                    leaveRoom(room, uid, emptyList()).getOrThrow()
+                }
+            }
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun leaveRoom(room: VoiceRoom, userId: String, currentSeats: List<VoiceSeat>): Result<Unit> {
         val path = "rooms/${room.id}"
         return try {

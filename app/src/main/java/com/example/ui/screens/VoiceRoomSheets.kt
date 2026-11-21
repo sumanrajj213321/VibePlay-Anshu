@@ -983,7 +983,7 @@ fun InviteSpeakerSheet(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Assign a room listener, invite someone you follow, or approve a pending speak request.",
+                        text = "Invite a room listener or someone you follow to this seat. They must accept before being seated, or approve a pending speak request.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1181,7 +1181,7 @@ fun InviteSpeakerSheet(
                             ) {
                                 Icon(Icons.Filled.PersonAdd, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Seat $targetSeatIndex")
+                                Text("Invite")
                             }
                         }
                     }

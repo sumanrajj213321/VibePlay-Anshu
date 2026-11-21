@@ -1443,6 +1443,7 @@ class RoomRepository(
         title: String,
         announcement: String,
         category: String? = null,
+        coverKey: String,
         locked: Boolean,
         newRawPassword: String?
     ): Result<Unit> {
@@ -1455,6 +1456,7 @@ class RoomRepository(
                 "title" to cleanTitle,
                 "announcement" to announcement.trim().take(200),
                 "locked" to locked,
+                "coverKey" to coverKey,
                 "updatedAt" to FieldValue.serverTimestamp()
             )
             if (!category.isNullOrBlank()) {

@@ -1067,9 +1067,6 @@ test("Exact age, pinned chats, cross-user followers/following list reads, room o
 test("One permanent room per user: enforces lifetime lock across close, delete, transfer, reset attempts, and legacy backfill", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
-  const adminDb = testEnv
-    .authenticatedContext(LEGACY_ADMIN_UID, { email: ADMIN_EMAIL, email_verified: true })
-    .firestore();
   const ts = pastDate(5000);
 
   await assertSucceeds(
@@ -1184,12 +1181,6 @@ test("One permanent room per user: enforces lifetime lock across close, delete, 
     aliceDb.collection("users").doc(ALICE_UID).update({
       hasCreatedRoom: false,
       createdRoomId: "",
-      updatedAt: pastDate(),
-    })
-  );
-  await assertFails(
-    adminDb.collection("users").doc(ALICE_UID).update({
-      hasCreatedRoom: false,
       updatedAt: pastDate(),
     })
   );

@@ -1580,14 +1580,14 @@ class RoomRepository(
                 val liveSenderXp = senderSnap.getLong("xp") ?: sender.xp
                 require(liveCoins >= totalCost) { "Not enough coins for ${safeQty}x ${gift.name} ($totalCost needed)." }
 
-                val newSenderXp = liveSenderXp + (totalCost / 2L).coerceAtLeast(5L)
+                val newSenderXp = liveSenderXp + (totalCost / 5L)
                 tx.update(
                     senderRef,
                     mapOf(
                         "coinBalance" to (liveCoins - totalCost),
                         "totalGiftsSent" to (liveSent + safeQty),
                         "xp" to newSenderXp,
-                        "level" to (1L + newSenderXp / 500L),
+                        "level" to LevelProgression.levelForXp(newSenderXp),
                         "updatedAt" to FieldValue.serverTimestamp()
                     )
                 )
@@ -1595,13 +1595,13 @@ class RoomRepository(
                 if (recipientSnap != null && recipientSnap.exists()) {
                     val recReceived = recipientSnap.getLong("totalGiftsReceived") ?: 0L
                     val recXp = recipientSnap.getLong("xp") ?: 0L
-                    val updatedRecXp = recXp + totalCost
+                    val updatedRecXp = recXp + (totalCost / 5L)
                     tx.update(
                         recipientRef,
                         mapOf(
                             "totalGiftsReceived" to (recReceived + safeQty),
                             "xp" to updatedRecXp,
-                            "level" to (1L + updatedRecXp / 500L),
+                            "level" to LevelProgression.levelForXp(updatedRecXp),
                             "updatedAt" to FieldValue.serverTimestamp()
                         )
                     )

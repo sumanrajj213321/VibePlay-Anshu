@@ -49,8 +49,6 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.WorkspacePremium
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -300,10 +298,6 @@ internal fun VoiceRoomStageContent(
     }
     var showSetupGuide by remember { mutableStateOf(false) }
     var inviteTargetSeatIndex by remember { mutableStateOf<Int?>(null) }
-    var showInvitationDialog by remember { mutableStateOf(false) }
-    LaunchedEffect(myPendingRequest?.id, myPendingRequest?.status) {
-        if (myPendingRequest?.status == "INVITED") showInvitationDialog = true
-    }
     var activeSeatDialog by remember { mutableStateOf<VoiceSeat?>(null) }
     var reportTarget by remember { mutableStateOf<Triple<String, String, String>?>(null) }
 
@@ -741,10 +735,8 @@ internal fun VoiceRoomStageContent(
                                     horizontalArrangement = Arrangement.SpaceEvenly
                                 ) {
                                     rowSeats.forEach { seat ->
-                                        val isPendingForSeat = false
                                         SpeakerSeatTile(
                                             seat = seat,
-                                            isPendingForSeat = isPendingForSeat,
                                             isRoomAdmin = seat.isOccupied && currentRoom.isRoomAdmin(seat.occupantId),
                                             modifier = Modifier.weight(1f),
                                             onClick = {
@@ -923,18 +915,6 @@ internal fun VoiceRoomStageContent(
                     }
                 },
                 onDismiss = { inviteTargetSeatIndex = null }
-            )
-        }
-    }
-
-    if (showInvitationDialog) {
-        myPendingRequest?.takeIf { it.status == "INVITED" }?.let { invitation ->
-            PendingRequestStatusDialog(
-                request = invitation,
-                onCancelRequest = {},
-                onAcceptInvitation = { onAcceptSeatInvitation(invitation) },
-                onRejectInvitation = { onRejectSeatInvitation(invitation) },
-                onDismiss = { showInvitationDialog = false }
             )
         }
     }
@@ -1194,7 +1174,6 @@ private fun HostSeatTile(
 @Composable
 private fun SpeakerSeatTile(
     seat: VoiceSeat,
-    isPendingForSeat: Boolean,
     isRoomAdmin: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -1251,35 +1230,18 @@ private fun SpeakerSeatTile(
                 modifier = Modifier.size(54.dp),
                 shape = CircleShape,
                 color = when {
-                    isPendingForSeat -> VibeGold.copy(alpha = 0.22f)
                     else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)
                 },
                 border = BorderStroke(
-                    width = if (isPendingForSeat) 2.dp else 1.dp,
-                    color = when {
-                        isPendingForSeat -> VibeGold
-                        seat.seatLocked -> VibePink.copy(alpha = 0.55f)
-                        else -> VibeCyan.copy(alpha = 0.55f)
-                    }
+                    width = 1.dp,
+                    color = if (seat.seatLocked) VibePink.copy(alpha = 0.55f) else VibeCyan.copy(alpha = 0.55f)
                 )
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = when {
-                            isPendingForSeat -> Icons.Filled.PanTool
-                            seat.seatLocked -> Icons.Filled.Lock
-                            else -> Icons.Filled.Add
-                        },
-                        contentDescription = when {
-                            isPendingForSeat -> "Pending speak request for seat ${seat.seatIndex}"
-                            seat.seatLocked -> "Locked speaker seat ${seat.seatIndex}"
-                            else -> "Request or invite speaker for seat ${seat.seatIndex}"
-                        },
-                        tint = when {
-                            isPendingForSeat -> VibeGold
-                            seat.seatLocked -> VibePink
-                            else -> VibeCyan
-                        },
+                        imageVector = if (seat.seatLocked) Icons.Filled.Lock else Icons.Filled.Add,
+                        contentDescription = if (seat.seatLocked) "Locked speaker seat ${seat.seatIndex}" else "Open speaker seat ${seat.seatIndex} · Tap to join",
+                        tint = if (seat.seatLocked) VibePink else VibeCyan,
                         modifier = Modifier.size(22.dp)
                     )
                 }

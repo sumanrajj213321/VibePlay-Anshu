@@ -71,6 +71,7 @@ class UserRepository(
         if (!messageRef.get().await().exists()) {
             messageRef.set(mapOf(
                 "participantIds" to listOf(uid, botUid), "senderId" to botUid,
+                "recipientId" to uid,
                 "senderName" to botName, "senderAvatarUrl" to "", "type" to "SYSTEM",
                 "text" to "🎉 10 LAKH COINS WELCOME BONUS!\n\nCongratulations! 🥳 VibePlay ki taraf se aapke account mein 10,00,000 bonus coins add kiye gaye hain.\n\n❤️ Enjoy VibePlay, send gifts and have fun!\n\n— Team VibePlay",
                 "read" to false, "createdAt" to FieldValue.serverTimestamp()

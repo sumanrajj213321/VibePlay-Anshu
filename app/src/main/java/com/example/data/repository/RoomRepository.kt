@@ -1054,97 +1054,15 @@ class RoomRepository(
         avatarUrl: String,
         vipLevel: Long,
         gender: String = "UNSPECIFIED"
-    ): Result<Unit> {
-        val path = "rooms/${room.id}/seats/$seatIndex"
-        return try {
-            val uid = requireUserId()
-            check(room.isManager(uid)) { "Only the Room Owner or a Room Admin can assign users to seats." }
-            require(seatIndex in 1..VoiceStage.SPEAKER_SEAT_COUNT) {
-                "Speakers can only be assigned to seats 1..8."
-            }
-
-            val roomRef = db.collection("rooms").document(room.id)
-            val listenerRef = roomRef.collection("listeners").document(userId)
-            val reqRef = roomRef.collection("speaker_requests").document(userId)
-            val candidateUserRef = db.collection("users").document(userId)
-
-            db.runTransaction { tx ->
-                val roomSnap = tx.get(roomRef)
-                val seatSnaps = (0..VoiceStage.SPEAKER_SEAT_COUNT).map { idx ->
-                    tx.get(roomRef.collection("seats").document(idx.toString()))
-                }
-                val listenerSnap = tx.get(listenerRef)
-                val reqSnap = tx.get(reqRef)
-                val candidateSnap = if (gender == "UNSPECIFIED") tx.get(candidateUserRef) else null
-
-                val loadedRoom = roomSnap.toObject(VoiceRoom::class.java) ?: room
-                check(loadedRoom.isManager(uid)) { "Only the Room Owner or a Room Admin can assign users to seats." }
-
-                val resolvedGender = if (gender != "UNSPECIFIED") {
-                    gender
-                } else {
-                    candidateSnap?.getString("gender") ?: "UNSPECIFIED"
-                }
-
-                val seats = seatSnaps.mapNotNull { it.toObject(VoiceSeat::class.java) }
-                val stage = VoiceStage.buildStrictNineSeatStage(loadedRoom, seats)
-
-                VoiceStage.canAssignUserToSeat(
-                    room = loadedRoom,
-                    stage = stage,
-                    targetSeatIndex = seatIndex,
-                    candidateUserId = userId
-                ).getOrThrow()
-
-                tx.update(
-                    roomRef.collection("seats").document(seatIndex.toString()),
-                    mapOf(
-                        "occupantId" to userId,
-                        "occupantName" to username,
-                        "occupantAvatarUrl" to avatarUrl,
-                        "occupantVipLevel" to vipLevel,
-                        "occupantGender" to resolvedGender,
-                        "muted" to false,
-                        "speaking" to false,
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    )
-                )
-
-                var nextListenerCount = loadedRoom.listenerCount
-                if (listenerSnap.exists()) {
-                    tx.delete(listenerRef)
-                    nextListenerCount = (nextListenerCount - 1L).coerceAtLeast(0L)
-                }
-                if (reqSnap.exists() && reqSnap.getString("status") == "PENDING") {
-                    tx.update(
-                        reqRef,
-                        mapOf(
-                            "status" to "APPROVED",
-                            "updatedAt" to FieldValue.serverTimestamp()
-                        )
-                    )
-                }
-
-                val hostCount = if (loadedRoom.effectiveOwnerOnline) 1L else 0L
-                val nextActiveSpeakers = (hostCount + stage.speakerSeats.count { it.isOccupied } + 1L).coerceIn(1L, 9L)
-                tx.update(
-                    roomRef,
-                    mapOf(
-                        "listenerCount" to nextListenerCount,
-                        "activeSpeakersCount" to nextActiveSpeakers,
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    )
-                )
-
-            }.await()
-            Result.success(Unit)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.UPDATE, path)
-            Result.failure(e)
-        }
-    }
+    ): Result<Unit> = sendSeatInvitation(
+        room = room,
+        seatIndex = seatIndex,
+        userId = userId,
+        username = username,
+        avatarUrl = avatarUrl,
+        vipLevel = vipLevel,
+        gender = gender
+    )
 
     suspend fun vacateSpeakerSeat(roomId: String, seatIndex: Int, user: UserProfile): Result<Unit> {
         val path = "rooms/$roomId/seats/$seatIndex"

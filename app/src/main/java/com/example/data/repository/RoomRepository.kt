@@ -1226,18 +1226,31 @@ class RoomRepository(
     suspend fun toggleSeatLock(roomId: String, seatIndex: Int, locked: Boolean): Result<Unit> {
         val path = "rooms/$roomId/seats/$seatIndex"
         return try {
-            requireUserId()
+            val uid = requireUserId()
             require(seatIndex in 1..VoiceStage.SPEAKER_SEAT_COUNT) {
                 "Only regular speaker seats 1..8 can be locked."
             }
-            val seatRef = db.collection("rooms").document(roomId)
-                .collection("seats").document(seatIndex.toString())
-            seatRef.update(
-                mapOf(
-                    "seatLocked" to locked,
-                    "updatedAt" to FieldValue.serverTimestamp()
+            val roomRef = db.collection("rooms").document(roomId)
+            val seatRef = roomRef.collection("seats").document(seatIndex.toString())
+
+            // Check the current server-side room role in the same transaction as the seat update.
+            db.runTransaction { tx ->
+                val roomSnap = tx.get(roomRef)
+                val seatSnap = tx.get(seatRef)
+                val loadedRoom = roomSnap.toObject(VoiceRoom::class.java)
+                    ?: throw IllegalStateException("Room not found.")
+                check(loadedRoom.isManager(uid)) {
+                    "Only the Room Owner or a Room Admin can lock or unlock seats."
+                }
+                check(seatSnap.exists()) { "Seat $seatIndex was not found in this room." }
+                tx.update(
+                    seatRef,
+                    mapOf(
+                        "seatLocked" to locked,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
                 )
-            ).await()
+            }.await()
 
             // Verify the committed server value before reporting success to the room UI.
             val verifiedSeat = seatRef.get(Source.SERVER).await()

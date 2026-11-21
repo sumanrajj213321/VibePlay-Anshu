@@ -556,9 +556,120 @@ service cloud.firestore {
       // Signed-in users may check whether a deterministic conversation ID exists.
       // Existing conversations remain readable only by their participants.
       allow get: if isSignedIn() && isValidId(conversationId) && (
-                   isAdmin() ||
                    !exists(/databases/$(database)/documents/conversations/$(conversationId)) ||
-                   request.auth.uid in existing().participantIds
+                   request.auth.uid in existing().participantIds ||
+                   (isAdmin() && conversationId.matches('^bot_[A-Za-z0-9_\\-]+
+      allow list: if isSignedIn() && request.auth.uid in existing().participantIds;
+      allow create: if isSignedIn() && isValidId(conversationId) &&
+                       (request.auth.uid in incoming().participantIds ||
+                        (isAdmin() && 'VIBEPLAY_OFFICIAL_BOT' in incoming().participantIds && incoming().participantIds.size() == 2)) &&
+                       (!('conversationType' in incoming()) || incoming().conversationType == 'DIRECT' || incoming().ownerId == request.auth.uid) &&
+                       isValidConversation(incoming()) &&
+                       isValidTs(incoming().createdAt) &&
+                       isValidTs(incoming().updatedAt);
+      allow update: if isSignedIn() && isValidId(conversationId) &&
+                       request.auth.uid in existing().participantIds &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidConversation(incoming()) &&
+                       isValidTs(incoming().updatedAt) && (
+        (incoming().participantIds == existing().participantIds &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastSenderId', 'unreadBy', 'participantNames', 'participantAvatars', 'updatedAt'])) ||
+        (('conversationType' in existing() && existing().conversationType == 'GROUP') &&
+         (('ownerId' in existing() && existing().ownerId == request.auth.uid) ||
+          ('adminIds' in existing() && request.auth.uid in existing().adminIds)) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['groupName', 'groupAvatarUrl', 'participantIds', 'participantNames', 'participantAvatars', 'adminIds', 'ownerId', 'lastMessage', 'lastSenderId', 'unreadBy', 'updatedAt'])) ||
+        (('conversationType' in existing() && existing().conversationType == 'GROUP') &&
+         !(request.auth.uid in incoming().participantIds) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['participantIds', 'participantNames', 'participantAvatars', 'adminIds', 'ownerId', 'unreadBy', 'lastMessage', 'lastSenderId', 'updatedAt']))
+      );
+      allow delete: if isSignedIn() && isValidId(conversationId) && (('ownerId' in existing() && existing().ownerId == request.auth.uid) || (request.auth.uid in existing().participantIds && existing().participantIds.size() <= 1));
+
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(messageId) && (
+                     isAdmin() ||
+                     request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
+                   );
+        allow list: if isSignedIn() && (
+                      isAdmin() ||
+                      request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
+                    );
+        allow create: if isSignedIn() && isValidId(messageId) &&
+                         isValidDirectMessage(incoming()) &&
+                         isValidTs(incoming().createdAt) && (
+                           (request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                            incoming().senderId == request.auth.uid) ||
+                           (incoming().senderId == 'VIBEPLAY_OFFICIAL_BOT' &&
+                            incoming().type == 'SYSTEM' &&
+                            messageId == 'welcome_10_lakh_bonus' &&
+                            incoming().text == '🎉 10 LAKH COINS WELCOME BONUS!\n\nCongratulations! 🥳 VibePlay ki taraf se aapke account mein 10,00,000 bonus coins add kiye gaye hain.\n\n❤️ Enjoy VibePlay, send gifts and have fun!\n\n— Team VibePlay' &&
+                            ('VIBEPLAY_OFFICIAL_BOT' in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                             (isAdmin() ||
+                              request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds))
+                         );
+        allow update: if isSignedIn() && isValidId(messageId) &&
+                         request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                         isValidDirectMessage(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      }
+    }
+
+    match /gift_transactions/{txId} {
+      allow get: if isSignedIn() && isValidId(txId) && (request.auth.uid in existing().participantIds || isAdmin());
+      allow list: if isSignedIn() && (request.auth.uid in existing().participantIds || isAdmin());
+      allow create: if isSignedIn() && isValidId(txId) &&
+                       incoming().senderId == request.auth.uid &&
+                       request.auth.uid in incoming().participantIds &&
+                       isValidGiftTransaction(incoming()) &&
+                       isValidTs(incoming().createdAt);
+      allow update, delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isSignedIn() && isValidId(notificationId) && (existing().recipientId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().recipientId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(notificationId) &&
+                       incoming().senderId == request.auth.uid &&
+                       isValidNotification(incoming()) &&
+                       isValidTs(incoming().createdAt);
+      allow update: if isSignedIn() && isValidId(notificationId) &&
+                       existing().recipientId == request.auth.uid &&
+                       isValidNotification(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isSignedIn() && existing().recipientId == request.auth.uid;
+    }
+
+    match /reports/{reportId} {
+      allow get: if isSignedIn() && isValidId(reportId) && (existing().reporterId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().reporterId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(reportId) &&
+                       incoming().reporterId == request.auth.uid &&
+                       incoming().status == 'OPEN' &&
+                       isValidReport(incoming()) &&
+                       isValidTs(incoming().createdAt) &&
+                       isValidTs(incoming().updatedAt);
+      allow update: if isSignedIn() && isValidId(reportId) &&
+                       isAdmin() &&
+                       isValidReport(incoming()) &&
+                       incoming().reporterId == existing().reporterId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTs(incoming().updatedAt);
+      allow delete: if isAdmin();
+    }
+
+    match /gifts_catalog/{giftId} {
+      allow get: if isSignedIn() && isValidId(giftId) && (existing().active == true || isAdmin());
+      allow list: if isSignedIn() && (existing().active == true || isAdmin());
+      allow create, update: if isSignedIn() && isValidId(giftId) &&
+                               isAdmin() &&
+                               isValidGiftCatalogItem(incoming()) &&
+                               isValidTs(incoming().updatedAt);
+      allow delete: if isAdmin();
+    }
+  }
+}
+) &&
+                    'VIBEPLAY_OFFICIAL_BOT' in existing().participantIds &&
+                    existing().participantIds.size() == 2)
                  );
       allow list: if isSignedIn() && request.auth.uid in existing().participantIds;
       allow create: if isSignedIn() && isValidId(conversationId) &&

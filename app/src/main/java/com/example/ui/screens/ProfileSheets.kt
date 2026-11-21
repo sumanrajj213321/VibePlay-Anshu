@@ -843,6 +843,14 @@ private fun FollowEdgeRow(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+private fun formatPublicGiftCount(value: Long): String {
+    if (value < 1_000L) return value.toString()
+    val scaled = if (value >= 1_000_000L) value / 1_000_000.0 else value / 1_000.0
+    val suffix = if (value >= 1_000_000L) "M" else "K"
+    val digits = if (scaled >= 100.0 || scaled % 1.0 == 0.0) 0 else 1
+    return "%.${digits}f%s".format(java.util.Locale.US, scaled, suffix)
+}
+
 @Composable
 fun PublicProfileSheet(
     targetUser: UserProfile,
@@ -1010,7 +1018,14 @@ fun PublicProfileSheet(
                         color = VibePink.copy(alpha = 0.10f),
                         border = BorderStroke(1.dp, VibePink.copy(alpha = 0.35f))
                     ) {
-                        Text("🎁 ${targetUser.totalGiftsReceived} Total Gifts", Modifier.padding(horizontal = 10.dp, vertical = 8.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("🎁 GIFTING", style = MaterialTheme.typography.labelSmall, color = VibePink, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                            Text("${formatPublicGiftCount(targetUser.totalGiftsReceived)} TOTAL GIFTS", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold)
+                        }
                     }
                 }
             }

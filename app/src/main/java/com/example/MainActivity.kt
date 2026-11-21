@@ -566,6 +566,10 @@ private fun AuthenticatedVibePlayApp(
                                         onTogglePinConversation = { convId, pin ->
                                             viewModel.togglePinConversation(convId, pin)
                                         },
+                                        activeGifts = activeGifts,
+                                        onSendGift = { conv, gift, quantity ->
+                                            viewModel.sendInboxGift(conv, currentUser, gift, quantity)
+                                        },
                                         observeMessages = { convId -> viewModel.observeDirectMessages(convId) },
                                         onSendMessage = { conv, text, imageUri ->
                                             viewModel.sendDirectMessage(conv, currentUser, text, imageUri)

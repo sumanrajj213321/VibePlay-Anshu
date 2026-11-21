@@ -72,14 +72,22 @@ service cloud.firestore {
     }
 
     function hasValidEquippedTitles(data) {
-      return data.activeTitleIds is list &&
-             data.activeTitleIds.size() <= 4 &&
-             data.activeTitleIds.hasOnly(data.ownedTitleIds) &&
-             data.activeTitleId == ((data.activeTitleIds.size() > 0) ? data.activeTitleIds[0] : '') &&
-             (data.activeTitleIds.size() < 1 || data.titleExpiresAt[data.activeTitleIds[0]] > request.time) &&
-             (data.activeTitleIds.size() < 2 || data.titleExpiresAt[data.activeTitleIds[1]] > request.time) &&
-             (data.activeTitleIds.size() < 3 || data.titleExpiresAt[data.activeTitleIds[2]] > request.time) &&
-             (data.activeTitleIds.size() < 4 || data.titleExpiresAt[data.activeTitleIds[3]] > request.time);
+      return (
+        !('activeTitleIds' in data) &&
+        data.activeTitleId is string &&
+        (data.activeTitleId == '' ||
+         (data.ownedTitleIds is list &&
+          data.activeTitleId in data.ownedTitleIds &&
+          data.titleExpiresAt is map &&
+          data.titleExpiresAt[data.activeTitleId] > request.time))
+      ) || (
+        'activeTitleIds' in data &&
+        data.activeTitleIds is list &&
+        data.activeTitleIds.size() <= 4 &&
+        data.ownedTitleIds is list &&
+        data.activeTitleIds.hasOnly(data.ownedTitleIds) &&
+        data.activeTitleId == (data.activeTitleIds.size() > 0 ? data.activeTitleIds[0] : '')
+      );
     }
 
     function isValidUserProfile(data) {
@@ -365,10 +373,10 @@ service cloud.firestore {
              (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0) == 0 &&
              incoming().gender in ['FEMALE', 'MALE', 'NON_BINARY'] &&
              incoming().genderChangeCount == 1))) ||
-          (incoming().coinBalance == existing().coinBalance &&
+          (incoming().diff(existing()).affectedKeys().hasOnly(['activeTitleId', 'activeTitleIds', 'updatedAt']) &&
+           incoming().coinBalance == existing().coinBalance &&
            incoming().vipLevel == existing().vipLevel &&
-           hasValidEquippedTitles(incoming()) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['activeTitleId', 'activeTitleIds', 'updatedAt'])) ||
+           hasValidEquippedTitles(incoming())) ||
           (incoming().coinBalance == existing().coinBalance &&
            incoming().vipLevel == existing().vipLevel &&
            incoming().activeFrameId is string &&

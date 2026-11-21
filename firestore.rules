@@ -231,6 +231,30 @@ service cloud.firestore {
              data.read is bool;
     }
 
+    function defaultGiftUnitPrice(giftId) {
+      return giftId == 'gift_rose' ? 10 :
+             giftId == 'gift_mic' ? 25 :
+             giftId == 'gift_fire' ? 50 :
+             giftId == 'gift_party' ? 100 :
+             giftId == 'gift_heart' ? 180 :
+             giftId == 'gift_crown' ? 500 :
+             giftId == 'gift_rocket' ? 999 :
+             giftId == 'gift_diamond' ? 1500 : -1;
+    }
+
+    function isTrustedGiftPrice(data) {
+      return (
+        exists(/databases/$(database)/documents/gifts_catalog/$(data.giftId)) &&
+        get(/databases/$(database)/documents/gifts_catalog/$(data.giftId)).data.active == true &&
+        get(/databases/$(database)/documents/gifts_catalog/$(data.giftId)).data.coinCost is int &&
+        data.coinCost == get(/databases/$(database)/documents/gifts_catalog/$(data.giftId)).data.coinCost * data.quantity
+      ) || (
+        !exists(/databases/$(database)/documents/gifts_catalog/$(data.giftId)) &&
+        defaultGiftUnitPrice(data.giftId) > 0 &&
+        data.coinCost == defaultGiftUnitPrice(data.giftId) * data.quantity
+      );
+    }
+
     function isValidGiftTransaction(data) {
       return data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 &&
              data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 60 &&
@@ -763,6 +787,7 @@ service cloud.firestore {
                        incoming().senderId == request.auth.uid &&
                        request.auth.uid in incoming().participantIds &&
                        isValidGiftTransaction(incoming()) &&
+                       isTrustedGiftPrice(incoming()) &&
                        isValidTs(incoming().createdAt);
       allow update, delete: if false;
     }

@@ -1187,7 +1187,8 @@ private fun HostSeatTile(
                         username = seat.occupantName,
                         size = 76.dp,
                         vipLevel = seat.occupantVipLevel,
-                        modifier = Modifier.alpha(0.38f)
+                        modifier = Modifier.alpha(0.38f),
+                        frameColorArgb = seat.occupantFrameColorArgb
                     )
                     Surface(
                         shape = RoundedCornerShape(50),

@@ -355,6 +355,39 @@ fun ProfileScreen(
                     }
                 }
 
+                // Compact gifting highlight directly beside the profile identity.
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = VibePink.copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, VibePink.copy(alpha = 0.48f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "GIFTING",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = VibePink,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            formatGiftCount(profile.totalGiftsReceived),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            "TOTAL GIFTS",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
                 // Stats Row
                 Surface(
                     shape = RoundedCornerShape(18.dp),
@@ -390,11 +423,6 @@ fun ProfileScreen(
                                 }
                                 .padding(horizontal = 16.dp, vertical = 4.dp)
                                 .testTag("profile_following_stat")
-                        )
-                        ProfileStat(
-                            value = "${profile.totalGiftCoinsReceived.takeIf { it > 0L } ?: giftCoinsIn}",
-                            label = "Total Gifts",
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                         )
                     }
                 }
@@ -635,6 +663,17 @@ fun ProfileScreen(
     if (showSetupGuide) {
         BackendIntegrationGuideSheet(onDismiss = { showSetupGuide = false })
     }
+}
+
+private fun formatGiftCount(value: Long): String {
+    if (value < 1_000L) return value.toString()
+    val scaled = when {
+        value >= 1_000_000L -> value / 1_000_000.0
+        else -> value / 1_000.0
+    }
+    val suffix = if (value >= 1_000_000L) "M" else "K"
+    val digits = if (scaled >= 100.0 || scaled % 1.0 == 0.0) 0 else 1
+    return "%.${digits}f%s".format(java.util.Locale.US, scaled, suffix)
 }
 
 @Composable

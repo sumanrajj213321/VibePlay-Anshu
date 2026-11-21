@@ -46,6 +46,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,9 +75,11 @@ import com.example.ui.theme.VibeEmerald
 import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.Duration
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import kotlinx.coroutines.delay
 
 @Composable
 fun HomeScreen(
@@ -101,11 +104,18 @@ fun HomeScreen(
     var enteredPin by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf<String?>(null) }
 
-    val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
-    var dailyClaimDismissed by remember(currentUser.userId, todayStr) {
-        mutableStateOf(currentUser.lastDailyClaimDay == todayStr)
+    val istZone = remember { ZoneId.of("Asia/Kolkata") }
+    var todayStr by remember { mutableStateOf(LocalDate.now(istZone).toString()) }
+    LaunchedEffect(istZone) {
+        while (true) {
+            val now = ZonedDateTime.now(istZone)
+            val nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay(istZone)
+            delay(Duration.between(now, nextMidnight).toMillis().coerceAtLeast(1_000L))
+            todayStr = LocalDate.now(istZone).toString()
+        }
     }
-    val canClaimDaily = !dailyClaimDismissed
+    val hasClaimedDaily = currentUser.lastDailyClaimDay == todayStr
+    val canClaimDaily = !hasClaimedDaily
 
     val onlineUsers = remember(activeUsers, currentUser.userId, blockedUserIds, followingIds) {
         activeUsers.filter {
@@ -368,15 +378,50 @@ fun HomeScreen(
                             }
                         }
                         Button(
-                            onClick = {
-                                dailyClaimDismissed = true
-                                onClaimDailyReward()
-                            },
+                            onClick = onClaimDailyReward,
                             colors = ButtonDefaults.buttonColors(containerColor = VibeGold, contentColor = Color.Black),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.testTag("claim_daily_reward_button")
                         ) {
                             Text("Claim", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        } else {
+            item {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    color = VibeGold.copy(alpha = 0.10f),
+                    border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.45f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.CardGiftcard,
+                            contentDescription = null,
+                            tint = VibeGold,
+                            modifier = Modifier.size(26.dp)
+                        )
+                        Column {
+                            Text(
+                                text = "Today's Daily Coins Already Claimed!",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Your next reward unlocks at 12:00 AM IST.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }

@@ -169,7 +169,7 @@ fun ProfileScreen(
                         size = 86.dp,
                         vipLevel = profile.vipLevel,
                         online = profile.online && profile.showOnlineStatus,
-                        frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == profile.activeFrameId }?.colorArgb
+                        frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == profile.activeFrameId && profile.isFrameActive(it.id) }?.colorArgb
                     )
                     OutlinedButton(
                         onClick = { showEditSheet = true },
@@ -199,7 +199,7 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
-                    VibeShopCatalog.titles.firstOrNull { it.id == profile.activeTitleId }?.let { title ->
+                    VibeShopCatalog.titles.firstOrNull { it.id == profile.activeTitleId && profile.isTitleActive(it.id) }?.let { title ->
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = Color(title.colorArgb).copy(alpha = 0.18f),
@@ -233,7 +233,7 @@ fun ProfileScreen(
                         showGender = profile.showGender
                     )
                     LevelBadge(profile.level)
-                    VipBadgePill(profile.vipLevel)
+                    if (profile.isVipActive) VipBadgePill(profile.vipLevel)
                 }
 
                 Row(
@@ -373,7 +373,7 @@ fun ProfileScreen(
                     ) {
                         Icon(Icons.Filled.Star, contentDescription = null, tint = VibePink)
                         Text(
-                            text = if (profile.vipLevel > 0) "VIP ${profile.vipLevel} Active" else "Unlock VIP",
+                            text = if (profile.isVipActive) "VIP ${profile.vipLevel} Active" else "Unlock VIP",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = VibePink
@@ -404,7 +404,7 @@ fun ProfileScreen(
                         Text(
                             text = buildString {
                                 append("Level ${profile.level} Host")
-                                if (profile.vipLevel > 0) append(" · VIP ${profile.vipLevel}")
+                                if (profile.isVipActive) append(" · VIP ${profile.vipLevel}")
                                 if (profile.totalGiftsSent > 0) append(" · Generous Gifter")
                                 if (profile.totalGiftsReceived > 0) append(" · Stage Star")
                             },

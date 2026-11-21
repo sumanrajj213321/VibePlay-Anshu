@@ -540,22 +540,9 @@ fun SpeakerRequestsAndListenersSheet(
     onBlockListener: (RoomListener) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val displayMembers = remember(onlineUsers, listeners) {
-        if (onlineUsers.isNotEmpty()) {
-            onlineUsers
-        } else {
-            listeners.distinctBy { it.userId }.map {
-                RoomOnlineMember(
-                    userId = it.userId,
-                    username = it.username,
-                    avatarUrl = it.avatarUrl,
-                    vipLevel = it.vipLevel,
-                    gender = it.gender,
-                    stageRole = "LISTENER"
-                )
-            }
-        }
-    }
+    // Only show users verified by the live room session + online presence stream.
+    // Never repopulate the list from stale listener documents.
+    val displayMembers = onlineUsers
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

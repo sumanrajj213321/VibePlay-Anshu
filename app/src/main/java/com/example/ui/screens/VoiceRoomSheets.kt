@@ -624,7 +624,7 @@ fun SpeakerRequestsAndListenersSheet(
                                         Icon(Icons.Filled.Close, contentDescription = "Reject request", tint = VibeCoral)
                                     }
                                     IconButton(onClick = { onApprove(req) }) {
-                                        Icon(Icons.Filled.Check, contentDescription = "Approve request", tint = VibeEmerald)
+                                        Icon(Icons.Filled.Check, contentDescription = "Send seat invitation", tint = VibeEmerald)
                                     }
                                 }
                             }
@@ -1110,7 +1110,7 @@ fun InviteSpeakerSheet(
                                 ) {
                                     Icon(Icons.Filled.Check, contentDescription = "Approve ${req.username}", modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Approve")
+                                    Text("Invite")
                                 }
                             }
                         }
@@ -1265,7 +1265,7 @@ fun InviteSpeakerSheet(
                                     colors = ButtonDefaults.buttonColors(containerColor = VibeViolet),
                                     modifier = Modifier.testTag("invite_sheet_assign_following_${contact.userId}")
                                 ) {
-                                    Text("Assign Seat")
+                                    Text("Invite")
                                 }
                             } else {
                                 OutlinedButton(

@@ -509,7 +509,6 @@ class RoomRepository(
                     return@withLock Result.success(roomRef.id)
                 } catch (collision: RoomIdCollisionException) {
                     roomIdCollisionAttempts += 1
-                    roomIdCollisionAttempts += 1
                 }
             }
             throw RoomIdCollisionException()

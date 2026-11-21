@@ -85,6 +85,7 @@ import com.example.data.model.FollowEdge
 import com.example.data.model.GiftCatalogItem
 import com.example.data.model.VibeCatalogDefaults
 import com.example.data.model.UserProfile
+import com.example.data.model.VibeShopCatalog
 import com.example.ui.components.ReportUserOrRoomDialog
 import com.example.ui.components.VibeAvatar
 import com.example.ui.theme.VibeCoral
@@ -343,7 +344,8 @@ fun InboxScreen(
                                     username = displayName,
                                     size = 50.dp,
                                     vipLevel = if (conv.isGroupChat) 0L else (peerProfile?.vipLevel ?: 0L),
-                                    online = isOnline
+                                    online = isOnline,
+                                    frameColorArgb = if (conv.isGroupChat) null else peerProfile?.let { profile -> VibeShopCatalog.frames.firstOrNull { it.id == profile.activeFrameId }?.colorArgb }
                                 )
                                 if (conv.isGroupChat) {
                                     Surface(

@@ -501,7 +501,7 @@ service cloud.firestore {
          (!('adminIds' in existing()) || incoming().adminIds == existing().adminIds) &&
          incoming().featured == existing().featured &&
          (incoming().status == existing().status || (incoming().status == 'ENDED' && (!('ownerOnline' in existing()) || existing().ownerOnline == false))) &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'listenerCount', 'activeSpeakersCount', 'activeAdminIds', 'status', 'updatedAt'])) ||
+         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'coverUrl', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'listenerCount', 'activeSpeakersCount', 'activeAdminIds', 'status', 'updatedAt'])) ||
         (existing().status == 'LIVE' &&
          existsAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)) &&
          getAfter(/databases/$(database)/documents/rooms/$(roomId)/speaker_requests/$(request.auth.uid)).data.userId == request.auth.uid &&

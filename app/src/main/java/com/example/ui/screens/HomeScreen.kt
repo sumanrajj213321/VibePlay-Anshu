@@ -75,10 +75,11 @@ import com.example.ui.theme.VibeEmerald
 import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
-import java.time.Duration
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.ZonedDateTime
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import kotlinx.coroutines.delay
 
 @Composable
@@ -104,14 +105,25 @@ fun HomeScreen(
     var enteredPin by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf<String?>(null) }
 
-    val istZone = remember { ZoneId.of("Asia/Kolkata") }
-    var todayStr by remember { mutableStateOf(LocalDate.now(istZone).toString()) }
-    LaunchedEffect(istZone) {
+    val istTimeZone = remember { TimeZone.getTimeZone("Asia/Kolkata") }
+    var todayStr by remember {
+        mutableStateOf(
+            SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = istTimeZone }.format(Date())
+        )
+    }
+    LaunchedEffect(istTimeZone) {
         while (true) {
-            val now = ZonedDateTime.now(istZone)
-            val nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay(istZone)
-            delay(Duration.between(now, nextMidnight).toMillis().coerceAtLeast(1_000L))
-            todayStr = LocalDate.now(istZone).toString()
+            val nextMidnight = Calendar.getInstance(istTimeZone).apply {
+                add(Calendar.DAY_OF_YEAR, 1)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            delay((nextMidnight - System.currentTimeMillis()).coerceAtLeast(1_000L))
+            todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                .apply { timeZone = istTimeZone }
+                .format(Date())
         }
     }
     val hasClaimedDaily = currentUser.lastDailyClaimDay == todayStr

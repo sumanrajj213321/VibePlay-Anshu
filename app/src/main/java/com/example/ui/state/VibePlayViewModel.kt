@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -59,23 +60,29 @@ class VibePlayViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), true)
 
     private val _profileInitError = MutableStateFlow<String?>(null)
+    private val _profileObserverRetry = MutableStateFlow(0)
 
     val currentUserProfile: StateFlow<UiState<UserProfile>> =
         combine(
-            userRepository.observeUserProfile(currentUserId),
+            _profileObserverRetry.flatMapLatest {
+                userRepository.observeUserProfile(currentUserId)
+                    .map<UserProfile?, UiState<UserProfile>> { profile ->
+                        if (profile != null) UiState.Success(profile) else UiState.Loading
+                    }
+                    .catch { error ->
+                        val root = unwrapFirestoreError(error)
+                        Log.w(TAG, "Error observing current profile", root)
+                        emit(UiState.Error(root.message ?: "Unable to load profile"))
+                    }
+            },
             _profileInitError
-        ) { profile, initError ->
+        ) { observedState, initError ->
             when {
-                profile != null -> UiState.Success(profile)
+                observedState is UiState.Success -> observedState
                 initError != null -> UiState.Error(initError)
-                else -> UiState.Loading
+                else -> observedState
             }
         }
-            .catch { error ->
-                val root = unwrapFirestoreError(error)
-                Log.w(TAG, "Error observing current profile", root)
-                emit(UiState.Error(root.message ?: "Unable to load profile"))
-            }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), UiState.Loading)
 
     val liveRooms: StateFlow<UiState<List<VoiceRoom>>> =
@@ -191,6 +198,7 @@ class VibePlayViewModel(
 
     fun retryProfileInit() {
         _profileInitError.value = null
+        _profileObserverRetry.value += 1
         viewModelScope.launch {
             firebaseUser?.let { user ->
                 userRepository.ensureCurrentUserProfile(user)

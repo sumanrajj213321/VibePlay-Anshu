@@ -1,6 +1,7 @@
 package com.example.ui.state
 
 import android.util.Log
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.firebase.unwrapFirestoreError
@@ -18,6 +19,7 @@ import com.example.data.model.VoiceRoom
 import com.example.data.model.VoiceSeat
 import com.example.data.model.VoiceStage
 import com.example.data.repository.RoomRepository
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -373,6 +375,22 @@ class RoomViewModel(
             )
                 .onSuccess { _roomError.value = "Room settings updated" }
                 .onFailure { _roomError.value = it.localizedMessage }
+        }
+    }
+
+    fun uploadRoomCover(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val coverRef = FirebaseStorage.getInstance().reference
+                    .child("room-covers/$roomId/cover.jpg")
+                coverRef.putFile(uri).await()
+                val downloadUrl = coverRef.downloadUrl.await().toString()
+                roomRepository.updateRoomCoverUrl(roomId, downloadUrl)
+                    .onSuccess { _roomError.value = "Room cover uploaded successfully." }
+                    .onFailure { _roomError.value = it.localizedMessage ?: "Could not save room cover." }
+            } catch (error: Exception) {
+                _roomError.value = error.localizedMessage ?: "Room cover upload failed."
+            }
         }
     }
 

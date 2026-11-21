@@ -20,9 +20,9 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.snapshots
-import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -46,6 +46,66 @@ class UserRepository(
     private fun requireUserId(): String {
         return auth.currentUser?.uid
             ?: throw IllegalStateException("User must be signed in with Google before accessing Firestore.")
+    }
+
+
+    private suspend fun ensureWelcomeInbox(uid: String, username: String, avatarUrl: String) {
+        val botUid = "VIBEPLAY_OFFICIAL_BOT"
+        val botName = "VibePlay Official"
+        val conversationId = "bot_${uid}"
+        val conversationRef = db.collection("conversations").document(conversationId)
+        val messageRef = conversationRef.collection("messages").document("welcome_10_lakh_bonus")
+        if (!conversationRef.get().await().exists()) {
+            conversationRef.set(mapOf(
+                "conversationType" to "DIRECT", "groupName" to "", "groupAvatarUrl" to "",
+                "ownerId" to "", "adminIds" to emptyList<String>(),
+                "participantIds" to listOf(uid, botUid),
+                "participantNames" to mapOf(uid to username, botUid to botName),
+                "participantAvatars" to mapOf(uid to avatarUrl, botUid to ""),
+                "lastMessage" to "🎉 10 lakh coins welcome bonus credited!",
+                "lastSenderId" to botUid, "unreadBy" to listOf(uid),
+                "createdAt" to FieldValue.serverTimestamp(), "updatedAt" to FieldValue.serverTimestamp()
+            )).await()
+        }
+        if (!messageRef.get().await().exists()) {
+            messageRef.set(mapOf(
+                "participantIds" to listOf(uid, botUid), "senderId" to botUid,
+                "senderName" to botName, "senderAvatarUrl" to "", "type" to "SYSTEM",
+                "text" to "🎉 10 LAKH COINS WELCOME BONUS!\n\nCongratulations! 🥳 VibePlay ki taraf se aapke account mein 10,00,000 bonus coins add kiye gaye hain.\n\n❤️ Enjoy VibePlay, send gifts and have fun!\n\n— Team VibePlay",
+                "read" to false, "createdAt" to FieldValue.serverTimestamp()
+            )).await()
+        }
+    }
+
+    private suspend fun grantWelcomeBonusToExistingUsers() {
+        var cursor: String? = null
+        do {
+            var query = db.collection("users").orderBy(FieldPath.documentId()).limit(200)
+            if (!cursor.isNullOrBlank()) query = query.startAfter(cursor)
+            val page = query.get().await()
+            for (item in page.documents) {
+                val uid = item.id
+                val ref = db.collection("users").document(uid)
+                val shouldCreateInbox = db.runTransaction { tx ->
+                    val snap = tx.get(ref)
+                    if (!snap.exists()) false
+                    else if (snap.getBoolean("welcomeBonusGranted") == true) true
+                    else {
+                        val balance = snap.getLong("coinBalance") ?: 0L
+                        require(balance >= 0L && balance <= Long.MAX_VALUE - 1_000_000L)
+                        tx.update(ref, mapOf(
+                            "coinBalance" to balance + 1_000_000L,
+                            "welcomeBonusGranted" to true,
+                            "welcomeBonusGrantedAt" to FieldValue.serverTimestamp(),
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        ))
+                        true
+                    }
+                }.await()
+                if (shouldCreateInbox) ensureWelcomeInbox(uid, item.getString("username") ?: "VibeStar", item.getString("avatarUrl") ?: "")
+            }
+            cursor = page.documents.lastOrNull()?.id
+        } while (page.size() == 200)
     }
 
     suspend fun ensureCurrentUserProfile(user: FirebaseUser): Result<UserProfile> {
@@ -76,7 +136,9 @@ class UserRepository(
                     "level" to 1L,
                     "xp" to 0L,
                     "vipLevel" to 0L,
-                    "coinBalance" to 500L,
+                    "coinBalance" to 1_000_500L,
+                    "welcomeBonusGranted" to true,
+                    "welcomeBonusGrantedAt" to FieldValue.serverTimestamp(),
                     "totalGiftsReceived" to 0L,
                     "totalGiftsSent" to 0L,
                     "totalGiftCoinsReceived" to 0L,
@@ -92,6 +154,7 @@ class UserRepository(
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
                 userRef.set(payload).await()
+                ensureWelcomeInbox(user.uid, safeName, user.photoUrl?.toString() ?: "")
 
                 val privatePayload = mapOf(
                     "userId" to user.uid,
@@ -128,23 +191,10 @@ class UserRepository(
                 }.await()
             }
 
-            // Run the one-time legacy-user welcome grant only from the official admin account.
-            // The callable is idempotent and the server verifies the admin UID.
+            // Spark-plan migration: the official account grants each existing user once.
             if (user.uid == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
-                try {
-                    val migration = FirebaseFunctions.getInstance("asia-south1")
-                        .getHttpsCallable("grantWelcomeBonusToExistingUsers")
-                    var cursor: String? = null
-                    var hasMore: Boolean
-                    do {
-                        val result = migration.call(mapOf("cursor" to cursor)).await()
-                        val data = result.data as? Map<*, *> ?: break
-                        hasMore = data["hasMore"] == true
-                        cursor = data["nextCursor"] as? String
-                    } while (hasMore && !cursor.isNullOrBlank())
-                } catch (_: Exception) {
-                    // Keep sign-in available if Functions has not been deployed yet.
-                    // The migration can safely resume on the next official-account sign-in.
+                try { grantWelcomeBonusToExistingUsers() } catch (_: Exception) {
+                    // Retry safely on the next official-account sign-in.
                 }
             }
 

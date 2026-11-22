@@ -14,6 +14,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -66,6 +67,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Path
 import kotlin.math.cos
 import kotlin.math.sin
 import androidx.compose.ui.graphics.Brush
@@ -100,17 +102,6 @@ import com.example.ui.theme.VibeViolet
 import com.example.ui.theme.VibeVioletBright
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
-
-private object NeonCyanFrameImageLoader {
-    @Volatile private var instance: ImageLoader? = null
-
-    fun get(context: Context): ImageLoader = instance ?: synchronized(this) {
-        instance ?: ImageLoader.Builder(context.applicationContext)
-            .components { add(GifDecoder.Factory()) }
-            .build()
-            .also { instance = it }
-    }
-}
 
 @DrawableRes
 fun coverDrawableRes(coverKey: String): Int = when (coverKey) {
@@ -157,8 +148,6 @@ fun VibeAvatar(
     }
     val displayVipLevel = vipLevel.coerceIn(0L, 8L)
     val isNeonCyanFrame = frameColorArgb == 0xFF22D3EEL
-    val frameContext = LocalContext.current
-    val frameImageLoader = remember(frameContext) { NeonCyanFrameImageLoader.get(frameContext) }
     val vipColor = remember(displayVipLevel) {
         val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == displayVipLevel.toInt() }
         if (tier != null) Color(tier.badgeColorHex) else null
@@ -232,7 +221,7 @@ fun VibeAvatar(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxSize(if (isNeonCyanFrame) 0.43f else 1f)
+                .fillMaxSize()
                 .clip(CircleShape)
                 .border(
                     width = if (isNeonCyanFrame) 0.dp else if (frameColorArgb != null || speaking || vipLevel > 0) 3.5.dp else 1.5.dp,
@@ -269,12 +258,9 @@ fun VibeAvatar(
             }
         }
         if (isNeonCyanFrame) {
-            AsyncImage(
-                model = R.drawable.neon_cyan_ornate_frame,
-                imageLoader = frameImageLoader,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit
+            NeonAuroraFrameOverlay(
+                modifier = Modifier.align(Alignment.Center).size(size * 1.65f),
+                pulseAlpha = pulseAlpha
             )
         }
         if (online) {
@@ -288,6 +274,89 @@ fun VibeAvatar(
                     .clip(CircleShape)
                     .background(VibeEmerald)
             )
+        }
+    }
+}
+
+
+@Composable
+private fun NeonAuroraFrameOverlay(
+    modifier: Modifier = Modifier,
+    pulseAlpha: Float
+) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val cx = w / 2f
+        val cy = h / 2f
+        val cyan = Color(0xFF22D3EE).copy(alpha = 0.72f + pulseAlpha * 0.25f)
+        val ice = Color(0xFFB9F7FF).copy(alpha = 0.72f * pulseAlpha)
+        val blue = Color(0xFF168BFF).copy(alpha = 0.78f * pulseAlpha)
+        val ring = h.coerceAtMost(w) * 0.322f
+
+        // Bright circular rim sits just outside the unchanged full-size avatar.
+        drawCircle(cyan, ring, androidx.compose.ui.geometry.Offset(cx, cy), style = Stroke(3.2.dp.toPx()))
+        drawCircle(ice, ring - 5.dp.toPx(), androidx.compose.ui.geometry.Offset(cx, cy), style = Stroke(1.2.dp.toPx()))
+        drawCircle(blue.copy(alpha = 0.55f), ring + 4.dp.toPx(), androidx.compose.ui.geometry.Offset(cx, cy), style = Stroke(1.4.dp.toPx()))
+
+        // Crown above the avatar.
+        val crown = Path().apply {
+            moveTo(cx - ring * 0.72f, cy - ring * 0.55f)
+            lineTo(cx - ring * 0.82f, cy - ring * 1.05f)
+            lineTo(cx - ring * 0.35f, cy - ring * 0.78f)
+            lineTo(cx, cy - ring * 1.32f)
+            lineTo(cx + ring * 0.35f, cy - ring * 0.78f)
+            lineTo(cx + ring * 0.82f, cy - ring * 1.05f)
+            lineTo(cx + ring * 0.72f, cy - ring * 0.55f)
+            close()
+        }
+        drawPath(crown, cyan, style = Stroke(3.dp.toPx()))
+        drawPath(crown, ice.copy(alpha = 0.72f), style = Stroke(1.dp.toPx()))
+        drawLine(ice, androidx.compose.ui.geometry.Offset(cx - ring * 0.72f, cy - ring * 0.55f), androidx.compose.ui.geometry.Offset(cx + ring * 0.72f, cy - ring * 0.55f), 3.dp.toPx())
+
+        // Feather-like wings on both sides.
+        for (side in listOf(-1f, 1f)) {
+            val wing = Path().apply {
+                moveTo(cx + side * ring * 0.82f, cy - ring * 0.28f)
+                cubicTo(cx + side * ring * 1.35f, cy - ring * 0.65f, cx + side * ring * 1.55f, cy - ring * 0.05f, cx + side * ring * 1.08f, cy + ring * 0.38f)
+                cubicTo(cx + side * ring * 1.42f, cy + ring * 0.15f, cx + side * ring * 1.24f, cy + ring * 0.78f, cx + side * ring * 0.68f, cy + ring * 0.74f)
+            }
+            drawPath(wing, cyan, style = Stroke(3.dp.toPx()))
+            drawPath(wing, ice, style = Stroke(1.dp.toPx()))
+            for (i in 0..2) {
+                val y = cy - ring * 0.12f + i * ring * 0.27f
+                drawLine(blue, androidx.compose.ui.geometry.Offset(cx + side * ring * 0.82f, y), androidx.compose.ui.geometry.Offset(cx + side * ring * (1.22f - i * 0.12f), y + ring * 0.18f), 2.dp.toPx())
+            }
+        }
+
+        // Crystal centerpiece and hanging jewel details.
+        fun diamond(x: Float, y: Float, r: Float) {
+            val p = Path().apply {
+                moveTo(x, y - r)
+                lineTo(x + r * 0.62f, y)
+                lineTo(x, y + r)
+                lineTo(x - r * 0.62f, y)
+                close()
+            }
+            drawPath(p, cyan, style = Stroke(2.dp.toPx()))
+            drawPath(p, ice.copy(alpha = pulseAlpha), style = Stroke(0.8.dp.toPx()))
+        }
+        diamond(cx, cy - ring * 1.27f, ring * 0.13f)
+        diamond(cx, cy + ring * 1.13f, ring * 0.18f)
+        diamond(cx - ring * 1.02f, cy + ring * 0.78f, ring * 0.09f)
+        diamond(cx + ring * 1.02f, cy + ring * 0.78f, ring * 0.09f)
+
+        // Small animated glints around the rim.
+        val glints = listOf(
+            androidx.compose.ui.geometry.Offset(cx - ring * 1.02f, cy - ring * 0.72f),
+            androidx.compose.ui.geometry.Offset(cx + ring * 1.02f, cy - ring * 0.72f),
+            androidx.compose.ui.geometry.Offset(cx - ring * 1.08f, cy + ring * 0.18f),
+            androidx.compose.ui.geometry.Offset(cx + ring * 1.08f, cy + ring * 0.18f)
+        )
+        glints.forEach {
+            drawCircle(ice, 2.4.dp.toPx() * pulseAlpha, it)
+            drawLine(ice, androidx.compose.ui.geometry.Offset(it.x - 5.dp.toPx(), it.y), androidx.compose.ui.geometry.Offset(it.x + 5.dp.toPx(), it.y), 1.dp.toPx())
+            drawLine(ice, androidx.compose.ui.geometry.Offset(it.x, it.y - 5.dp.toPx()), androidx.compose.ui.geometry.Offset(it.x, it.y + 5.dp.toPx()), 1.dp.toPx())
         }
     }
 }

@@ -885,10 +885,10 @@ fun PublicProfileSheet(
             .whereArrayContains("userIds", targetUser.userId)
             .addSnapshotListener { snapshot, _ ->
                 val tags = snapshot?.documents.orEmpty().mapNotNull { doc ->
-                    val ids = doc.get("userIds") as? List<*>
-                    if (ids?.filterIsInstance<String>()?.contains(targetUser.userId) != true) return@mapNotNull null
-                    val partnerId = ids.filterIsInstance<String>().firstOrNull { it != targetUser.userId } ?: return@mapNotNull null
-                    val targetIsA = ids.filterIsInstance<String>().sorted().firstOrNull() == targetUser.userId
+                    val memberIds = (doc.get("userIds") as? List<*>)?.filterIsInstance<String>().orEmpty()
+                    if (targetUser.userId !in memberIds) return@mapNotNull null
+                    val partnerId = memberIds.firstOrNull { it != targetUser.userId } ?: return@mapNotNull null
+                    val targetIsA = memberIds.sorted().firstOrNull() == targetUser.userId
                     mapOf(
                         "partnerId" to partnerId,
                         "partnerName" to (if (targetIsA) doc.getString("userBName") else doc.getString("userAName")).orEmpty(),

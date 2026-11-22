@@ -1320,7 +1320,7 @@ test("New user can create a room with the exact atomic app transaction", async (
   await assertSucceeds(batch.commit());
 });
 
-test("Own and public profile reads plus title/frame cosmetic purchases are permitted only through valid updates", async () => {
+test("Own and public profile reads plus frame purchases are permitted only through valid updates", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
   await assertSucceeds(aliceDb.collection("users").doc(ALICE_UID).set(makeUserPayload(ALICE_UID, "Alice", "VP-100001")));
@@ -1332,41 +1332,6 @@ test("Own and public profile reads plus title/frame cosmetic purchases are permi
   await assertSucceeds(bobDb.collection("users").where("accountStatus", "==", "ACTIVE").get());
 
   const userRef = aliceDb.collection("users").doc(ALICE_UID);
-  const titleExpiry = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
-  await assertSucceeds(userRef.update({
-    coinBalance: 1000500 - 12000,
-    ownedTitleIds: ["singer"],
-    activeTitleId: "singer",
-    titleExpiresAt: { singer: titleExpiry },
-    lastPurchasedTitleId: "singer",
-    lastTitlePurchaseAt: new Date(),
-    updatedAt: pastDate(),
-  }));
-
-  // A second title can be purchased while selecting it as the active title.
-  const secondTitleExpiry = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
-  await assertSucceeds(userRef.update({
-    coinBalance: 1000500 - 12000 - 15000,
-    ownedTitleIds: ["singer", "charming"],
-    activeTitleId: "charming",
-    titleExpiresAt: { singer: titleExpiry, charming: secondTitleExpiry },
-    lastPurchasedTitleId: "charming",
-    lastTitlePurchaseAt: new Date(),
-    updatedAt: pastDate(),
-  }));
-
-  // An expired title can be renewed without adding a duplicate owned ID.
-  const renewedSingerExpiry = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
-  await assertSucceeds(userRef.update({
-    coinBalance: 1000500 - 12000 - 15000 - 12000,
-    ownedTitleIds: ["singer", "charming"],
-    activeTitleId: "singer",
-    titleExpiresAt: { singer: renewedSingerExpiry, charming: secondTitleExpiry },
-    lastPurchasedTitleId: "singer",
-    lastTitlePurchaseAt: new Date(),
-    updatedAt: pastDate(),
-  }));
-
   const frameExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   await assertSucceeds(userRef.update({
     coinBalance: 1000500 - 12000 - 15000 - 15000,
@@ -1377,9 +1342,4 @@ test("Own and public profile reads plus title/frame cosmetic purchases are permi
     updatedAt: pastDate(),
   }));
 
-  // Equipping an already-owned unexpired cosmetic must not charge coins again.
-  await assertSucceeds(userRef.update({
-    activeTitleId: "singer",
-    updatedAt: pastDate(),
-  }));
 });

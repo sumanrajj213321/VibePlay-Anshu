@@ -60,17 +60,30 @@ exports.recordRelationshipFamiliarity = onDocumentCreated(
       ]);
       if (processed.exists) return;
 
-      const previousCoins = pair.exists ? (pair.get("totalGiftCoins") || 0) : 0;
+      const pairData = pair.exists ? pair.data() : {};
+      const previousCoins = Number(pairData.totalGiftCoins || 0);
       const totalGiftCoins = previousCoins + coinCost;
       const familiarityPoints = Math.floor(totalGiftCoins / 5);
-
-      tx.set(pairRef, {
+      const pairUpdate = {
         userIds: [senderId, recipientId].sort(),
         totalGiftCoins,
         familiarityPoints,
         level: levelFor(familiarityPoints),
         updatedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
+      };
+
+      // An accepted tag remains locked until the pair reaches 10,000 familiarity.
+      if (pairData.tagStatus === "WAITING_FAMILIARITY" &&
+          familiarityPoints >= 10000 &&
+          ["BUDDIES", "BRO", "CONFIDANT", "BESTIE"].includes(pairData.acceptedTagType)) {
+        pairUpdate.tagStatus = "ACTIVE";
+        pairUpdate.tagType = pairData.acceptedTagType;
+        pairUpdate.tagStartedAt = FieldValue.serverTimestamp();
+        pairUpdate.activatedAtFamiliarity = familiarityPoints;
+        pairUpdate.acceptedTagType = FieldValue.delete();
+      }
+
+      tx.set(pairRef, pairUpdate, { merge: true });
 
       tx.create(eventRef, {
         giftId: event.params.giftId,
@@ -302,9 +315,18 @@ exports.respondRelationshipInvite = onCall(
         respondedAt: now
       });
       if (accept) {
+        const familiarityPoints = Number(pairSnap.get("familiarityPoints") || 0);
+        const canActivate = familiarityPoints >= 10000;
         tx.update(pairRef, {
-          tagStatus: "ACTIVE", tagType: invite.tagType,
-          tagStartedAt: now, activeInviteId: inviteId,
+          tagStatus: canActivate ? "ACTIVE" : "WAITING_FAMILIARITY",
+          ...(canActivate ? {
+            tagType: invite.tagType,
+            tagStartedAt: now,
+            activatedAtFamiliarity: familiarityPoints
+          } : {
+            acceptedTagType: invite.tagType
+          }),
+          activeInviteId: inviteId,
           pendingInviteId: FieldValue.delete(),
           pendingTagType: FieldValue.delete(),
           invitedBy: FieldValue.delete(), invitedTo: FieldValue.delete(),

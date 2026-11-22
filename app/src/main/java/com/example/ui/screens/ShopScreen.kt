@@ -65,7 +65,7 @@ fun ShopScreen(
             Text("${profile.coinBalance} Coins", color = VibeGold, fontWeight = FontWeight.Bold)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            listOf("VIP", "Frames", "Relationship").forEachIndexed { index, label ->
+            listOf("VIP", "Frames").forEachIndexed { index, label ->
                 FilterChip(
                     selected = selectedTab == index,
                     onClick = { selectedTab = index },
@@ -77,7 +77,7 @@ fun ShopScreen(
             when (selectedTab) {
                 0 -> "Upgrade your VIP level with coins"
                 1 -> "Premium avatar frames · shown around your profile photo"
-                else -> "Build familiarity through gifts and unlock relationship tag levels"
+                else -> "Premium avatar frames · shown around your profile photo"
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -119,10 +119,6 @@ fun ShopScreen(
                         previewFrameColorArgb = item.colorArgb
                     )
                 }
-                2 -> items(relationshipTagPreviews, key = { it.name }) { tag ->
-                    RelationshipTagShopCard(tag = tag)
-                }
-
             }
             if (selectedTab == 1 && profile.isFrameActive(profile.activeFrameId)) {
                 item {
@@ -180,43 +176,6 @@ private fun ShopCard(
                 colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = Color.Black)
             ) {
                 Text(status, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-private data class RelationshipTagPreview(
-    val name: String,
-    val subtitle: String,
-    val icon: String,
-    val accentArgb: Long
-)
-
-private val relationshipTagPreviews = listOf(
-    RelationshipTagPreview("Buddies", "A friendly bond with a playful animated badge.", "🤝", 0xFF42C7F5),
-    RelationshipTagPreview("Bro", "A bold bond with a strong, energetic badge.", "🛡️", 0xFF8B79FF),
-    RelationshipTagPreview("Confidant", "A trusted connection with an elegant badge.", "💎", 0xFF36CFA7),
-    RelationshipTagPreview("Bestie", "A close friendship with a bright premium badge.", "🌟", 0xFFFF79B8)
-)
-
-@Composable
-private fun RelationshipTagShopCard(tag: RelationshipTagPreview) {
-    val accent = Color(tag.accentArgb)
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = accent.copy(alpha = 0.10f),
-        border = BorderStroke(1.dp, accent.copy(alpha = 0.72f))
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(tag.icon, style = MaterialTheme.typography.headlineLarge)
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(tag.name, style = MaterialTheme.typography.titleMedium, color = accent, fontWeight = FontWeight.ExtraBold)
-                Text(tag.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("10 levels · Gift-based familiarity", style = MaterialTheme.typography.labelSmall, color = accent, fontWeight = FontWeight.Bold)
             }
         }
     }

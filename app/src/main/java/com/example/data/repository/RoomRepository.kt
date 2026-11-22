@@ -714,8 +714,6 @@ class RoomRepository(
                         "createdAt" to FieldValue.serverTimestamp()
                     )
                 ).await()
-            }.onFailure { error ->
-                Log.w(TAG, "Room entry message could not be posted", error)
             }
             Result.success(Unit)
         } catch (e: CancellationException) {

@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -259,7 +260,7 @@ fun VibeAvatar(
         }
         if (isNeonCyanFrame) {
             NeonAuroraFrameOverlay(
-                modifier = Modifier.align(Alignment.Center).size(size * 1.65f),
+                modifier = Modifier.align(Alignment.Center).requiredSize(size * 2.2f),
                 pulseAlpha = pulseAlpha
             )
         }

@@ -189,6 +189,7 @@ async function processExpiredInvite(db, inviteDoc, dryRun, stats, nowMs) {
       status: "REJECTED",
       autoRejected: true,
       rejectionReason: "NO_RESPONSE_48_HOURS",
+      processedAt: admin.firestore.FieldValue.serverTimestamp(),
       respondedAt: admin.firestore.FieldValue.serverTimestamp()
     });
     if (current.notificationId) {
@@ -221,6 +222,143 @@ async function processExpiredInvite(db, inviteDoc, dryRun, stats, nowMs) {
     return true;
   });
   if (expired) stats.invitationsAutoRejected += 1;
+}
+
+async function processRespondedInvite(db, inviteDoc, dryRun, stats) {
+  const initial = inviteDoc.data();
+  if (!["ACCEPTED", "REJECTED"].includes(initial.status) || initial.processedAt) return;
+  if (initial.autoRejected === true) return;
+  if (dryRun) {
+    stats.respondedInvitationsReady += 1;
+    return;
+  }
+
+  const inviteRef = inviteDoc.ref;
+  const pairRef = db.collection("relationship_pairs").doc(initial.pairId);
+  const inviterRef = db.collection("users").doc(initial.inviterId);
+  const invitedRef = db.collection("users").doc(initial.invitedTo);
+  const responseNotificationRef = db.collection("notifications").doc("relationship-response-" + inviteDoc.id);
+
+  const outcome = await db.runTransaction(async (tx) => {
+    const [freshInvite, pairSnap, inviter, invited, responseNotification] = await Promise.all([
+      tx.get(inviteRef), tx.get(pairRef), tx.get(inviterRef), tx.get(invitedRef), tx.get(responseNotificationRef)
+    ]);
+    if (!freshInvite.exists) return "missing";
+    const invite = freshInvite.data();
+    if (!["ACCEPTED", "REJECTED"].includes(invite.status) || invite.processedAt || invite.autoRejected === true) return "skipped";
+    if (!inviter.exists || !invited.exists) return "missing_user";
+
+    if (invite.status === "REJECTED") {
+      tx.update(inviteRef, { processedAt: admin.firestore.FieldValue.serverTimestamp() });
+      if (!responseNotification.exists) {
+        tx.create(responseNotificationRef, {
+          recipientId: invite.inviterId,
+          senderId: invite.invitedTo,
+          senderName: String(invited.get("username") || "VibePlay user").slice(0, 60),
+          type: "SYSTEM",
+          title: "Relationship invitation declined",
+          body: "Your relationship invitation was declined.",
+          targetId: invite.pairId,
+          read: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      }
+      return "rejected";
+    }
+
+    const pair = pairSnap.exists ? pairSnap.data() : {};
+    if (pair.tagStatus === "ACTIVE" || pair.tagStatus === "WAITING_FAMILIARITY" || pair.tagStatus === "PENDING") {
+      tx.update(inviteRef, { processedAt: admin.firestore.FieldValue.serverTimestamp(), processingError: "PAIR_NOT_AVAILABLE" });
+      return "pair_unavailable";
+    }
+    if (pair.tagCooldownUntil && typeof pair.tagCooldownUntil.toMillis === "function" &&
+        pair.tagCooldownUntil.toMillis() > Date.now()) {
+      tx.update(inviteRef, { processedAt: admin.firestore.FieldValue.serverTimestamp(), processingError: "COOLDOWN_ACTIVE" });
+      return "cooldown";
+    }
+
+    const familiarity = Number.isSafeInteger(pair.familiarityPoints) && pair.familiarityPoints >= 0
+      ? pair.familiarityPoints : 0;
+    const activate = familiarity >= 10000;
+    const [userAId, userBId] = [invite.inviterId, invite.invitedTo].sort();
+    const userA = userAId === invite.inviterId ? inviter : invited;
+    const userB = userBId === invite.inviterId ? inviter : invited;
+    const tagType = invite.tagType;
+
+    tx.set(pairRef, {
+      userIds: [userAId, userBId],
+      userDisplayNames: {
+        [invite.inviterId]: String(inviter.get("username") || inviter.get("displayName") || "VibePlay user"),
+        [invite.invitedTo]: String(invited.get("username") || invited.get("displayName") || "VibePlay user")
+      },
+      userAvatarUrls: {
+        [invite.inviterId]: String(inviter.get("avatarUrl") || ""),
+        [invite.invitedTo]: String(invited.get("avatarUrl") || "")
+      },
+      tagStatus: activate ? "ACTIVE" : "WAITING_FAMILIARITY",
+      ...(activate ? {
+        tagType,
+        tagStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+        activatedAtFamiliarity: familiarity
+      } : { acceptedTagType: tagType }),
+      activeInviteId: inviteDoc.id,
+      pendingInviteId: admin.firestore.FieldValue.delete(),
+      pendingTagType: admin.firestore.FieldValue.delete(),
+      invitedBy: admin.firestore.FieldValue.delete(),
+      invitedTo: admin.firestore.FieldValue.delete(),
+      pendingAt: admin.firestore.FieldValue.delete(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    if (activate) {
+      tx.set(db.collection("relationship_links").doc(invite.inviterId), {
+        partnerId: invite.invitedTo,
+        partnerName: invited.get("username") || invited.get("displayName") || "VibePlay user",
+        partnerAvatarUrl: invited.get("avatarUrl") || "",
+        tagType,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      tx.set(db.collection("relationship_links").doc(invite.invitedTo), {
+        partnerId: invite.inviterId,
+        partnerName: inviter.get("username") || inviter.get("displayName") || "VibePlay user",
+        partnerAvatarUrl: inviter.get("avatarUrl") || "",
+        tagType,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      tx.set(db.collection("relationship_public_tags").doc(invite.pairId), {
+        userIds: [userAId, userBId],
+        userAName: userA.get("username") || userA.get("displayName") || "VibePlay user",
+        userAAvatarUrl: userA.get("avatarUrl") || "",
+        userBName: userB.get("username") || userB.get("displayName") || "VibePlay user",
+        userBAvatarUrl: userB.get("avatarUrl") || "",
+        tagType,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    tx.update(inviteRef, { processedAt: admin.firestore.FieldValue.serverTimestamp() });
+    if (!responseNotification.exists) {
+      tx.create(responseNotificationRef, {
+        recipientId: invite.inviterId,
+        senderId: invite.invitedTo,
+        senderName: String(invited.get("username") || "VibePlay user").slice(0, 60),
+        type: "SYSTEM",
+        title: "Relationship invitation accepted",
+        body: activate
+          ? "Your Relationship Tag is now active."
+          : "Invitation accepted. Send gifts to each other to reach 10,000 familiarity and activate your tag.",
+        targetId: invite.pairId,
+        read: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    return activate ? "activated" : "waiting";
+  });
+
+  if (outcome === "activated") stats.respondedInvitationsActivated += 1;
+  else if (outcome === "waiting") stats.respondedInvitationsWaiting += 1;
+  else if (outcome === "rejected") stats.respondedInvitationsRejected += 1;
+  else if (outcome === "pair_unavailable" || outcome === "cooldown") stats.respondedInvitationsSkipped += 1;
 }
 
 async function scanPages(query, handler) {
@@ -328,6 +466,11 @@ async function main() {
     invitationsEligibleForExpiry: 0,
     invitationsAutoRejected: 0,
     nonPendingInvitationsIgnored: 0,
+    respondedInvitationsReady: 0,
+    respondedInvitationsActivated: 0,
+    respondedInvitationsWaiting: 0,
+    respondedInvitationsRejected: 0,
+    respondedInvitationsSkipped: 0,
     activeRelationshipPairsScanned: 0,
     publicTagsNeedingSync: 0
   };
@@ -338,6 +481,12 @@ async function main() {
     .orderBy(admin.firestore.FieldPath.documentId(), "asc");
   stats.giftTransactionsScanned = await scanPages(giftQuery, async (doc) => {
     await processGift(db, doc, dryRun, stats);
+  });
+
+  const respondedInviteQuery = db.collection("relationship_invites")
+    .orderBy(admin.firestore.FieldPath.documentId(), "asc");
+  await scanPages(respondedInviteQuery, async (doc) => {
+    await processRespondedInvite(db, doc, dryRun, stats);
   });
 
   // Scan by document ID so legacy invitations without createdAt are also checked.

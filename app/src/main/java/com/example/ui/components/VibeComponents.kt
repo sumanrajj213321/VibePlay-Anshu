@@ -157,7 +157,8 @@ fun VibeAvatar(
     }
     val displayVipLevel = vipLevel.coerceIn(0L, 8L)
     val isNeonCyanFrame = frameColorArgb == 0xFF22D3EEL
-    val frameImageLoader = remember { NeonCyanFrameImageLoader.get(LocalContext.current) }
+    val frameContext = LocalContext.current
+    val frameImageLoader = remember(frameContext) { NeonCyanFrameImageLoader.get(frameContext) }
     val vipColor = remember(displayVipLevel) {
         val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == displayVipLevel.toInt() }
         if (tier != null) Color(tier.badgeColorHex) else null

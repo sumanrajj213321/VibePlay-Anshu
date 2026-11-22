@@ -48,6 +48,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,6 +85,7 @@ import com.example.ui.theme.VibeCyan
 import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
+import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
 fun ProfileScreen(
@@ -118,12 +120,98 @@ fun ProfileScreen(
     val (xpInLevel, xpNeededForNextLevel) = LevelProgression.progressInLevel(profile.xp)
     val giftCoinsIn = giftHistory.filter { it.recipientId == profile.userId }.sumOf { it.coinCost }
     val giftCoinsOut = giftHistory.filter { it.senderId == profile.userId }.sumOf { it.coinCost }
+    var showLinkedRelationship by remember(profile.userId) { mutableStateOf(true) }
+    var linkedPartnerId by remember(profile.userId) { mutableStateOf("") }
+    var linkedPartnerName by remember(profile.userId) { mutableStateOf("") }
+    var linkedPartnerAvatar by remember(profile.userId) { mutableStateOf("") }
+    var linkedTagType by remember(profile.userId) { mutableStateOf("") }
+
+    DisposableEffect(profile.userId) {
+        var partnerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+        val pairRegistration = FirebaseFirestore.getInstance()
+            .collection("relationship_pairs")
+            .whereArrayContains("userIds", profile.userId)
+            .addSnapshotListener { snapshot, _ ->
+                val activePair = snapshot?.documents?.firstOrNull {
+                    it.getString("tagStatus") == "ACTIVE"
+                }
+                val ids = activePair?.get("userIds") as? List<*>
+                val otherId = ids?.filterIsInstance<String>()?.firstOrNull { it != profile.userId }.orEmpty()
+                linkedTagType = activePair?.getString("tagType").orEmpty()
+                if (otherId.isBlank()) {
+                    partnerRegistration?.remove()
+                    partnerRegistration = null
+                    linkedPartnerId = ""
+                    linkedPartnerName = ""
+                    linkedPartnerAvatar = ""
+                } else if (otherId != linkedPartnerId) {
+                    linkedPartnerId = otherId
+                    partnerRegistration?.remove()
+                    partnerRegistration = FirebaseFirestore.getInstance()
+                        .collection("users").document(otherId)
+                        .addSnapshotListener { userSnapshot, _ ->
+                            linkedPartnerName = userSnapshot?.getString("username").orEmpty()
+                            linkedPartnerAvatar = userSnapshot?.getString("avatarUrl").orEmpty()
+                        }
+                }
+            }
+        onDispose {
+            pairRegistration.remove()
+            partnerRegistration?.remove()
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        if (linkedPartnerId.isNotBlank()) {
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    color = VibeGold.copy(alpha = 0.08f),
+                    border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.48f))
+                ) {
+                    Column(Modifier.padding(13.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Connected Relationship", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(
+                                if (showLinkedRelationship) "Hide" else "Show",
+                                modifier = Modifier.clickable { showLinkedRelationship = !showLinkedRelationship }.padding(5.dp),
+                                color = VibeCyan,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        if (showLinkedRelationship) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                VibeAvatar(avatarUrl = profile.avatarUrl, username = profile.username, size = 54.dp)
+                                Text("✦", modifier = Modifier.padding(horizontal = 12.dp), color = VibeGold, fontSize = 25.sp, fontWeight = FontWeight.Black)
+                                VibeAvatar(avatarUrl = linkedPartnerAvatar, username = linkedPartnerName, size = 54.dp)
+                            }
+                            Text(
+                                "${linkedPartnerName.ifBlank { "VibePlay user" }} · ${linkedTagType.lowercase().replaceFirstChar { it.uppercase() }}",
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                color = VibeGold,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // Cover + Avatar Header
         item {
             Box(

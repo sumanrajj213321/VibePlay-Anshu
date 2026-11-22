@@ -163,6 +163,8 @@ exports.breakRelationshipTag = onCall(
         tagBrokenBy: userId,
         tagCooldownUntil: cooldownUntil
       });
+      tx.delete(db.collection("relationship_links").doc(userId));
+      tx.delete(db.collection("relationship_links").doc(otherUserId));
     });
 
     return {

@@ -596,9 +596,10 @@ class RoomRepository(
 
             db.runTransaction { tx ->
                 val roomSnap = tx.get(roomRef)
-                if (!roomSnap.exists()) return@runTransaction
-                val loadedRoom = roomSnap.toObject(VoiceRoom::class.java) ?: room
-                if (loadedRoom.status != "LIVE") return@runTransaction
+                check(roomSnap.exists()) { "Room no longer exists." }
+                val loadedRoom = roomSnap.toObject(VoiceRoom::class.java)
+                    ?: throw IllegalStateException("Room data could not be loaded.")
+                check(loadedRoom.status == "LIVE") { "This room is no longer live." }
                 val listenerSnap = tx.get(listenerRef)
                 val seatSnaps = (1..VoiceStage.SPEAKER_SEAT_COUNT).map { idx ->
                     tx.get(roomRef.collection("seats").document(idx.toString()))

@@ -352,7 +352,8 @@ service cloud.firestore {
       let pairPath = /databases/$(database)/documents/relationship_pairs/$(pairId);
       return !exists(pairPath) ||
         (
-          !(get(pairPath).data.tagStatus in ['ACTIVE', 'WAITING_FAMILIARITY', 'PENDING']) &&
+          (!('tagStatus' in get(pairPath).data) ||
+           !(get(pairPath).data.tagStatus in ['ACTIVE', 'WAITING_FAMILIARITY', 'PENDING'])) &&
           (!('tagCooldownUntil' in get(pairPath).data) ||
            get(pairPath).data.tagCooldownUntil <= request.time)
         );
@@ -870,6 +871,7 @@ service cloud.firestore {
         incoming().notificationId == existing().notificationId &&
         incoming().status in ['ACCEPTED', 'REJECTED'] &&
         incoming().respondedAt == request.time &&
+        existing().expiresAt is timestamp && existing().expiresAt > request.time &&
         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'respondedAt']);
       allow delete: if false;
     }

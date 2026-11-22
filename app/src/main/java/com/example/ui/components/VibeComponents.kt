@@ -535,7 +535,7 @@ private fun RoseGoldFrameOverlay(modifier: Modifier, pulseAlpha: Float) {
         for(i in 0..7) {
             val angle=i*Math.PI/4.0
             val x=cx+kotlin.math.cos(angle).toFloat()*r*.20f; val y=cy-r*1.28f+kotlin.math.sin(angle).toFloat()*r*.20f
-            drawOval(rose,topLeft=androidx.compose.ui.geometry.Offset(x-r*.075f,y-r*.13f),size=androidx.compose.ui.geometry.Size(r*.15f,r*.26f),style=Stroke(1.5.dp.toPx()),rotation= i*45f,pivot=androidx.compose.ui.geometry.Offset(x,y))
+            drawOval(color=rose,topLeft=androidx.compose.ui.geometry.Offset(x-r*.075f,y-r*.13f),size=androidx.compose.ui.geometry.Size(r*.15f,r*.26f),style=Stroke(1.5.dp.toPx()))
         }
         drawCircle(blush,r*.075f,androidx.compose.ui.geometry.Offset(cx,cy-r*1.28f))
         val drop=Path().apply { moveTo(cx,cy+r*1.10f); cubicTo(cx+r*.36f,cy+r*1.40f,cx+r*.12f,cy+r*1.65f,cx,cy+r*1.68f); cubicTo(cx-r*.12f,cy+r*1.65f,cx-r*.36f,cy+r*1.40f,cx,cy+r*1.10f) }

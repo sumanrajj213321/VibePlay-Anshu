@@ -73,14 +73,34 @@ exports.recordRelationshipFamiliarity = onDocumentCreated(
       };
 
       // An accepted tag remains locked until the pair reaches 10,000 familiarity.
-      if (pairData.tagStatus === "WAITING_FAMILIARITY" &&
-          familiarityPoints >= 10000 &&
-          ["BUDDIES", "BRO", "CONFIDANT", "BESTIE"].includes(pairData.acceptedTagType)) {
+      const activatesTag = pairData.tagStatus === "WAITING_FAMILIARITY" &&
+        familiarityPoints >= 10000 &&
+        ["BUDDIES", "BRO", "CONFIDANT", "BESTIE"].includes(pairData.acceptedTagType);
+      if (activatesTag) {
         pairUpdate.tagStatus = "ACTIVE";
         pairUpdate.tagType = pairData.acceptedTagType;
         pairUpdate.tagStartedAt = FieldValue.serverTimestamp();
         pairUpdate.activatedAtFamiliarity = familiarityPoints;
         pairUpdate.acceptedTagType = FieldValue.delete();
+        const [senderProfile, recipientProfile] = await Promise.all([
+          tx.get(db.collection("users").doc(senderId)),
+          tx.get(db.collection("users").doc(recipientId))
+        ]);
+        const tagType = pairData.acceptedTagType;
+        tx.set(db.collection("relationship_links").doc(senderId), {
+          partnerId: recipientId,
+          partnerName: recipientProfile.get("username") || recipientProfile.get("displayName") || "VibePlay user",
+          partnerAvatarUrl: recipientProfile.get("avatarUrl") || "",
+          tagType,
+          updatedAt: FieldValue.serverTimestamp()
+        });
+        tx.set(db.collection("relationship_links").doc(recipientId), {
+          partnerId: senderId,
+          partnerName: senderProfile.get("username") || senderProfile.get("displayName") || "VibePlay user",
+          partnerAvatarUrl: senderProfile.get("avatarUrl") || "",
+          tagType,
+          updatedAt: FieldValue.serverTimestamp()
+        });
       }
 
       tx.set(pairRef, pairUpdate, { merge: true });
@@ -317,6 +337,26 @@ exports.respondRelationshipInvite = onCall(
       if (accept) {
         const familiarityPoints = Number(pairSnap.get("familiarityPoints") || 0);
         const canActivate = familiarityPoints >= 10000;
+        if (canActivate) {
+          const [inviterProfile, recipientProfile] = await Promise.all([
+            tx.get(db.collection("users").doc(inviterId)),
+            tx.get(db.collection("users").doc(userId))
+          ]);
+          tx.set(db.collection("relationship_links").doc(inviterId), {
+            partnerId: userId,
+            partnerName: recipientProfile.get("username") || recipientProfile.get("displayName") || "VibePlay user",
+            partnerAvatarUrl: recipientProfile.get("avatarUrl") || "",
+            tagType: invite.tagType,
+            updatedAt: now
+          });
+          tx.set(db.collection("relationship_links").doc(userId), {
+            partnerId: inviterId,
+            partnerName: inviterProfile.get("username") || inviterProfile.get("displayName") || "VibePlay user",
+            partnerAvatarUrl: inviterProfile.get("avatarUrl") || "",
+            tagType: invite.tagType,
+            updatedAt: now
+          });
+        }
         tx.update(pairRef, {
           tagStatus: canActivate ? "ACTIVE" : "WAITING_FAMILIARITY",
           ...(canActivate ? {

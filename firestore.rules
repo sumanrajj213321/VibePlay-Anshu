@@ -396,7 +396,7 @@ service cloud.firestore {
                        isValidTs(incoming().updatedAt) && (
         
         (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
-(incoming().lastPurchasedTitleId is string && shopTitlePrice(incoming().lastPurchasedTitleId) >= 0 && isValidTitlePurchase(incoming(), existing(), incoming().lastPurchasedTitleId, shopTitlePrice(incoming().lastPurchasedTitleId))) ||
+(('lastPurchasedTitleId' in incoming()) && incoming().lastPurchasedTitleId is string && shopTitlePrice(incoming().lastPurchasedTitleId) >= 0 && isValidTitlePurchase(incoming(), existing(), incoming().lastPurchasedTitleId, shopTitlePrice(incoming().lastPurchasedTitleId))) ||
           isValidFramePurchase(incoming(), existing()) ||
           (incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarUrl', 'coverUrl', 'gender', 'genderChangeCount', 'age', 'ageRange', 'showAge', 'showGender', 'showOnlineStatus', 'online', 'followingCount', 'followersCount', 'updatedAt']) &&
            isValidUserProfile(incoming()) &&

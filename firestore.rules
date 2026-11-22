@@ -397,6 +397,7 @@ service cloud.firestore {
                        incoming().role == existing().role &&
                        incoming().accountStatus == existing().accountStatus &&
                        isValidTs(incoming().updatedAt) &&
+                       incoming().diff(existing()).affectedKeys().hasAny(['lastPurchasedTitleId', 'lastTitlePurchaseAt']) &&
                        incoming().lastPurchasedTitleId is string &&
                        shopTitlePrice(incoming().lastPurchasedTitleId) >= 0 &&
                        isValidTitlePurchase(incoming(), existing(), incoming().lastPurchasedTitleId, shopTitlePrice(incoming().lastPurchasedTitleId));
@@ -408,6 +409,7 @@ service cloud.firestore {
                        incoming().role == existing().role &&
                        incoming().accountStatus == existing().accountStatus &&
                        isValidTs(incoming().updatedAt) &&
+                       incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
                        isValidFramePurchase(incoming(), existing());
 
       allow update: if isSignedIn() && isValidId(userId) &&

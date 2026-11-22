@@ -94,6 +94,7 @@ import com.example.ui.theme.VibeEmerald
 import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
+import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.Flow
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -1431,6 +1432,9 @@ fun NotificationsCenterSheet(
     onOpenUserById: (String) -> Unit = {},
     onDismiss: () -> Unit
 ) {
+    var respondingInviteId by remember { mutableStateOf<String?>(null) }
+    var inviteResponseMessage by remember { mutableStateOf("") }
+    val relationshipFunctions = remember { FirebaseFunctions.getInstance("asia-south1") }
     val hasUnread = notifications.any { !it.read }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface) {
         LazyColumn(
@@ -1473,14 +1477,17 @@ fun NotificationsCenterSheet(
                         color = if (!item.read) VibeViolet.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
-                                onMarkRead(item.id)
-                                when (item.type) {
-                                    "ROOM_INVITE", "GIFT" -> if (item.targetId.isNotBlank()) onOpenRoomById(item.targetId)
-                                    "MESSAGE" -> if (item.targetId.isNotBlank()) onOpenConversationById(item.targetId)
-                                    "FOLLOW" -> if (item.senderId.isNotBlank()) onOpenUserById(item.senderId)
+                            .then(
+                                if (item.type == "RELATIONSHIP_INVITE") Modifier
+                                else Modifier.clickable {
+                                    onMarkRead(item.id)
+                                    when (item.type) {
+                                        "ROOM_INVITE", "GIFT" -> if (item.targetId.isNotBlank()) onOpenRoomById(item.targetId)
+                                        "MESSAGE" -> if (item.targetId.isNotBlank()) onOpenConversationById(item.targetId)
+                                        "FOLLOW" -> if (item.senderId.isNotBlank()) onOpenUserById(item.senderId)
+                                    }
                                 }
-                            }
+                            )
                     ) {
                         Column(
                             modifier = Modifier.padding(12.dp),
@@ -1496,6 +1503,60 @@ fun NotificationsCenterSheet(
                                 }
                             }
                             Text(item.body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (item.type == "RELATIONSHIP_INVITE") {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            respondingInviteId = item.targetId
+                                            inviteResponseMessage = ""
+                                            relationshipFunctions.getHttpsCallable("respondRelationshipInvite")
+                                                .call(mapOf("inviteId" to item.targetId, "accept" to true))
+                                                .addOnSuccessListener {
+                                                    respondingInviteId = null
+                                                    onMarkRead(item.id)
+                                                    inviteResponseMessage = "Relationship invitation accepted."
+                                                }
+                                                .addOnFailureListener { error ->
+                                                    respondingInviteId = null
+                                                    inviteResponseMessage = error.localizedMessage ?: "Could not accept invitation."
+                                                }
+                                        },
+                                        enabled = respondingInviteId == null && item.targetId.isNotBlank()
+                                    ) {
+                                        Text(if (respondingInviteId == item.targetId) "Please wait…" else "Accept")
+                                    }
+                                    OutlinedButton(
+                                        onClick = {
+                                            respondingInviteId = item.targetId
+                                            inviteResponseMessage = ""
+                                            relationshipFunctions.getHttpsCallable("respondRelationshipInvite")
+                                                .call(mapOf("inviteId" to item.targetId, "accept" to false))
+                                                .addOnSuccessListener {
+                                                    respondingInviteId = null
+                                                    onMarkRead(item.id)
+                                                    inviteResponseMessage = "Relationship invitation declined."
+                                                }
+                                                .addOnFailureListener { error ->
+                                                    respondingInviteId = null
+                                                    inviteResponseMessage = error.localizedMessage ?: "Could not decline invitation."
+                                                }
+                                        },
+                                        enabled = respondingInviteId == null && item.targetId.isNotBlank()
+                                    ) {
+                                        Text("Reject")
+                                    }
+                                }
+                                if (inviteResponseMessage.isNotBlank() && respondingInviteId == null) {
+                                    Text(
+                                        inviteResponseMessage,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                         }
                     }
                 }

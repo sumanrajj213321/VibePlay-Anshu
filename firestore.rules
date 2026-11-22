@@ -854,6 +854,12 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /relationship_profile_selection/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
     match /relationship_gift_events/{eventId} {
       allow read, write: if false;
     }

@@ -351,12 +351,10 @@ internal fun VoiceRoomStageContent(
     val allNineSeats = listOf(currentStage.hostSeat) + currentStage.speakerSeats
     val mySeat = allNineSeats.firstOrNull { it.occupantId == currentUser.userId }
     val visibleMessages = messages.filter { it.senderId !in blockedUserIds }
-    val computedOnlineUsers = remember(onlineUsers, currentRoom, currentStage, listeners) {
-        if (onlineUsers.isNotEmpty()) {
-            onlineUsers
-        } else {
-            VoiceStage.buildOnlineMembersList(currentRoom, currentStage, listeners)
-        }
+    // The header count is room-scoped, never the app-wide online-users list.
+    // Room sessions + stage seats + active listeners are the authoritative room members.
+    val computedOnlineUsers = remember(currentRoom, currentStage, listeners) {
+        VoiceStage.buildOnlineMembersList(currentRoom, currentStage, listeners)
     }
 
     Scaffold(

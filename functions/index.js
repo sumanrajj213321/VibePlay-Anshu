@@ -134,6 +134,63 @@ exports.recordRelationshipFamiliarity = onDocumentCreated(
 );
 
 
+// Backfill public cards for active tags created before public-profile publishing existed.
+exports.syncActiveRelationshipPublicTags = onSchedule(
+  {
+    schedule: "every 60 minutes",
+    timeZone: "Asia/Kolkata",
+    region: "asia-south1"
+  },
+  async () => {
+    const activePairs = await db.collection("relationship_pairs")
+      .where("tagStatus", "==", "ACTIVE")
+      .get();
+    let batch = db.batch();
+    let writes = 0;
+    let total = 0;
+
+    for (const pairDoc of activePairs.docs) {
+      const pair = pairDoc.data();
+      const userIds = Array.isArray(pair.userIds)
+        ? [...new Set(pair.userIds.filter((id) => typeof id === "string" && id))]
+        : [];
+      if (userIds.length !== 2) continue;
+
+      const [userAId, userBId] = userIds.sort();
+      const [userA, userB] = await Promise.all([
+        db.collection("users").doc(userAId).get(),
+        db.collection("users").doc(userBId).get()
+      ]);
+      if (!userA.exists || !userB.exists) continue;
+
+      batch.set(db.collection("relationship_public_tags").doc(pairDoc.id), {
+        userIds: [userAId, userBId],
+        userAName: userA.get("username") || userA.get("displayName") || "VibePlay user",
+        userAAvatarUrl: userA.get("avatarUrl") || "",
+        userBName: userB.get("username") || userB.get("displayName") || "VibePlay user",
+        userBAvatarUrl: userB.get("avatarUrl") || "",
+        tagType: pair.tagType || "",
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+      writes += 1;
+      total += 1;
+
+      if (writes === 450) {
+        await batch.commit();
+        batch = db.batch();
+        writes = 0;
+      }
+    }
+
+    if (writes > 0) await batch.commit();
+    logger.info("Active relationship public-tag sync completed", {
+      activePairsScanned: activePairs.size,
+      publicTagsWritten: total
+    });
+  }
+);
+
+
 // Break an active relationship tag without deleting or resetting familiarity.
 // The pair remains locked from creating another tag for seven full days.
 exports.breakRelationshipTag = onCall(

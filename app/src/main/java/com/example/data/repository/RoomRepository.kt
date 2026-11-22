@@ -71,10 +71,6 @@ class RoomRepository(
             .flatMapLatest { rooms ->
                 if (rooms.isEmpty()) flowOf(emptyList())
                 else {
-                    val onlineUsersFlow = db.collection("users")
-                        .whereEqualTo("accountStatus", "ACTIVE").whereEqualTo("online", true)
-                        .snapshots().map { users -> users.documents.map { it.id }.toSet() }
-                        .onStart { emit(emptySet()) }
                     val roomCountFlows = rooms.map { room ->
                         val roomRef = db.collection("rooms").document(room.id)
                         val sessionsFlow = roomRef.collection("room_sessions").snapshots()
@@ -83,11 +79,12 @@ class RoomRepository(
                         val seatsFlow = roomRef.collection("seats").snapshots()
                             .map { snap -> snap.documents.mapNotNull { it.getString("occupantId") }.filter { it.isNotBlank() }.toSet() }
                             .onStart { emit(emptySet()) }
-                        combine(sessionsFlow, seatsFlow, onlineUsersFlow) { sessionIds, seatedIds, onlineIds ->
-                            val activeSessions = sessionIds.intersect(onlineIds)
-                            val activeSeats = seatedIds.intersect(activeSessions)
+                        // A room session is the room-specific presence source. Do not intersect
+                        // it with users.online, which can lag or be stale on another device.
+                        combine(sessionsFlow, seatsFlow) { sessionIds, seatedIds ->
+                            val activeSeats = seatedIds.intersect(sessionIds)
                             room.copy(
-                                listenerCount = (activeSessions - activeSeats).size.toLong(),
+                                listenerCount = (sessionIds - activeSeats).size.toLong(),
                                 activeSpeakersCount = activeSeats.size.toLong()
                             )
                         }

@@ -78,7 +78,7 @@ service cloud.firestore {
              data.titleExpiresAt[itemId] is timestamp &&
              data.titleExpiresAt[itemId] > request.time - duration.value(1, 'm') &&
              data.titleExpiresAt[itemId] <= request.time + duration.value(15, 'd') + duration.value(1, 'm') &&
-             data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'titleExpiresAt', 'lastPurchasedTitleId', 'lastTitlePurchaseAt', 'updatedAt']);
+             data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'activeTitleId', 'titleExpiresAt', 'lastPurchasedTitleId', 'lastTitlePurchaseAt', 'updatedAt']);
     }
 
     function shopFramePrice(itemId) {

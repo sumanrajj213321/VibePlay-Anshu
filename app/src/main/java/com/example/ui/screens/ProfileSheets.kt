@@ -83,6 +83,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -870,7 +871,23 @@ fun PublicProfileSheet(
 ) {
     var showReport by remember { mutableStateOf(false) }
     var followSheetTab by remember { mutableStateOf<Int?>(null) }
+    var publicPartnerName by remember(targetUser.userId) { mutableStateOf("") }
+    var publicPartnerAvatar by remember(targetUser.userId) { mutableStateOf("") }
+    var publicTagType by remember(targetUser.userId) { mutableStateOf("") }
+    var showPublicRelationship by remember(targetUser.userId) { mutableStateOf(true) }
     val isSelf = currentUserId.isNotBlank() && targetUser.userId == currentUserId
+
+    DisposableEffect(targetUser.userId) {
+        val registration = FirebaseFirestore.getInstance()
+            .collection("relationship_links")
+            .document(targetUser.userId)
+            .addSnapshotListener { snapshot, _ ->
+                publicPartnerName = snapshot?.getString("partnerName").orEmpty()
+                publicPartnerAvatar = snapshot?.getString("partnerAvatarUrl").orEmpty()
+                publicTagType = snapshot?.getString("tagType").orEmpty()
+            }
+        onDispose { registration.remove() }
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1009,6 +1026,50 @@ fun PublicProfileSheet(
 
             if (targetUser.bio.isNotBlank()) {
                 Text(targetUser.bio, style = MaterialTheme.typography.bodyMedium)
+            }
+
+            if (publicTagType.isNotBlank() && !isSelf) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = VibeGold.copy(alpha = 0.08f),
+                    border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.48f))
+                ) {
+                    Column(Modifier.padding(13.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Connected Relationship", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(
+                                if (showPublicRelationship) "Hide" else "Show",
+                                modifier = Modifier.clickable { showPublicRelationship = !showPublicRelationship }.padding(5.dp),
+                                color = VibeCyan,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        if (showPublicRelationship) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                VibeAvatar(avatarUrl = targetUser.avatarUrl, username = targetUser.username, size = 54.dp)
+                                Text("✦", modifier = Modifier.padding(horizontal = 12.dp), color = VibeGold, fontSize = 25.sp, fontWeight = FontWeight.Black)
+                                VibeAvatar(avatarUrl = publicPartnerAvatar, username = publicPartnerName, size = 54.dp)
+                            }
+                            Text(
+                                "${publicPartnerName.ifBlank { "VibePlay user" }} · ${publicTagType.lowercase().replaceFirstChar { it.uppercase() }}",
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                color = VibeGold,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
             }
 
             // Clickable Followers / Following summary for this user

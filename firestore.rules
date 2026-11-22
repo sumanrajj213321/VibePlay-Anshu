@@ -393,36 +393,14 @@ service cloud.firestore {
                        isValidTs(incoming().createdAt) &&
                        isValidTs(incoming().updatedAt);
 
-      // Isolated cosmetic purchase checks keep the general user-update expression under Firestore's evaluation limit.
       allow update: if isSignedIn() && isValidId(userId) &&
-                       request.auth.uid == userId &&
-                       incoming().userId == existing().userId &&
-                       incoming().createdAt == existing().createdAt &&
-                       isValidTs(incoming().updatedAt) &&
-                       incoming().role == existing().role &&
-                       incoming().accountStatus == existing().accountStatus &&
-                       incoming().diff(existing()).affectedKeys().hasAny(['lastTitlePurchaseAt']) &&
-                       ('lastPurchasedTitleId' in incoming()) &&
-                       incoming().lastPurchasedTitleId is string &&
-                       shopTitlePrice(incoming().lastPurchasedTitleId) >= 0 &&
-                       isValidTitlePurchase(incoming(), existing(), incoming().lastPurchasedTitleId, shopTitlePrice(incoming().lastPurchasedTitleId));
-
-      allow update: if isSignedIn() && isValidId(userId) &&
-                       request.auth.uid == userId &&
-                       incoming().userId == existing().userId &&
-                       incoming().createdAt == existing().createdAt &&
-                       isValidTs(incoming().updatedAt) &&
-                       incoming().role == existing().role &&
-                       incoming().accountStatus == existing().accountStatus &&
-                       incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-                       isValidFramePurchase(incoming(), existing());
-
-      allow update: if isSignedIn() && isValidId(userId) &&
-                       !incoming().diff(existing()).affectedKeys().hasAny(['lastTitlePurchaseAt', 'lastPurchasedTitleId', 'lastFramePurchaseAt']) &&
                        incoming().userId == existing().userId &&
                        incoming().createdAt == existing().createdAt &&
                        isValidTs(incoming().updatedAt) && (
+        
         (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
+          (incoming().lastPurchasedTitleId is string && shopTitlePrice(incoming().lastPurchasedTitleId) >= 0 && isValidTitlePurchase(incoming(), existing(), incoming().lastPurchasedTitleId, shopTitlePrice(incoming().lastPurchasedTitleId))) ||
+          isValidFramePurchase(incoming(), existing()) ||
           (incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarUrl', 'coverUrl', 'gender', 'genderChangeCount', 'age', 'ageRange', 'showAge', 'showGender', 'showOnlineStatus', 'online', 'followingCount', 'followersCount', 'updatedAt']) &&
            isValidUserProfile(incoming()) &&
            incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
@@ -458,6 +436,8 @@ service cloud.firestore {
            incoming().totalGiftCoinsSent is int &&
            incoming().totalGiftCoinsSent > (('totalGiftCoinsSent' in existing()) ? existing().totalGiftCoinsSent : 0) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'totalGiftsSent', 'totalGiftCoinsSent', 'xp', 'level', 'updatedAt'])) ||
+
+
           (incoming().vipLevel == existing().vipLevel &&
            incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
            incoming().totalGiftsSent is int &&
@@ -469,6 +449,7 @@ service cloud.firestore {
            incoming().totalGiftCoinsReceived is int &&
            incoming().totalGiftCoinsReceived > (('totalGiftCoinsReceived' in existing()) ? existing().totalGiftCoinsReceived : 0) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'totalGiftsSent', 'totalGiftCoinsSent', 'totalGiftsReceived', 'totalGiftCoinsReceived', 'xp', 'level', 'updatedAt'])) ||
+
           (incoming().coinBalance == existing().coinBalance &&
            incoming().vipLevel == existing().vipLevel &&
            ((('activeTitleIds' in incoming()) && hasValidEquippedTitles(incoming())) ||

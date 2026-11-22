@@ -44,7 +44,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.model.FollowEdge
-import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Timestamp
+import java.security.MessageDigest
+import java.util.Date
 
 private data class RelationshipStyle(
     val title: String,
@@ -69,7 +73,7 @@ fun RelationshipScreen(
 ) {
     var statusMessage by remember { mutableStateOf("") }
     var sendingTo by remember { mutableStateOf<String?>(null) }
-    val functions = remember { FirebaseFunctions.getInstance("asia-south1") }
+    val firestore = remember { FirebaseFirestore.getInstance() }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(
@@ -113,15 +117,57 @@ fun RelationshipScreen(
                         } else {
                             sendingTo = person.peerId
                             statusMessage = ""
-                            functions.getHttpsCallable("sendRelationshipInvite")
-                                .call(mapOf("otherUserId" to person.peerId, "tagType" to tagType))
-                                .addOnSuccessListener {
-                                    sendingTo = null
-                                    statusMessage = "Invitation sent to ${person.peerName.ifBlank { "this user" }}."
+                            val pairId = MessageDigest.getInstance("SHA-256")
+                                .digest(listOf(currentUserId, person.peerId).sorted().joinToString(":").toByteArray())
+                                .joinToString("") { "%02x".format(it) }
+                            val inviteRef = firestore.collection("relationship_invites").document(pairId)
+                            val notificationRef = firestore.collection("notifications").document()
+                            firestore.collection("users").document(currentUserId).get()
+                                .addOnSuccessListener { senderSnapshot ->
+                                    val senderName = senderSnapshot.getString("username").orEmpty().ifBlank { "VibePlay user" }.take(60)
+                                    val senderAvatar = senderSnapshot.getString("avatarUrl").orEmpty()
+                                    val invitedName = person.peerName.ifBlank { "VibePlay user" }.take(60)
+                                    val invitedAvatar = person.peerAvatarUrl
+                                    val expiresAt = Timestamp(Date(System.currentTimeMillis() + 48L * 60L * 60L * 1000L))
+                                    val inviteData = mapOf(
+                                        "pairId" to pairId,
+                                        "inviterId" to currentUserId,
+                                        "invitedTo" to person.peerId,
+                                        "inviterName" to senderName,
+                                        "invitedName" to invitedName,
+                                        "inviterAvatarUrl" to senderAvatar,
+                                        "invitedAvatarUrl" to invitedAvatar,
+                                        "tagType" to tagType,
+                                        "status" to "PENDING",
+                                        "notificationId" to notificationRef.id,
+                                        "createdAt" to FieldValue.serverTimestamp(),
+                                        "expiresAt" to expiresAt
+                                    )
+                                    val notificationData = mapOf(
+                                        "recipientId" to person.peerId,
+                                        "senderId" to currentUserId,
+                                        "senderName" to senderName,
+                                        "type" to "RELATIONSHIP_INVITE",
+                                        "title" to "Relationship invitation",
+                                        "body" to "$senderName invited you to become ${tagType.lowercase()}.",
+                                        "targetId" to pairId,
+                                        "read" to false,
+                                        "createdAt" to FieldValue.serverTimestamp()
+                                    )
+                                    firestore.runBatch { batch ->
+                                        batch.set(inviteRef, inviteData)
+                                        batch.set(notificationRef, notificationData)
+                                    }.addOnSuccessListener {
+                                        sendingTo = null
+                                        statusMessage = "Invitation sent to ${person.peerName.ifBlank { "this user" }}."
+                                    }.addOnFailureListener { error ->
+                                        sendingTo = null
+                                        statusMessage = error.localizedMessage ?: "Could not send invitation."
+                                    }
                                 }
                                 .addOnFailureListener { error ->
                                     sendingTo = null
-                                    statusMessage = error.localizedMessage ?: "Could not send invitation."
+                                    statusMessage = error.localizedMessage ?: "Could not load your profile."
                                 }
                         }
                     }

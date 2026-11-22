@@ -3,6 +3,20 @@
 // READ-ONLY relationship migration probe.
 // This file intentionally never writes to Firestore.
 const admin = require("firebase-admin");
+const { createHash } = require("node:crypto");
+
+const LEVELS = [10000, 30000, 60000, 100000, 150000, 220000, 300000, 400000, 550000, 750000];
+function pairIdFor(a, b) {
+  return createHash("sha256").update([a, b].sort().join(":")).digest("hex");
+}
+function levelFor(points) {
+  let level = 0;
+  for (let i = 0; i < LEVELS.length; i += 1) {
+    if (points >= LEVELS[i]) level = i + 1;
+    else break;
+  }
+  return level;
+}
 
 function loadServiceAccount() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -68,7 +82,27 @@ async function main() {
     const current = pairTotals.get(key) || { coinCost: 0, gifts: 0 };
     current.coinCost += coinCost;
     current.gifts += 1;
+    current.userIds = ids;
     pairTotals.set(key, current);
+  }
+
+  const pairProjections = [];
+  for (const item of pairTotals.values()) {
+    const pairRef = db.collection("relationship_pairs").doc(pairIdFor(item.userIds[0], item.userIds[1]));
+    const pairSnap = await pairRef.get();
+    const pair = pairSnap.exists ? pairSnap.data() : {};
+    const previousCoins = Number.isSafeInteger(pair.totalGiftCoins) && pair.totalGiftCoins >= 0 ? pair.totalGiftCoins : 0;
+    const projectedCoins = previousCoins + item.coinCost;
+    const projectedFamiliarity = Math.floor(projectedCoins / 5);
+    pairProjections.push({
+      newGiftTransactions: item.gifts,
+      newGiftCoins: item.coinCost,
+      existingGiftCoins: previousCoins,
+      projectedTotalGiftCoins: projectedCoins,
+      projectedFamiliarity,
+      projectedLevel: levelFor(projectedFamiliarity),
+      wouldUnlockWaitingTag: pair.tagStatus === "WAITING_FAMILIARITY" && projectedFamiliarity >= 10000
+    });
   }
 
   const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - 48 * 60 * 60 * 1000);
@@ -103,6 +137,7 @@ async function main() {
     selfGiftTransactionsIgnored: selfGifts,
     distinctPairsWithUnprocessedGifts: pairTotals.size,
     projectedCoinCostByPair: Array.from(pairTotals.values()).reduce((sum, item) => sum + item.coinCost, 0),
+    pairProjections,
     oldInvitationsScanned: expirySnapshot.size,
     invitationsEligibleForExpiry: expiredPending,
     nonPendingInvitationsIgnored: otherInviteStatuses,

@@ -409,7 +409,7 @@ service cloud.firestore {
                          shopTitlePrice(incoming().lastPurchasedTitleId)
                        );
 
-      allow update: if !(request.auth.uid == userId && incoming().lastPurchasedTitleId is string) &&
+      allow update: if !(request.auth.uid == userId && ('lastPurchasedTitleId' in incoming())) &&
                        isSignedIn() && isValidId(userId) &&
                        incoming().userId == existing().userId &&
                        incoming().createdAt == existing().createdAt &&

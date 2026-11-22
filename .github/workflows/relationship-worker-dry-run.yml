@@ -1,7 +1,20 @@
-name: Relationship Worker Dry Run
+name: Relationship Worker (Guarded)
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "Choose read-only check or production processing"
+        required: true
+        type: choice
+        default: dry-run
+        options:
+          - dry-run
+          - apply
+      confirmation:
+        description: "For production only, type APPLY exactly"
+        required: false
+        type: string
   push:
     branches: [main]
     paths:
@@ -12,9 +25,9 @@ permissions:
   contents: read
 
 jobs:
-  relationship-dry-run:
+  relationship-worker:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,12 +41,34 @@ jobs:
         working-directory: functions
         run: npm install --no-package-lock --ignore-scripts
 
-      - name: Validate read-only worker syntax
+      - name: Validate worker syntax
         run: node --check scripts/relationship-worker-dry-run.js
 
-      - name: Inspect relationship processing candidates (read-only)
+      - name: Enforce safe mode for automatic runs
+        if: github.event_name == 'push'
+        run: |
+          echo "Automatic push runs are read-only."
+          echo "RELATIONSHIP_WORKER_MODE=dry-run" >> "$GITHUB_ENV"
+
+      - name: Configure manually selected mode
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          REQUESTED_MODE: ${{ inputs.mode }}
+          REQUESTED_CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          if [ "$REQUESTED_MODE" = "apply" ]; then
+            if [ "$REQUESTED_CONFIRMATION" != "APPLY" ]; then
+              echo "Production mode requires typing APPLY exactly."
+              exit 1
+            fi
+            echo "RELATIONSHIP_WORKER_MODE=apply" >> "$GITHUB_ENV"
+            echo "RELATIONSHIP_WORKER_CONFIRM=APPLY" >> "$GITHUB_ENV"
+          else
+            echo "RELATIONSHIP_WORKER_MODE=dry-run" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run relationship worker
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-          RELATIONSHIP_WORKER_MODE: dry-run
           NODE_PATH: ${{ github.workspace }}/functions/node_modules
         run: node scripts/relationship-worker-dry-run.js

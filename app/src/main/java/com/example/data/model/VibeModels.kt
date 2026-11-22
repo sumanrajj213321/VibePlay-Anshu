@@ -629,24 +629,35 @@ object VibeCatalogDefaults {
     )
 
     val vipTiers = listOf(
-        VipTier(1, "VIP 1 · Starlight", 200L, 0xFF06B6D4, "Cyan Ripple Entrance", listOf("Cyan VIP 1 Badge", "1.2x Room XP Boost", "Custom Cyan Seat Ring")),
-        VipTier(2, "VIP 2 · Neon Pulse", 450L, 0xFF7C3AED, "Aurora Wave Banner", listOf("Violet VIP 2 Badge", "Animated Profile Frame", "Priority Speaker Queue")),
-        VipTier(3, "VIP 3 · Coral Crown", 900L, 0xFFEC4899, "Pink Spotlight Arrival", listOf("Coral VIP 3 Badge", "Exclusive Lounge Decorations", "1.5x XP Boost")),
-        VipTier(4, "VIP 4 · Royal Gold", 1800L, 0xFFF59E0B, "Golden Crown Shower", listOf("Gold VIP 4 Crown", "2x Daily Login Coins", "Royal Stage Aura")),
-        VipTier(5, "VIP 5 · Apex Legend", 3500L, 0xFFFFD700, "Full-Screen Galaxy Entrance", listOf("Apex Legend Crest", "Iridescent Avatar Halo", "VIP Support & All Effects"))
-    ) + (6..30).map { level ->
-        val colors = listOf(0xFF06B6D4, 0xFF7C3AED, 0xFFEC4899, 0xFFF59E0B, 0xFF22C55E, 0xFF3B82F6)
-        val names = listOf("Aurora", "Eclipse", "Stellar", "Celestial", "Infinity", "Cosmic")
-        val effects = listOf("Aurora Portal", "Eclipse Spotlight", "Stellar Burst", "Celestial Entrance", "Infinity Wave", "Cosmic Galaxy")
-        val color = colors[(level - 6) % colors.size]
-        val name = names[(level - 6) % names.size]
-        VipTier(
-            level = level,
-            title = "VIP $level · $name",
-            coinPrice = 3500L * (1L shl (level - 5)),
-            badgeColorHex = color,
-            entranceEffect = effects[(level - 6) % effects.size],
-            perks = listOf("VIP $level Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")
-        )
-    }
+        VipTier(1, "VIP 1 · Starlight", 200L, 0xFFF23535, "Cyan Ripple Entrance", listOf("VIP 1 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(2, "VIP 2 · Neon Pulse", 450L, 0xFFF25B35, "Aurora Wave Banner", listOf("VIP 2 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(3, "VIP 3 · Coral Crown", 900L, 0xFFF28135, "Pink Spotlight Arrival", listOf("VIP 3 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(4, "VIP 4 · Royal Gold", 1800L, 0xFFF2A735, "Golden Crown Shower", listOf("VIP 4 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(5, "VIP 5 · Apex Legend", 3500L, 0xFFF2CC35, "Full-Screen Galaxy Entrance", listOf("VIP 5 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(6, "VIP 6 · Aurora", 7000L, 0xFFF2F235, "Aurora Portal", listOf("VIP 6 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(7, "VIP 7 · Eclipse", 14000L, 0xFFCCF235, "Eclipse Spotlight", listOf("VIP 7 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(8, "VIP 8 · Stellar", 28000L, 0xFFA7F235, "Stellar Burst", listOf("VIP 8 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(9, "VIP 9 · Celestial", 56000L, 0xFF81F235, "Celestial Entrance", listOf("VIP 9 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(10, "VIP 10 · Infinity", 112000L, 0xFF5BF235, "Infinity Wave", listOf("VIP 10 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(11, "VIP 11 · Cosmic", 224000L, 0xFF35F235, "Cosmic Galaxy", listOf("VIP 11 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(12, "VIP 12 · Prism", 448000L, 0xFF35F25B, "Prism Trail", listOf("VIP 12 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(13, "VIP 13 · Nova", 896000L, 0xFF35F281, "Nova Flash", listOf("VIP 13 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(14, "VIP 14 · Sapphire", 1792000L, 0xFF35F2A7, "Sapphire Rain", listOf("VIP 14 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(15, "VIP 15 · Ruby", 3584000L, 0xFF35F2CC, "Ruby Flare", listOf("VIP 15 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(16, "VIP 16 · Emerald", 7168000L, 0xFF35F2F2, "Emerald Pulse", listOf("VIP 16 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(17, "VIP 17 · Amethyst", 14336000L, 0xFF35CCF2, "Amethyst Drift", listOf("VIP 17 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(18, "VIP 18 · Topaz", 28672000L, 0xFF35A7F2, "Topaz Beam", listOf("VIP 18 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(19, "VIP 19 · Opal", 57344000L, 0xFF3581F2, "Opal Shimmer", listOf("VIP 19 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(20, "VIP 20 · Solar", 114688000L, 0xFF355BF2, "Solar Flare", listOf("VIP 20 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(21, "VIP 21 · Lunar", 229376000L, 0xFF3535F2, "Lunar Halo", listOf("VIP 21 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(22, "VIP 22 · Comet", 458752000L, 0xFF5B35F2, "Comet Streak", listOf("VIP 22 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(23, "VIP 23 · Galaxy", 917504000L, 0xFF8135F2, "Galaxy Portal", listOf("VIP 23 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(24, "VIP 24 · Radiant", 1835008000L, 0xFFA735F2, "Radiant Sweep", listOf("VIP 24 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(25, "VIP 25 · Mystic", 3670016000L, 0xFFCC35F2, "Mystic Aura", listOf("VIP 25 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(26, "VIP 26 · Quantum", 7340032000L, 0xFFF235F2, "Quantum Shift", listOf("VIP 26 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(27, "VIP 27 · Ethereal", 14680064000L, 0xFFF235CC, "Ethereal Glow", listOf("VIP 27 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(28, "VIP 28 · Phoenix", 29360128000L, 0xFFF235A7, "Phoenix Rise", listOf("VIP 28 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(29, "VIP 29 · Titan", 58720256000L, 0xFFF23581, "Titan Arrival", listOf("VIP 29 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(30, "VIP 30 · Legendary", 117440512000L, 0xFFF2355B, "Legendary Entrance", listOf("VIP 30 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect"))
+    )
 }

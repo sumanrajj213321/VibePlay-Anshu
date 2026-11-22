@@ -249,6 +249,7 @@ private fun RelationshipFollowingCard(
     var selectedTag by remember(person.peerId) { mutableStateOf("BUDDIES") }
     var familiarity by remember(person.peerId, currentUserId) { mutableStateOf(0) }
     var pairStatus by remember(person.peerId, currentUserId) { mutableStateOf("NONE") }
+    var cooldownUntil by remember(person.peerId, currentUserId) { mutableStateOf<Timestamp?>(null) }
     DisposableEffect(person.peerId, currentUserId) {
         val pairId = MessageDigest.getInstance("SHA-256")
             .digest(listOf(currentUserId, person.peerId).sorted().joinToString(":").toByteArray())
@@ -259,6 +260,7 @@ private fun RelationshipFollowingCard(
                 familiarity = (snapshot?.getLong("familiarityPoints") ?: 0L)
                     .coerceAtLeast(0L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
                 pairStatus = snapshot?.getString("tagStatus") ?: "NONE"
+                cooldownUntil = snapshot?.getTimestamp("tagCooldownUntil")
             }
         onDispose { registration.remove() }
     }
@@ -266,6 +268,10 @@ private fun RelationshipFollowingCard(
         .firstOrNull { familiarity < it } ?: 750000
     val currentLevel = listOf(10000, 30000, 60000, 100000, 150000, 220000, 300000, 400000, 550000, 750000)
         .count { familiarity >= it }
+    val cooldownActive = cooldownUntil?.toDate()?.after(Date()) == true
+    val cooldownLabel = cooldownUntil?.toDate()?.let {
+        java.text.SimpleDateFormat("dd MMM, hh:mm a", java.util.Locale.getDefault()).format(it)
+    }.orEmpty()
     val selected = relationshipStyles.first { it.backendType == selectedTag }
     Surface(
         modifier = Modifier.fillMaxWidth().padding(top = 9.dp),
@@ -281,7 +287,7 @@ private fun RelationshipFollowingCard(
                     "ACTIVE" -> "Relationship active • $familiarity familiarity • Level ${currentLevel.coerceAtLeast(1)}"
                     "WAITING_FAMILIARITY" -> "Accepted • $familiarity/10,000 familiarity to unlock"
                     "PENDING" -> "Invitation pending • $familiarity familiarity"
-                    "BROKEN" -> "Tag ended • $familiarity total familiarity"
+                    "BROKEN" -> if (cooldownActive) "Tag ended • Re-invite available after $cooldownLabel" else "Tag ended • 7-day cooldown complete"
                     else -> "Familiarity: $familiarity • Next level: $nextLevel"
                 },
                 modifier = Modifier.padding(top = 4.dp),
@@ -314,7 +320,7 @@ private fun RelationshipFollowingCard(
                         }
                     }
                 }
-                Button(onClick = { onInvite(selectedTag) }, enabled = !sending) {
+                Button(onClick = { onInvite(selectedTag) }, enabled = !sending && pairStatus != "ACTIVE" && !cooldownActive) {
                     Text(if (sending) "Sending…" else "Invite")
                 }
             }

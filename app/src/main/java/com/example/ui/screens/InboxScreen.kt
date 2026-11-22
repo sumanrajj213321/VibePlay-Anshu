@@ -62,6 +62,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -95,7 +96,9 @@ import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
+import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -561,6 +564,31 @@ private fun ChatDetailScreen(
     } else {
         peerProfile?.avatarUrl ?: conversation.participantAvatars[peerId] ?: ""
     }
+    val relationshipPairId = remember(currentUser.userId, peerId) {
+        if (isGroup || peerId.isBlank() || isOfficialBot) "" else {
+            val raw = listOf(currentUser.userId, peerId).sorted().joinToString(":")
+            MessageDigest.getInstance("SHA-256").digest(raw.toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it) }
+        }
+    }
+    var pairFamiliarity by remember(relationshipPairId) { mutableStateOf(0L) }
+    var pairTagStatus by remember(relationshipPairId) { mutableStateOf("NONE") }
+    var pairTagType by remember(relationshipPairId) { mutableStateOf("") }
+    DisposableEffect(relationshipPairId) {
+        if (relationshipPairId.isBlank()) {
+            onDispose { }
+        } else {
+            val registration = FirebaseFirestore.getInstance()
+                .collection("relationship_pairs").document(relationshipPairId)
+                .addSnapshotListener { snapshot, _ ->
+                    pairFamiliarity = snapshot?.getLong("familiarityPoints") ?: 0L
+                    pairTagStatus = snapshot?.getString("tagStatus") ?: "NONE"
+                    pairTagType = snapshot?.getString("tagType")
+                        ?: snapshot?.getString("acceptedTagType").orEmpty()
+                }
+            onDispose { registration.remove() }
+        }
+    }
 
     val messages by observeMessages(conversation.id).collectAsStateWithLifecycle(initialValue = emptyList())
     val listState = rememberLazyListState()
@@ -676,6 +704,59 @@ private fun ChatDetailScreen(
                         IconButton(onClick = { onBlockUser(peerId); onBack() }) {
                             Icon(Icons.Filled.Block, contentDescription = "Block user", tint = VibeCoral)
                         }
+                    }
+                }
+            }
+        }
+
+        if (!isGroup && !isOfficialBot) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 7.dp),
+                shape = RoundedCornerShape(14.dp),
+                color = VibeCyan.copy(alpha = 0.08f),
+                border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.28f))
+            ) {
+                Column(Modifier.padding(horizontal = 13.dp, vertical = 10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Familiarity", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text("%,d".format(Locale.US, pairFamiliarity), color = VibeCyan, fontWeight = FontWeight.ExtraBold)
+                    }
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { (pairFamiliarity.coerceAtMost(10000L) / 10000f) },
+                        modifier = Modifier.fillMaxWidth().padding(top = 7.dp),
+                        color = VibeCyan,
+                        trackColor = VibeCyan.copy(alpha = 0.16f)
+                    )
+                    when {
+                        pairTagStatus == "ACTIVE" -> Text(
+                            "Relationship connected · ${pairTagType.lowercase().replaceFirstChar { it.uppercase() }}",
+                            modifier = Modifier.padding(top = 6.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = VibeEmerald,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        pairTagStatus == "WAITING_FAMILIARITY" -> Text(
+                            "Invitation accepted. Reach 10,000 familiarity through gifts to connect your tag.",
+                            modifier = Modifier.padding(top = 6.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        pairFamiliarity < 10000L -> Text(
+                            "Familiarity is not enough. Send gifts to each other and reach 10,000 familiarity to unlock your Relationship Tag.",
+                            modifier = Modifier.padding(top = 6.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        else -> Text(
+                            "10,000 familiarity reached. Accept the relationship invitation to connect your tag.",
+                            modifier = Modifier.padding(top = 6.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = VibeEmerald
+                        )
                     }
                 }
             }

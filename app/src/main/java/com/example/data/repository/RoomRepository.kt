@@ -614,21 +614,6 @@ class RoomRepository(
                     )
                 )
 
-                // The room-entry event is the only automatic presence message shown in chat.
-                tx.set(
-                    roomRef.collection("messages").document(),
-                    mapOf(
-                        "senderId" to uid,
-                        "senderName" to user.username,
-                        "senderAvatarUrl" to user.avatarUrl,
-                        "senderVipLevel" to user.vipLevel,
-                        "senderGender" to user.gender,
-                        "text" to "${user.username} entered the room.",
-                        "type" to "SYSTEM",
-                        "createdAt" to FieldValue.serverTimestamp()
-                    )
-                )
-
                 if (loadedRoom.isOwner(uid)) {
                     if (listenerSnap.exists()) {
                         tx.delete(listenerRef)
@@ -705,6 +690,24 @@ class RoomRepository(
                     }
                 }
             }.await()
+
+            // Presence commits independently from the optional entry-chat event.
+            // A rejected SYSTEM message must never roll back the room session/host online state.
+            runCatching {
+                roomRef.collection("messages").document().set(
+                    mapOf(
+                        "senderId" to uid,
+                        "senderName" to user.username,
+                        "senderAvatarUrl" to user.avatarUrl,
+                        "senderVipLevel" to user.vipLevel,
+                        "text" to "${user.username} entered the room.",
+                        "type" to "SYSTEM",
+                        "createdAt" to FieldValue.serverTimestamp()
+                    )
+                ).await()
+            }.onFailure { error ->
+                Log.w(TAG, "Room entry message could not be posted", error)
+            }
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e

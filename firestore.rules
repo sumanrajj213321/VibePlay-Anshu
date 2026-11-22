@@ -841,6 +841,13 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Public, minimal relationship card projection; only trusted Functions may write it.
+    match /relationship_links/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
     match /relationship_gift_events/{eventId} {
       allow read, write: if false;
     }

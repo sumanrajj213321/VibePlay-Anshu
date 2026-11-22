@@ -140,8 +140,9 @@ fun VibeAvatar(
             }
         }
     }
-    val vipColor = remember(vipLevel) {
-        val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == vipLevel.toInt() }
+    val displayVipLevel = vipLevel.coerceIn(0L, 8L)
+    val vipColor = remember(displayVipLevel) {
+        val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == displayVipLevel.toInt() }
         if (tier != null) Color(tier.badgeColorHex) else null
     }
     val infinite = rememberInfiniteTransition(label = "speaking_pulse")
@@ -266,8 +267,9 @@ fun VibeAvatar(
 
 @Composable
 fun VipBadgePill(vipLevel: Long, modifier: Modifier = Modifier, compact: Boolean = false) {
-    if (vipLevel <= 0L) return
-    val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == vipLevel.toInt() }
+    val displayVipLevel = vipLevel.coerceIn(0L, 8L)
+    if (displayVipLevel <= 0L) return
+    val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == displayVipLevel.toInt() }
     val accent = tier?.let { Color(it.badgeColorHex) } ?: VibeGold
     val luxuryBrush = Brush.linearGradient(
         listOf(
@@ -307,7 +309,7 @@ fun VipBadgePill(vipLevel: Long, modifier: Modifier = Modifier, compact: Boolean
                 letterSpacing = 0.8.sp
             )
             Text(
-                text = vipLevel.toString(),
+                text = displayVipLevel.toString(),
                 style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                 color = Color.White,
                 fontWeight = FontWeight.ExtraBold
@@ -691,7 +693,8 @@ fun VipEntranceOverlay(
         modifier = modifier.testTag("vip_entrance_overlay")
     ) {
         user?.let { vip ->
-            val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == vip.vipLevel.toInt() }
+            val displayVipLevel = vip.vipLevel.coerceIn(0L, 8L)
+            val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == displayVipLevel.toInt() }
             val accent = tier?.let { Color(it.badgeColorHex) } ?: VibeGold
             Surface(
                 shape = RoundedCornerShape(50),
@@ -717,14 +720,14 @@ fun VipEntranceOverlay(
                         avatarUrl = vip.avatarUrl,
                         username = vip.username,
                         size = 34.dp,
-                        vipLevel = vip.vipLevel
+                        vipLevel = displayVipLevel
                     )
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            VipBadgePill(vip.vipLevel)
+                            VipBadgePill(displayVipLevel)
                             Text(
                                 text = "${vip.username} entered the stage!",
                                 style = MaterialTheme.typography.labelLarge,

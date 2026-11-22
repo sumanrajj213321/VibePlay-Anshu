@@ -599,6 +599,9 @@ class RoomRepository(
             val listenerRef = roomRef.collection("listeners").document(uid)
             val sessionRef = roomRef.collection("room_sessions").document(uid)
             val seat0Ref = roomRef.collection("seats").document("0")
+            val safeUsername = user.username.trim().take(60).ifBlank { uid.take(60) }
+            val safeAvatarUrl = user.avatarUrl.take(500)
+            val safeVipLevel = user.vipLevel.coerceIn(0L, 30L)
 
             db.runTransaction { tx ->
                 val roomSnap = tx.get(roomRef)
@@ -634,9 +637,9 @@ class RoomRepository(
                         seat0Ref,
                         mapOf(
                             "occupantId" to uid,
-                            "occupantName" to user.username,
-                            "occupantAvatarUrl" to user.avatarUrl,
-                            "occupantVipLevel" to user.vipLevel,
+                            "occupantName" to safeUsername,
+                            "occupantAvatarUrl" to safeAvatarUrl,
+                            "occupantVipLevel" to safeVipLevel,
                             "occupantGender" to user.gender,
                             "muted" to false,
                             "speaking" to false,
@@ -647,9 +650,9 @@ class RoomRepository(
                         roomRef,
                         mapOf(
                             "ownerOnline" to true,
-                            "ownerName" to user.username,
-                            "hostName" to user.username,
-                            "hostAvatarUrl" to user.avatarUrl,
+                            "ownerName" to safeUsername,
+                            "hostName" to safeUsername,
+                            "hostAvatarUrl" to safeAvatarUrl,
                             "listenerCount" to updatedListeners,
                             "activeSpeakersCount" to (1L + occupiedSpeakers).coerceIn(1L, 9L),
                             "updatedAt" to FieldValue.serverTimestamp()
@@ -663,9 +666,9 @@ class RoomRepository(
                             listenerRef,
                             mapOf(
                                 "userId" to uid,
-                                "username" to user.username,
-                                "avatarUrl" to user.avatarUrl,
-                                "vipLevel" to user.vipLevel,
+                                "username" to safeUsername,
+                                "avatarUrl" to safeAvatarUrl,
+                                "vipLevel" to safeVipLevel,
                                 "gender" to user.gender,
                                 "role" to "LISTENER",
                                 "joinedAt" to FieldValue.serverTimestamp()
@@ -703,10 +706,10 @@ class RoomRepository(
                 roomRef.collection("messages").document().set(
                     mapOf(
                         "senderId" to uid,
-                        "senderName" to user.username,
-                        "senderAvatarUrl" to user.avatarUrl,
-                        "senderVipLevel" to user.vipLevel,
-                        "text" to "${user.username} entered the room.",
+                        "senderName" to safeUsername,
+                        "senderAvatarUrl" to safeAvatarUrl,
+                        "senderVipLevel" to safeVipLevel,
+                        "text" to "${safeUsername} entered the room.",
                         "type" to "SYSTEM",
                         "createdAt" to FieldValue.serverTimestamp()
                     )
@@ -1626,13 +1629,13 @@ class RoomRepository(
             val uid = requireUserId()
             val cleanText = text.trim().take(400)
             require(cleanText.isNotEmpty()) { "Message cannot be empty." }
+            val safeSenderName = sender.username.trim().take(60).ifBlank { uid.take(60) }
             db.collection("rooms").document(roomId).collection("messages").document().set(
                 mapOf(
                     "senderId" to uid,
-                    "senderName" to sender.username,
-                    "senderAvatarUrl" to sender.avatarUrl,
-                    "senderVipLevel" to sender.vipLevel,
-                    "senderGender" to sender.gender,
+                    "senderName" to safeSenderName,
+                    "senderAvatarUrl" to sender.avatarUrl.take(500),
+                    "senderVipLevel" to sender.vipLevel.coerceIn(0L, 30L),
                     "text" to cleanText,
                     "type" to "TEXT",
                     "createdAt" to FieldValue.serverTimestamp()

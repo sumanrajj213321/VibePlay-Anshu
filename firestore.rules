@@ -74,7 +74,6 @@ service cloud.firestore {
                ? data.ownedTitleIds == oldData.ownedTitleIds
                : data.ownedTitleIds.size() == (('ownedTitleIds' in oldData) ? oldData.ownedTitleIds.size() : 0) + 1) &&
              itemId in data.ownedTitleIds &&
-             data.activeTitleId == itemId &&
              data.titleExpiresAt is map &&
              data.titleExpiresAt[itemId] is timestamp &&
              data.titleExpiresAt[itemId] > request.time - duration.value(1, 'm') &&

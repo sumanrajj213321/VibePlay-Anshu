@@ -1337,6 +1337,7 @@ test("Own and public profile reads plus title/frame cosmetic purchases are permi
     coinBalance: 1000500 - 12000,
     ownedTitleIds: ["singer"],
     lastPurchasedTitleId: "singer",
+    lastTitlePurchaseAt: new Date(),
     titleExpiresAt: { singer: titleExpiry },
     updatedAt: pastDate(),
   }));
@@ -1347,6 +1348,7 @@ test("Own and public profile reads plus title/frame cosmetic purchases are permi
     coinBalance: 1000500 - 12000 - 15000,
     ownedTitleIds: ["singer", "charming"],
     lastPurchasedTitleId: "charming",
+    lastTitlePurchaseAt: new Date(),
     titleExpiresAt: { singer: titleExpiry, charming: secondTitleExpiry },
     updatedAt: pastDate(),
   }));
@@ -1357,6 +1359,7 @@ test("Own and public profile reads plus title/frame cosmetic purchases are permi
     coinBalance: 1000500 - 12000 - 15000 - 12000,
     ownedTitleIds: ["singer", "charming"],
     lastPurchasedTitleId: "singer",
+    lastTitlePurchaseAt: new Date(),
     titleExpiresAt: { singer: renewedSingerExpiry, charming: secondTitleExpiry },
     updatedAt: pastDate(),
   }));
@@ -1366,6 +1369,7 @@ test("Own and public profile reads plus title/frame cosmetic purchases are permi
     coinBalance: 1000500 - 12000 - 15000 - 15000,
     ownedFrameIds: ["neon_cyan"],
     activeFrameId: "neon_cyan",
+    lastFramePurchaseAt: new Date(),
     frameExpiresAt: { neon_cyan: frameExpiry },
     updatedAt: pastDate(),
   }));

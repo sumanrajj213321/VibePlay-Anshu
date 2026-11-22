@@ -63,17 +63,21 @@ service cloud.firestore {
              itemId == 'royal_star' ? 80000 : -1;
     }
 
-    function isValidTitlePurchase(data, oldData, itemId, price) {
-      return data.vipLevel == oldData.vipLevel &&
+    function isValidTitlePurchase(data, oldData, itemId) {
+      let price = shopTitlePrice(itemId);
+      let oldOwned = ('ownedTitleIds' in oldData) ? oldData.ownedTitleIds : [];
+      let newOwned = ('ownedTitleIds' in data) ? data.ownedTitleIds : [];
+      return price >= 0 &&
+             data.vipLevel == oldData.vipLevel &&
+             ('lastPurchasedTitleId' in data) &&
              data.lastPurchasedTitleId == itemId &&
              data.coinBalance is int &&
              data.coinBalance >= 0 &&
              data.coinBalance == oldData.coinBalance - price &&
-             data.ownedTitleIds is list &&
-             data.ownedTitleIds.hasAll(('ownedTitleIds' in oldData) ? oldData.ownedTitleIds : []) &&
-             data.ownedTitleIds.size() == (('ownedTitleIds' in oldData) ? oldData.ownedTitleIds.size() : 0) +
-               (('ownedTitleIds' in oldData && itemId in oldData.ownedTitleIds) ? 0 : 1) &&
-             itemId in data.ownedTitleIds &&
+             newOwned is list &&
+             newOwned.hasAll(oldOwned) &&
+             newOwned.size() == oldOwned.size() + (itemId in oldOwned ? 0 : 1) &&
+             itemId in newOwned &&
              data.titleExpiresAt is map &&
              data.titleExpiresAt[itemId] is timestamp &&
              data.titleExpiresAt[itemId] > request.time - duration.value(1, 'm') &&
@@ -395,7 +399,7 @@ service cloud.firestore {
                        isValidTs(incoming().updatedAt) && (
         
         (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
-          (incoming().lastPurchasedTitleId is string && shopTitlePrice(incoming().lastPurchasedTitleId) >= 0 && isValidTitlePurchase(incoming(), existing(), incoming().lastPurchasedTitleId, shopTitlePrice(incoming().lastPurchasedTitleId))) ||
+          (incoming().lastPurchasedTitleId is string && isValidTitlePurchase(incoming(), existing(), incoming().lastPurchasedTitleId)) ||
           isValidFramePurchase(incoming(), existing()) ||
           (incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarUrl', 'coverUrl', 'gender', 'genderChangeCount', 'age', 'ageRange', 'showAge', 'showGender', 'showOnlineStatus', 'online', 'followingCount', 'followersCount', 'updatedAt']) &&
            isValidUserProfile(incoming()) &&

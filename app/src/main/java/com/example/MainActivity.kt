@@ -94,6 +94,7 @@ import com.example.ui.screens.InboxScreen
 import com.example.ui.screens.NotificationsCenterSheet
 import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.ShopScreen
+import com.example.ui.screens.RelationshipScreen
 import com.example.ui.screens.PublicProfileSheet
 import com.example.ui.screens.RoomsHubScreen
 import com.example.ui.screens.VoiceRoomScreen
@@ -625,7 +626,8 @@ private fun AuthenticatedVibePlayApp(
                                         onUnblockUser = { targetId -> viewModel.toggleBlockUser(targetId, block = false) },
                                         onOpenNotifications = { showNotificationsSheet = true },
                                         onSignOut = signOutAction,
-                                        onOpenShop = { navController.navigate("shop") }
+                                        onOpenShop = { navController.navigate("shop") },
+                                        onOpenRelationships = { navController.navigate("relationships") }
                                     )
                                 }
 
@@ -637,6 +639,10 @@ private fun AuthenticatedVibePlayApp(
                                         onPurchase = { category, itemId -> viewModel.purchaseShopCosmetic(category, itemId) },
                                         onEquip = { category, itemId -> viewModel.equipShopCosmetic(category, itemId) }
                                     )
+                                }
+
+                                composable("relationships") {
+                                    RelationshipScreen(onBack = { navController.popBackStack() })
                                 }
 
                                 composable(

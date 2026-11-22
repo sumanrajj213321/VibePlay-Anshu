@@ -191,6 +191,38 @@ exports.syncActiveRelationshipPublicTags = onSchedule(
 );
 
 
+// Select which active relationship partner is featured on the user's main profile.
+exports.setMainRelationshipPartner = onCall(
+  { region: "asia-south1" },
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Please sign in first.");
+    const userId = request.auth.uid;
+    const partnerId = request.data && request.data.partnerId;
+    if (typeof partnerId !== "string" || !partnerId || partnerId === userId || partnerId.length > 128) {
+      throw new HttpsError("invalid-argument", "Choose a valid relationship partner.");
+    }
+
+    const pairId = pairKey(userId, partnerId);
+    const pairRef = db.collection("relationship_pairs").doc(pairId);
+    const pairSnap = await pairRef.get();
+    if (!pairSnap.exists) throw new HttpsError("not-found", "Relationship tag was not found.");
+    const pair = pairSnap.data();
+    if (pair.tagStatus !== "ACTIVE" || !Array.isArray(pair.userIds) ||
+        !pair.userIds.includes(userId) || !pair.userIds.includes(partnerId)) {
+      throw new HttpsError("failed-precondition", "Only an active relationship tag can be featured.");
+    }
+
+    await db.collection("relationship_profile_selection").doc(userId).set({
+      userId,
+      partnerId,
+      pairId,
+      updatedAt: FieldValue.serverTimestamp()
+    });
+    return { success: true, partnerId };
+  }
+);
+
+
 // Break an active relationship tag without deleting or resetting familiarity.
 // The pair remains locked from creating another tag for seven full days.
 exports.breakRelationshipTag = onCall(

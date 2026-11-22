@@ -112,6 +112,7 @@ dependencies {
   implementation(libs.converter.moshi)
   // implementation(libs.firebase.ai)
   implementation(libs.firebase.firestore)
+  implementation("com.google.firebase:firebase-functions")
   implementation(libs.firebase.auth)
   implementation("com.google.firebase:firebase-storage")
   implementation(libs.androidx.credentials)

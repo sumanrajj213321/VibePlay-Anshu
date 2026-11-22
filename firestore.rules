@@ -50,37 +50,6 @@ service cloud.firestore {
 
     // --- Validation Helpers ---
 
-    function shopTitlePrice(itemId) {
-      return itemId == 'singer' ? 12000 :
-             itemId == 'charming' ? 15000 :
-             itemId == 'princess' ? 18000 :
-             itemId == 'prince' ? 18000 :
-             itemId == 'queen' ? 25000 :
-             itemId == 'king' ? 25000 :
-             itemId == 'boss' ? 30000 :
-             itemId == 'filthy_rich' ? 50000 :
-             itemId == 'legend' ? 65000 :
-             itemId == 'royal_star' ? 80000 : -1;
-    }
-
-    function isValidTitlePurchase(data, oldData, itemId, price) {
-      return data.vipLevel == oldData.vipLevel &&
-             data.lastPurchasedTitleId == itemId &&
-             data.coinBalance is int &&
-             data.coinBalance >= 0 &&
-             data.coinBalance == oldData.coinBalance - price &&
-             data.ownedTitleIds is list &&
-             data.ownedTitleIds.hasAll(('ownedTitleIds' in oldData) ? oldData.ownedTitleIds : []) &&
-             data.ownedTitleIds.size() == (('ownedTitleIds' in oldData) ? oldData.ownedTitleIds.size() : 0) +
-               (('ownedTitleIds' in oldData && itemId in oldData.ownedTitleIds) ? 0 : 1) &&
-             itemId in data.ownedTitleIds &&
-             data.titleExpiresAt is map &&
-             data.titleExpiresAt[itemId] is timestamp &&
-             data.titleExpiresAt[itemId] > request.time - duration.value(1, 'm') &&
-             data.titleExpiresAt[itemId] <= request.time + duration.value(15, 'd') + duration.value(1, 'm') &&
-             data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'activeTitleId', 'titleExpiresAt', 'lastPurchasedTitleId', 'lastTitlePurchaseAt', 'updatedAt']);
-    }
-
     function shopFramePrice(itemId) {
       return itemId == 'neon_cyan' ? 15000 :
              itemId == 'rose_gold' ? 25000 :
@@ -107,18 +76,6 @@ service cloud.firestore {
              shopFramePrice(data.activeFrameId) >= 0 &&
              data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&
              data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt']);
-    }
-
-    function hasValidEquippedTitles(data) {
-      return data.activeTitleIds is list &&
-             data.activeTitleIds.size() <= 4 &&
-             data.ownedTitleIds is list &&
-             data.activeTitleIds.hasOnly(data.ownedTitleIds) &&
-             data.activeTitleId == (data.activeTitleIds.size() > 0 ? data.activeTitleIds[0] : '') &&
-             (data.activeTitleIds.size() == 0 ||
-              (data.titleExpiresAt is map &&
-               data.titleExpiresAt[data.activeTitleId] is timestamp &&
-               data.titleExpiresAt[data.activeTitleId] > request.time));
     }
 
     function isValidUserProfile(data) {
@@ -389,7 +346,6 @@ service cloud.firestore {
                        isValidTs(incoming().createdAt) &&
                        isValidTs(incoming().updatedAt);
 
-      // Dedicated cosmetic purchase paths avoid the large general update chain.
       allow update: if isSignedIn() && isValidId(userId) &&
                        request.auth.uid == userId &&
                        incoming().userId == existing().userId &&
@@ -467,15 +423,6 @@ service cloud.firestore {
            incoming().totalGiftCoinsReceived > (('totalGiftCoinsReceived' in existing()) ? existing().totalGiftCoinsReceived : 0) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'totalGiftsSent', 'totalGiftCoinsSent', 'totalGiftsReceived', 'totalGiftCoinsReceived', 'xp', 'level', 'updatedAt'])) ||
 
-          (incoming().coinBalance == existing().coinBalance &&
-           incoming().vipLevel == existing().vipLevel &&
-           ((('activeTitleIds' in incoming()) && hasValidEquippedTitles(incoming())) ||
-            (!('activeTitleIds' in incoming()) &&
-             incoming().activeTitleId is string &&
-             (incoming().activeTitleId == '' ||
-              (incoming().ownedTitleIds is list && incoming().activeTitleId in incoming().ownedTitleIds &&
-               incoming().titleExpiresAt is map && incoming().titleExpiresAt[incoming().activeTitleId] > request.time)))) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['activeTitleId', 'activeTitleIds', 'updatedAt'])) ||
           (incoming().coinBalance == existing().coinBalance &&
            incoming().vipLevel == existing().vipLevel &&
            incoming().activeFrameId is string &&

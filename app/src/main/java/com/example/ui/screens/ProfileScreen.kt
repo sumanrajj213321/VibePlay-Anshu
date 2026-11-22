@@ -125,8 +125,26 @@ fun ProfileScreen(
     var linkedPartnerName by remember(profile.userId) { mutableStateOf("") }
     var linkedPartnerAvatar by remember(profile.userId) { mutableStateOf("") }
     var linkedTagType by remember(profile.userId) { mutableStateOf("") }
+    var allRelationshipTags by remember(profile.userId) { mutableStateOf<List<Map<String, String>>>(emptyList()) }
+    var showAllRelationshipTags by remember(profile.userId) { mutableStateOf(true) }
 
     DisposableEffect(profile.userId) {
+        val tagsRegistration = FirebaseFirestore.getInstance()
+            .collection("relationship_public_tags")
+            .whereArrayContains("userIds", profile.userId)
+            .addSnapshotListener { snapshot, _ ->
+                allRelationshipTags = snapshot?.documents.orEmpty().mapNotNull { doc ->
+                    val ids = (doc.get("userIds") as? List<*>)?.filterIsInstance<String>().orEmpty()
+                    if (profile.userId !in ids) return@mapNotNull null
+                    val isA = ids.sorted().firstOrNull() == profile.userId
+                    mapOf(
+                        "partnerId" to (ids.firstOrNull { it != profile.userId } ?: ""),
+                        "partnerName" to (if (isA) doc.getString("userBName") else doc.getString("userAName")).orEmpty(),
+                        "partnerAvatarUrl" to (if (isA) doc.getString("userBAvatarUrl") else doc.getString("userAAvatarUrl")).orEmpty(),
+                        "tagType" to doc.getString("tagType").orEmpty()
+                    )
+                }.filter { it["tagType"].orEmpty().isNotBlank() }
+            }
         var partnerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
         val pairRegistration = FirebaseFirestore.getInstance()
             .collection("relationship_pairs")
@@ -156,6 +174,7 @@ fun ProfileScreen(
                 }
             }
         onDispose {
+            tagsRegistration.remove()
             pairRegistration.remove()
             partnerRegistration?.remove()
         }
@@ -206,6 +225,44 @@ fun ProfileScreen(
                                 color = VibeGold,
                                 fontWeight = FontWeight.Bold
                             )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (allRelationshipTags.isNotEmpty()) {
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    color = VibeGold.copy(alpha = 0.06f),
+                    border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.38f))
+                ) {
+                    Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("All Relationship Tags", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(
+                                if (showAllRelationshipTags) "Hide" else "Show",
+                                modifier = Modifier.clickable { showAllRelationshipTags = !showAllRelationshipTags }.padding(5.dp),
+                                color = VibeCyan,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        if (showAllRelationshipTags) {
+                            allRelationshipTags.forEach { tag ->
+                                Text(
+                                    "${tag["partnerName"].orEmpty()} · ${tag["tagType"].orEmpty().lowercase().replaceFirstChar { it.uppercase() }}",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = VibeGold,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }

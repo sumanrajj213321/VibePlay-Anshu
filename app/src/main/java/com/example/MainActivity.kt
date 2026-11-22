@@ -642,7 +642,11 @@ private fun AuthenticatedVibePlayApp(
                                 }
 
                                 composable("relationships") {
-                                    RelationshipScreen(onBack = { navController.popBackStack() })
+                                    RelationshipScreen(
+                                        currentUserId = uid,
+                                        followingList = followingList,
+                                        onBack = { navController.popBackStack() }
+                                    )
                                 }
 
                                 composable(

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +50,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.functions.FirebaseFunctions
 import java.security.MessageDigest
 import java.util.Date
 
@@ -75,6 +77,7 @@ fun RelationshipScreen(
 ) {
     var statusMessage by remember { mutableStateOf("") }
     var sendingTo by remember { mutableStateOf<String?>(null) }
+    var breakingFor by remember { mutableStateOf<String?>(null) }
     val firestore = remember { FirebaseFirestore.getInstance() }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
@@ -114,6 +117,7 @@ fun RelationshipScreen(
                     person = person,
                     currentUserId = currentUserId,
                     sending = sendingTo == person.peerId,
+                    onBreak = { breakingFor = person.peerId },
                     onInvite = { tagType ->
                         if (person.peerId.isBlank() || person.peerId == currentUserId) {
                             statusMessage = "This user cannot receive an invitation."
@@ -177,6 +181,32 @@ fun RelationshipScreen(
                 )
             }
         }
+        if (breakingFor != null) {
+            AlertDialog(
+                onDismissRequest = { breakingFor = null },
+                title = { Text("Break relationship tag?") },
+                text = { Text("This ends the active tag for both users. Familiarity is preserved, and a new tag with this person can be created after 7 days.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val otherUserId = breakingFor ?: return@TextButton
+                        breakingFor = null
+                        statusMessage = "Ending relationship tag…"
+                        FirebaseFunctions.getInstance("asia-south1")
+                            .getHttpsCallable("breakRelationshipTag")
+                            .call(mapOf("otherUserId" to otherUserId))
+                            .addOnSuccessListener {
+                                statusMessage = "Relationship tag ended. The 7-day cooldown has started."
+                            }
+                            .addOnFailureListener { error ->
+                                statusMessage = error.localizedMessage ?: "Could not end relationship tag. Server function may not be deployed yet."
+                            }
+                    }) { Text("Break tag") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { breakingFor = null }) { Text("Cancel") }
+                }
+            )
+        }
         if (statusMessage.isNotBlank()) {
             Spacer(Modifier.height(8.dp))
             Text(statusMessage, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
@@ -212,6 +242,7 @@ private fun RelationshipFollowingCard(
     person: FollowEdge,
     currentUserId: String,
     sending: Boolean,
+    onBreak: () -> Unit,
     onInvite: (String) -> Unit
 ) {
     var expanded by remember(person.peerId) { mutableStateOf(false) }
@@ -257,6 +288,11 @@ private fun RelationshipFollowingCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (pairStatus == "ACTIVE") {
+                TextButton(onClick = onBreak, modifier = Modifier.padding(top = 2.dp)) {
+                    Text("Break relationship tag", color = MaterialTheme.colorScheme.error)
+                }
+            }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,

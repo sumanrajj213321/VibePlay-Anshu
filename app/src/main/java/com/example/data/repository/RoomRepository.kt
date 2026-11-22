@@ -691,20 +691,20 @@ class RoomRepository(
                         updatedListenerCount = (updatedListenerCount - 1L).coerceAtLeast(0L)
                     }
 
-                    val nextActiveAdmins = if (uid in loadedRoom.adminIds && uid !in loadedRoom.activeAdminIds) {
-                        (loadedRoom.activeAdminIds + uid).distinct()
-                    } else {
-                        loadedRoom.activeAdminIds
-                    }
-                    if (!listenerSnap.exists() || nextActiveAdmins != loadedRoom.activeAdminIds) {
-                        tx.update(
-                            roomRef,
-                            mapOf(
-                                "listenerCount" to updatedListenerCount,
-                                "activeAdminIds" to nextActiveAdmins,
-                                "updatedAt" to FieldValue.serverTimestamp()
+                    // Ordinary listeners cannot update the parent room document under
+                    // Firestore rules. Their presence/count is derived from room_sessions.
+                    // Only a room admin may maintain the active-admin bookkeeping here.
+                    if (loadedRoom.isRoomAdmin(uid)) {
+                        val nextActiveAdmins = (loadedRoom.activeAdminIds + uid).distinct()
+                        if (nextActiveAdmins != loadedRoom.activeAdminIds) {
+                            tx.update(
+                                roomRef,
+                                mapOf(
+                                    "activeAdminIds" to nextActiveAdmins,
+                                    "updatedAt" to FieldValue.serverTimestamp()
+                                )
                             )
-                        )
+                        }
                     }
                 }
             }.await()
@@ -872,17 +872,22 @@ class RoomRepository(
                         }
                     }
 
-                    val hostSeatedCount = if (loadedRoom.effectiveOwnerOnline) 1L else 0L
-                    tx.update(
-                        roomRef,
-                        mapOf(
-                            "listenerCount" to updatedListenerCount,
-                            "activeSpeakersCount" to (hostSeatedCount + if (noActiveManager && loadedRoom.isRoomAdmin(uid)) 0L else occupiedSpeakers.toLong()).coerceIn(0L, 9L),
-                            "activeAdminIds" to remainingActiveAdmins,
-                            "status" to "LIVE",
-                            "updatedAt" to FieldValue.serverTimestamp()
+                    // Non-admin users may leave by deleting their own room session and
+                    // clearing their own speaker seat. They are not allowed to update the
+                    // parent room document; live counts are derived from room sessions/seats.
+                    if (loadedRoom.isRoomAdmin(uid)) {
+                        val hostSeatedCount = if (loadedRoom.effectiveOwnerOnline) 1L else 0L
+                        tx.update(
+                            roomRef,
+                            mapOf(
+                                "listenerCount" to updatedListenerCount,
+                                "activeSpeakersCount" to (hostSeatedCount + if (noActiveManager) 0L else occupiedSpeakers.toLong()).coerceIn(0L, 9L),
+                                "activeAdminIds" to remainingActiveAdmins,
+                                "status" to "LIVE",
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            )
                         )
-                    )
+                    }
                 }
             }.await()
             Result.success(Unit)

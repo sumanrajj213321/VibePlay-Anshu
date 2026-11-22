@@ -90,6 +90,67 @@ beforeEach(async () => {
   }
 });
 
+test("Only the owner can feature a partner from an ACTIVE relationship pair", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
+
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const admin = ctx.firestore();
+    await admin.collection("relationship_pairs").doc("active_pair").set({
+      userIds: [ALICE_UID, BOB_UID],
+      tagStatus: "ACTIVE",
+      tagType: "BUDDIES",
+      familiarityPoints: 12000,
+    });
+    await admin.collection("relationship_pairs").doc("inactive_pair").set({
+      userIds: [ALICE_UID, BOB_UID],
+      tagStatus: "WAITING_FAMILIARITY",
+      acceptedTagType: "BRO",
+      familiarityPoints: 3000,
+    });
+  });
+
+  const selection = {
+    userId: ALICE_UID,
+    partnerId: BOB_UID,
+    pairId: "active_pair",
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await assertSucceeds(
+    aliceDb.collection("relationship_profile_selection").doc(ALICE_UID).set(selection)
+  );
+
+  // Another account cannot change Alice's featured partner.
+  await assertFails(
+    bobDb.collection("relationship_profile_selection").doc(ALICE_UID).set({
+      ...selection,
+      userId: ALICE_UID,
+      partnerId: BOB_UID,
+    })
+  );
+
+  // A user cannot feature a pair that has not reached ACTIVE status.
+  await assertFails(
+    aliceDb.collection("relationship_profile_selection").doc(ALICE_UID).set({
+      ...selection,
+      pairId: "inactive_pair",
+    })
+  );
+
+  // A user cannot feature someone outside the selected pair.
+  await assertFails(
+    aliceDb.collection("relationship_profile_selection").doc(ALICE_UID).set({
+      ...selection,
+      partnerId: "mallory_uid",
+    })
+  );
+
+  await assertSucceeds(
+    aliceDb.collection("relationship_profile_selection").doc(ALICE_UID).delete()
+  );
+});
+
 test("Unauthenticated users cannot read or write any collection", async () => {
   const unauthDb = testEnv.unauthenticatedContext().firestore();
   await assertFails(unauthDb.collection("users").where("accountStatus", "==", "ACTIVE").get());

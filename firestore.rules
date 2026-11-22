@@ -848,6 +848,14 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Public tag cards contain only profile-safe names, avatars and tag type.
+    match /relationship_public_tags/{pairId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() &&
+        request.auth.uid in existing().userIds;
+      allow create, update, delete: if false;
+    }
+
     match /relationship_gift_events/{eventId} {
       allow read, write: if false;
     }

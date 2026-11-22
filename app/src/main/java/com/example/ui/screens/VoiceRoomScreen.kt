@@ -82,6 +82,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -290,6 +292,8 @@ internal fun VoiceRoomStageContent(
     onBlockUser: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val chatListState = rememberLazyListState()
@@ -398,6 +402,8 @@ internal fun VoiceRoomStageContent(
                                         onClick = {
                                             onSendRoomMessage(chatInput)
                                             chatInput = ""
+                                            focusManager.clearFocus()
+                                            keyboardController?.hide()
                                         },
                                         modifier = Modifier.testTag("room_send_chat_button")
                                     ) {
@@ -782,6 +788,7 @@ internal fun VoiceRoomStageContent(
                             else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         }
                         val canOpenProfile = msg.type != "SYSTEM" &&
+                            msg.type != "GIFT" &&
                             msg.senderId.isNotBlank() &&
                             onOpenUserProfile != null
                         Surface(

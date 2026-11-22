@@ -102,24 +102,30 @@ class RoomRepository(
         val roomFlow = roomRef.snapshots()
             .map { it.toObject(VoiceRoom::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE) }
         val sessionsFlow = roomRef.collection("room_sessions").snapshots()
+        val hostSeatFlow = roomRef.collection("seats").document("0").snapshots()
+            .map { it.getString("occupantId").orEmpty() }
+            .onStart { emit("") }
         val clockFlow = flow {
             while (true) {
                 emit(System.currentTimeMillis())
                 delay(5_000L)
             }
         }
-        return combine(roomFlow, sessionsFlow, clockFlow) { room, sessions, nowMillis ->
+        return combine(roomFlow, sessionsFlow, hostSeatFlow, clockFlow) { room, sessions, hostSeatOccupantId, nowMillis ->
             if (room == null) {
                 null
             } else {
-                // Derive host presence from the latest session heartbeat even when the
-                // persisted ownerOnline flag is false. Otherwise a stale false value
-                // prevents a returning host's fresh session from ever being observed.
-                val ownerSession = sessions.documents.firstOrNull { it.id == room.effectiveOwnerId }
-                val lastSeen = ownerSession?.getTimestamp("lastSeenAt")
-                    ?: ownerSession?.getTimestamp("joinedAt")
+                // Seat 0 records the actual current host occupant. Prefer that ID so
+                // legacy rooms whose ownerId and hostId differ still resolve the right session.
+                val hostIds = listOf(hostSeatOccupantId, room.effectiveOwnerId, room.hostId)
+                    .filter { it.isNotBlank() }.distinct()
+                val hostSession = hostIds.firstNotNullOfOrNull { id ->
+                    sessions.documents.firstOrNull { it.id == id }
+                }
+                val lastSeen = hostSession?.getTimestamp("lastSeenAt")
+                    ?: hostSession?.getTimestamp("joinedAt")
                 val heartbeatFresh = lastSeen != null &&
-                    nowMillis - lastSeen.toDate().time <= 45_000L
+                    nowMillis - lastSeen.toDate().time in 0..45_000L
                 room.copy(ownerOnline = heartbeatFresh)
             }
         }

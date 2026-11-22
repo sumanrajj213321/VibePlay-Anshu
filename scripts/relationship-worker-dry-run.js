@@ -283,10 +283,10 @@ async function main() {
     await processGift(db, doc, dryRun, stats);
   });
 
-  const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - EXPIRY_MS);
+  // Scan by document ID so legacy invitations without createdAt are also checked.
+  // processExpiredInvite handles both expiresAt and the createdAt + 48h fallback.
   const inviteQuery = db.collection("relationship_invites")
-    .where("createdAt", "<=", cutoff)
-    .orderBy("createdAt", "asc");
+    .orderBy(admin.firestore.FieldPath.documentId(), "asc");
   stats.oldInvitationsScanned = await scanPages(inviteQuery, async (doc) => {
     await processExpiredInvite(db, doc, dryRun, stats, Date.now());
   });

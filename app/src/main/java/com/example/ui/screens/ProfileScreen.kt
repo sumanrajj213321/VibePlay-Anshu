@@ -453,7 +453,7 @@ fun ProfileScreen(
                     ) {
                         Icon(Icons.Filled.Star, contentDescription = null, tint = VibePink)
                         Text(
-                            text = if (profile.isVipActive) "VIP ${profile.vipLevel} Active" else "Unlock VIP",
+                            text = if (profile.isVipActive) "VIP ${profile.vipLevel.coerceAtMost(8L)} Active" else "Unlock VIP",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = VibePink
@@ -495,7 +495,7 @@ fun ProfileScreen(
                         Text(
                             text = buildString {
                                 append("Level ${profile.level} Host")
-                                if (profile.isVipActive) append(" · VIP ${profile.vipLevel}")
+                                if (profile.isVipActive) append(" · VIP ${profile.vipLevel.coerceAtMost(8L)}")
                                 if (profile.totalGiftsSent > 0) append(" · Generous Gifter")
                                 if (profile.totalGiftsReceived > 0) append(" · Stage Star")
                             },

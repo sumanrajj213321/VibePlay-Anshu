@@ -129,6 +129,7 @@ fun ProfileScreen(
     var allRelationshipTags by remember(profile.userId) { mutableStateOf<List<Map<String, String>>>(emptyList()) }
     var showAllRelationshipTags by remember(profile.userId) { mutableStateOf(true) }
     var selectedFeaturedPartnerId by remember(profile.userId) { mutableStateOf("") }
+    var relationshipFeatureStatus by remember(profile.userId) { mutableStateOf("") }
 
     DisposableEffect(profile.userId, selectedFeaturedPartnerId) {
         val selectionRegistration = FirebaseFirestore.getInstance()
@@ -269,44 +270,59 @@ fun ProfileScreen(
                         }
                         if (showAllRelationshipTags) {
                             allRelationshipTags.forEach { tag ->
+                                val partnerId = tag["partnerId"].orEmpty()
+                                val partnerName = tag["partnerName"].orEmpty().ifBlank { "VibePlay user" }
+                                val isFeatured = partnerId.isNotBlank() && partnerId == selectedFeaturedPartnerId
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
+                                    VibeAvatar(
+                                        avatarUrl = tag["partnerAvatarUrl"].orEmpty(),
+                                        username = partnerName,
+                                        size = 42.dp
+                                    )
                                     Column(Modifier.weight(1f)) {
                                         Text(
-                                            "${tag["partnerName"].orEmpty()} · ${tag["tagType"].orEmpty().lowercase().replaceFirstChar { it.uppercase() }}",
-                                            color = VibeGold,
+                                            partnerName,
+                                            style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.Bold
                                         )
-                                        if (selectedFeaturedPartnerId == tag["partnerId"]) {
-                                            Text("Shown on main profile", color = VibeCyan, style = MaterialTheme.typography.labelSmall)
-                                        }
+                                        Text(
+                                            tag["tagType"].orEmpty().lowercase().replaceFirstChar { it.uppercase() },
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = VibeGold
+                                        )
                                     }
                                     OutlinedButton(
+                                        enabled = partnerId.isNotBlank() && !isFeatured,
                                         onClick = {
-                                            val partnerId = tag["partnerId"].orEmpty()
-                                            if (partnerId.isNotBlank()) {
-                                                FirebaseFunctions.getInstance("asia-south1")
-                                                    .getHttpsCallable("setMainRelationshipPartner")
-                                                    .call(mapOf("partnerId" to partnerId))
-                                                    .addOnSuccessListener {
-                                                        selectedFeaturedPartnerId = partnerId
-                                                        linkedPartnerId = partnerId
-                                                        linkedPartnerName = tag["partnerName"].orEmpty()
-                                                        linkedPartnerAvatar = tag["partnerAvatarUrl"].orEmpty()
-                                                        linkedTagType = tag["tagType"].orEmpty()
-                                                    }
-                                            }
-                                        },
-                                        enabled = tag["partnerId"].orEmpty().isNotBlank() &&
-                                            selectedFeaturedPartnerId != tag["partnerId"]
+                                            relationshipFeatureStatus = "Updating featured partner…"
+                                            FirebaseFunctions.getInstance("asia-south1")
+                                                .getHttpsCallable("setMainRelationshipPartner")
+                                                .call(mapOf("partnerId" to partnerId))
+                                                .addOnSuccessListener {
+                                                    selectedFeaturedPartnerId = partnerId
+                                                    relationshipFeatureStatus = "$partnerName is now featured on your profile."
+                                                }
+                                                .addOnFailureListener { error ->
+                                                    relationshipFeatureStatus = error.localizedMessage
+                                                        ?: "Could not update featured partner."
+                                                }
+                                        }
                                     ) {
-                                        Text(if (selectedFeaturedPartnerId == tag["partnerId"]) "Selected" else "Set as main")
+                                        Text(if (isFeatured) "Featured" else "Feature")
                                     }
                                 }
                             }
+                        }
+                        if (relationshipFeatureStatus.isNotBlank()) {
+                            Text(
+                                relationshipFeatureStatus,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }

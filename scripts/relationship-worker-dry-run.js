@@ -370,7 +370,7 @@ async function main() {
     ...Object.fromEntries(Object.entries(stats).filter(([key]) => key !== "pairs")),
     distinctPairsWithUnprocessedGifts: stats.pairs.size,
     pairProjections,
-    writesPerformed: dryRun ? 0 : stats.appliedGiftTransactions + stats.invitationsAutoRejected
+    writesPerformed: dryRun ? 0 : stats.appliedGiftTransactions + stats.invitationsAutoRejected + stats.publicTagsNeedingSync
   };
   console.log(JSON.stringify(report, null, 2));
   await admin.app().delete();

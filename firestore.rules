@@ -389,7 +389,28 @@ service cloud.firestore {
                        isValidTs(incoming().createdAt) &&
                        isValidTs(incoming().updatedAt);
 
-      allow update: if isSignedIn() && isValidId(userId) &&
+      // Keep title purchases out of the large general user-update expression.
+      // This isolated path prevents valid title purchases/renewals from hitting
+      // Firestore's 1,000-expression evaluation ceiling.
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTs(incoming().updatedAt) &&
+                       incoming().role == existing().role &&
+                       incoming().accountStatus == existing().accountStatus &&
+                       incoming().lastPurchasedTitleId is string &&
+                       shopTitlePrice(incoming().lastPurchasedTitleId) >= 0 &&
+                       isValidTitlePurchase(
+                         incoming(),
+                         existing(),
+                         incoming().lastPurchasedTitleId,
+                         shopTitlePrice(incoming().lastPurchasedTitleId)
+                       );
+
+      allow update: if !(request.auth.uid == userId && incoming().lastPurchasedTitleId is string) &&
+                       isSignedIn() && isValidId(userId) &&
                        incoming().userId == existing().userId &&
                        incoming().createdAt == existing().createdAt &&
                        isValidTs(incoming().updatedAt) && (

@@ -52,6 +52,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -131,7 +132,8 @@ fun ProfileScreen(
     var selectedFeaturedPartnerId by remember(profile.userId) { mutableStateOf("") }
     var relationshipFeatureStatus by remember(profile.userId) { mutableStateOf("") }
 
-    DisposableEffect(profile.userId, selectedFeaturedPartnerId) {
+    val currentFeaturedPartnerId by rememberUpdatedState(selectedFeaturedPartnerId)
+    DisposableEffect(profile.userId) {
         val selectionRegistration = FirebaseFirestore.getInstance()
             .collection("relationship_profile_selection")
             .document(profile.userId)
@@ -164,7 +166,7 @@ fun ProfileScreen(
                 }
                 val activePair = activePairs.firstOrNull { pair ->
                     val ids = pair.get("userIds") as? List<*>
-                    ids?.filterIsInstance<String>()?.any { it == selectedFeaturedPartnerId } == true
+                    ids?.filterIsInstance<String>()?.any { it == currentFeaturedPartnerId } == true
                 } ?: activePairs.firstOrNull()
                 val ids = activePair?.get("userIds") as? List<*>
                 val otherId = ids?.filterIsInstance<String>()?.firstOrNull { it != profile.userId }.orEmpty()

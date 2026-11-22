@@ -888,7 +888,7 @@ fun PublicProfileSheet(
                     val ids = doc.get("userIds") as? List<*>
                     if (ids?.filterIsInstance<String>()?.contains(targetUser.userId) != true) return@mapNotNull null
                     val partnerId = ids.filterIsInstance<String>().firstOrNull { it != targetUser.userId } ?: return@mapNotNull null
-                    val targetIsA = doc.getString("userAId") == targetUser.userId
+                    val targetIsA = ids.filterIsInstance<String>().sorted().firstOrNull() == targetUser.userId
                     mapOf(
                         "partnerId" to partnerId,
                         "partnerName" to (if (targetIsA) doc.getString("userBName") else doc.getString("userAName")).orEmpty(),

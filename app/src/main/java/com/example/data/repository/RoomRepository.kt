@@ -25,7 +25,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
@@ -97,57 +96,10 @@ class RoomRepository(
                 }
             }
 
-    fun observeRoom(roomId: String): Flow<VoiceRoom?> {
-        val roomRef = db.collection("rooms").document(roomId)
-        val roomFlow = roomRef.snapshots()
+    fun observeRoom(roomId: String): Flow<VoiceRoom?> =
+        db.collection("rooms").document(roomId)
+            .snapshots()
             .map { it.toObject(VoiceRoom::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE) }
-        val sessionsFlow = roomRef.collection("room_sessions").snapshots()
-        val hostSeatFlow = roomRef.collection("seats").document("0").snapshots()
-            .map { it.getString("occupantId").orEmpty() }
-            .onStart { emit("") }
-        val clockFlow = flow {
-            while (true) {
-                emit(System.currentTimeMillis())
-                delay(5_000L)
-            }
-        }
-        return combine(roomFlow, sessionsFlow, hostSeatFlow, clockFlow) { room, sessions, hostSeatOccupantId, nowMillis ->
-            if (room == null) {
-                null
-            } else {
-                // Seat 0 records the actual current host occupant. Prefer that ID so
-                // legacy rooms whose ownerId and hostId differ still resolve the right session.
-                val hostIds = listOf(hostSeatOccupantId, room.effectiveOwnerId, room.hostId)
-                    .filter { it.isNotBlank() }.distinct()
-                val hostSession = hostIds.firstNotNullOfOrNull { id ->
-                    sessions.documents.firstOrNull { it.id == id }
-                }
-                val lastSeen = hostSession?.getTimestamp("lastSeenAt")
-                    ?: hostSession?.getTimestamp("joinedAt")
-                val heartbeatFresh = lastSeen != null &&
-                    nowMillis - lastSeen.toDate().time in 0..45_000L
-                room.copy(ownerOnline = heartbeatFresh)
-            }
-        }
-    }
-
-    suspend fun updateOwnerHeartbeat(roomId: String): Result<Unit> {
-        return try {
-            val uid = requireUserId()
-            val roomRef = db.collection("rooms").document(roomId)
-            val room = roomRef.get().await().toObject(VoiceRoom::class.java)
-                ?: throw IllegalStateException("Room not found.")
-            check(room.isOwner(uid)) { "Only the room owner can update the host heartbeat." }
-            roomRef.collection("room_sessions").document(uid)
-                .update("lastSeenAt", FieldValue.serverTimestamp())
-                .await()
-            Result.success(Unit)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
 
     fun observeNineSeats(roomId: String): Flow<List<VoiceSeat>> {
         val roomRef = db.collection("rooms").document(roomId)
@@ -546,8 +498,7 @@ class RoomRepository(
                     roomRef.collection("room_sessions").document(uid),
                     mapOf(
                         "userId" to uid,
-                        "joinedAt" to FieldValue.serverTimestamp(),
-                        "lastSeenAt" to FieldValue.serverTimestamp()
+                        "joinedAt" to FieldValue.serverTimestamp()
                     )
                 )
 
@@ -618,8 +569,7 @@ class RoomRepository(
                     sessionRef,
                     mapOf(
                         "userId" to uid,
-                        "joinedAt" to FieldValue.serverTimestamp(),
-                        "lastSeenAt" to FieldValue.serverTimestamp()
+                        "joinedAt" to FieldValue.serverTimestamp()
                     )
                 )
 

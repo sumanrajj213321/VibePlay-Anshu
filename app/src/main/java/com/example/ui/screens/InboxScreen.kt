@@ -95,7 +95,7 @@ import com.example.ui.theme.VibeEmerald
 import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
-import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import java.security.MessageDigest
@@ -1515,7 +1515,7 @@ fun NotificationsCenterSheet(
 ) {
     var respondingInviteId by remember { mutableStateOf<String?>(null) }
     var inviteResponseMessage by remember { mutableStateOf("") }
-    val relationshipFunctions = remember { FirebaseFunctions.getInstance("asia-south1") }
+    val relationshipFirestore = remember { FirebaseFirestore.getInstance() }
     val hasUnread = notifications.any { !it.read }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surface) {
         LazyColumn(
@@ -1593,8 +1593,13 @@ fun NotificationsCenterSheet(
                                         onClick = {
                                             respondingInviteId = item.targetId
                                             inviteResponseMessage = ""
-                                            relationshipFunctions.getHttpsCallable("respondRelationshipInvite")
-                                                .call(mapOf("inviteId" to item.targetId, "accept" to true))
+                                            relationshipFirestore.collection("relationship_invites").document(item.targetId)
+                                                .update(
+                                                    mapOf(
+                                                        "status" to "ACCEPTED",
+                                                        "respondedAt" to FieldValue.serverTimestamp()
+                                                    )
+                                                )
                                                 .addOnSuccessListener {
                                                     respondingInviteId = null
                                                     onMarkRead(item.id)
@@ -1613,8 +1618,13 @@ fun NotificationsCenterSheet(
                                         onClick = {
                                             respondingInviteId = item.targetId
                                             inviteResponseMessage = ""
-                                            relationshipFunctions.getHttpsCallable("respondRelationshipInvite")
-                                                .call(mapOf("inviteId" to item.targetId, "accept" to false))
+                                            relationshipFirestore.collection("relationship_invites").document(item.targetId)
+                                                .update(
+                                                    mapOf(
+                                                        "status" to "REJECTED",
+                                                        "respondedAt" to FieldValue.serverTimestamp()
+                                                    )
+                                                )
                                                 .addOnSuccessListener {
                                                     respondingInviteId = null
                                                     onMarkRead(item.id)

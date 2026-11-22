@@ -396,13 +396,26 @@ service cloud.firestore {
                        isValidTs(incoming().createdAt) &&
                        isValidTs(incoming().updatedAt);
 
+      // Keep title purchases on a narrow path so unrelated user updates do not
+      // evaluate the large profile/gifting/room permission expression.
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTs(incoming().updatedAt) &&
+                       incoming().role == existing().role &&
+                       incoming().accountStatus == existing().accountStatus &&
+                       incoming().diff(existing()).affectedKeys().hasAny(['lastPurchasedTitleId']) &&
+                       incoming().lastPurchasedTitleId is string &&
+                       isValidTitlePurchase(incoming(), existing(), incoming().lastPurchasedTitleId);
+
       allow update: if isSignedIn() && isValidId(userId) &&
                        incoming().userId == existing().userId &&
                        incoming().createdAt == existing().createdAt &&
                        isValidTs(incoming().updatedAt) && (
         
         (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
-          (incoming().lastPurchasedTitleId is string && isValidTitlePurchase(incoming(), existing(), incoming().lastPurchasedTitleId)) ||
           isValidFramePurchase(incoming(), existing()) ||
           (incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarUrl', 'coverUrl', 'gender', 'genderChangeCount', 'age', 'ageRange', 'showAge', 'showGender', 'showOnlineStatus', 'online', 'followingCount', 'followersCount', 'updatedAt']) &&
            isValidUserProfile(incoming()) &&

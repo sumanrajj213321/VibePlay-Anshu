@@ -2,6 +2,11 @@ name: Relationship Worker Dry Run
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/relationship-worker-dry-run.js'
+      - '.github/workflows/relationship-worker-dry-run.yml'
 
 permissions:
   contents: read

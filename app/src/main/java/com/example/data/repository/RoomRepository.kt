@@ -122,7 +122,7 @@ class RoomRepository(
                 val lastSeen = ownerSession?.getTimestamp("lastSeenAt")
                     ?: ownerSession?.getTimestamp("joinedAt")
                 val heartbeatFresh = lastSeen != null &&
-                    nowMillis - lastSeen.toDate().time in 0..45_000L
+                    nowMillis - lastSeen.toDate().time <= 45_000L
                 room.copy(ownerOnline = heartbeatFresh)
             }
         }

@@ -450,8 +450,10 @@ class UserRepository(
                 )
                 if (category == "TITLE") {
                     update["lastPurchasedTitleId"] = itemId
+                    update["lastTitlePurchaseAt"] = FieldValue.serverTimestamp()
                 } else {
                     update[activeField] = itemId
+                    update["lastFramePurchaseAt"] = FieldValue.serverTimestamp()
                 }
                 tx.update(userRef, update)
             }.await()

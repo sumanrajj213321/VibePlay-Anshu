@@ -117,9 +117,6 @@ fun ProfileScreen(
     val (xpInLevel, xpNeededForNextLevel) = LevelProgression.progressInLevel(profile.xp)
     val giftCoinsIn = giftHistory.filter { it.recipientId == profile.userId }.sumOf { it.coinCost }
     val giftCoinsOut = giftHistory.filter { it.senderId == profile.userId }.sumOf { it.coinCost }
-    val equippedTitles = profile.equippedTitleIds.mapNotNull { titleId ->
-        VibeShopCatalog.titles.firstOrNull { it.id == titleId }
-    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -217,21 +214,6 @@ fun ProfileScreen(
                     )
                     if (profile.isVipActive) {
                         VipBadgePill(profile.vipLevel)
-                    }
-                }
-
-                equippedTitles.forEach { equippedTitle ->
-                    val titleColor = Color(equippedTitle.colorArgb)
-                    Surface(
-                        shape = RoundedCornerShape(9.dp),
-                        color = titleColor.copy(alpha = 0.13f),
-                        border = BorderStroke(1.dp, Brush.linearGradient(listOf(titleColor.copy(alpha = 0.95f), Color.White.copy(alpha = 0.45f), titleColor.copy(alpha = 0.75f)))),
-                        shadowElevation = 2.dp
-                    ) {
-                        Row(modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(imageVector = Icons.Filled.Star, contentDescription = null, tint = titleColor, modifier = Modifier.size(15.dp))
-                            Text(text = equippedTitle.title.uppercase(), style = MaterialTheme.typography.labelMedium, color = titleColor, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.65f.sp)
-                        }
                     }
                 }
 
@@ -487,7 +469,7 @@ fun ProfileScreen(
             ProfileActionRow(
                 icon = Icons.Filled.AutoAwesome,
                 title = "VibePlay Shop",
-                subtitle = "Buy VIP, premium frames and profile titles with coins",
+                subtitle = "Buy VIP and premium frames with coins",
                 accentTint = VibeGold,
                 onClick = onOpenShop
             )

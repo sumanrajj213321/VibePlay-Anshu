@@ -14,12 +14,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -29,22 +37,34 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.data.model.FollowEdge
+import com.google.firebase.functions.FirebaseFunctions
 
 private data class RelationshipStyle(
     val title: String,
     val detail: String,
     val accent: Color,
-    val symbol: Int
+    val symbol: Int,
+    val backendType: String
+)
+
+private val relationshipStyles = listOf(
+    RelationshipStyle("Buddies", "A playful bond built on shared moments.", Color(0xFF35C8F2), 0, "BUDDIES"),
+    RelationshipStyle("Bro", "A bold, steadfast bond with a shield crest.", Color(0xFF9B83FF), 1, "BRO"),
+    RelationshipStyle("Confidant", "A refined bond represented by a crystal seal.", Color(0xFF38D5AE), 2, "CONFIDANT"),
+    RelationshipStyle("Bestie", "A radiant bond with an exclusive star crest.", Color(0xFFFF78B7), 3, "BESTIE")
 )
 
 @Composable
-fun RelationshipScreen(onBack: () -> Unit) {
-    val styles = listOf(
-        RelationshipStyle("Buddies", "A playful bond built on shared moments.", Color(0xFF35C8F2), 0),
-        RelationshipStyle("Bro", "A bold, steadfast bond with a shield crest.", Color(0xFF9B83FF), 1),
-        RelationshipStyle("Confidant", "A refined bond represented by a crystal seal.", Color(0xFF38D5AE), 2),
-        RelationshipStyle("Bestie", "A radiant bond with an exclusive star crest.", Color(0xFFFF78B7), 3)
-    )
+fun RelationshipScreen(
+    currentUserId: String,
+    followingList: List<FollowEdge>,
+    onBack: () -> Unit
+) {
+    var statusMessage by remember { mutableStateOf("") }
+    var sendingTo by remember { mutableStateOf<String?>(null) }
+    val functions = remember { FirebaseFunctions.getInstance("asia-south1") }
+
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(
             Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 18.dp),
@@ -56,29 +76,123 @@ fun RelationshipScreen(onBack: () -> Unit) {
             Text("Relationships", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
         Text(
-            "Choose a bond to invite another user. A tag becomes active only after they accept.",
+            "You can invite only people you already follow. Search by Vibe ID is not available here.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(Modifier.height(18.dp))
-        styles.forEach { style ->
+        Spacer(Modifier.height(14.dp))
+        Text("People you follow", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        if (followingList.isEmpty()) {
+            Spacer(Modifier.height(12.dp))
             Surface(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                shape = RoundedCornerShape(20.dp),
-                color = style.accent.copy(alpha = 0.09f),
-                border = BorderStroke(1.dp, style.accent.copy(alpha = 0.65f))
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                Text(
+                    "You are not following anyone yet. Follow a user first to send a relationship invitation.",
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            followingList.forEach { person ->
+                RelationshipFollowingCard(
+                    person = person,
+                    sending = sendingTo == person.peerId,
+                    onInvite = { tagType ->
+                        if (person.peerId.isBlank() || person.peerId == currentUserId) {
+                            statusMessage = "This user cannot receive an invitation."
+                        } else {
+                            sendingTo = person.peerId
+                            statusMessage = ""
+                            functions.getHttpsCallable("sendRelationshipInvite")
+                                .call(mapOf("otherUserId" to person.peerId, "tagType" to tagType))
+                                .addOnSuccessListener {
+                                    sendingTo = null
+                                    statusMessage = "Invitation sent to ${person.peerName.ifBlank { "this user" }}."
+                                }
+                                .addOnFailureListener { error ->
+                                    sendingTo = null
+                                    statusMessage = error.localizedMessage ?: "Could not send invitation."
+                                }
+                        }
+                    }
+                )
+            }
+        }
+        if (statusMessage.isNotBlank()) {
+            Spacer(Modifier.height(8.dp))
+            Text(statusMessage, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(Modifier.height(16.dp))
+        Text("Relationship tag styles", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        relationshipStyles.forEach { style ->
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                shape = RoundedCornerShape(18.dp),
+                color = style.accent.copy(alpha = 0.08f),
+                border = BorderStroke(1.dp, style.accent.copy(alpha = 0.58f))
             ) {
                 Row(
-                    Modifier.padding(16.dp),
+                    Modifier.padding(13.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    RelationshipCustomMark(style.symbol, style.accent, Modifier.size(58.dp))
+                    RelationshipCustomMark(style.symbol, style.accent, Modifier.size(48.dp))
                     Column {
-                        Text(style.title, color = style.accent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                        Text(style.title, color = style.accent, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
                         Text(style.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("10 familiarity levels", style = MaterialTheme.typography.labelSmall, color = style.accent, fontWeight = FontWeight.Bold)
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RelationshipFollowingCard(
+    person: FollowEdge,
+    sending: Boolean,
+    onInvite: (String) -> Unit
+) {
+    var expanded by remember(person.peerId) { mutableStateOf(false) }
+    var selectedTag by remember(person.peerId) { mutableStateOf("BUDDIES") }
+    val selected = relationshipStyles.first { it.backendType == selectedTag }
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(top = 9.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, selected.accent.copy(alpha = 0.45f))
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Text(person.peerName.ifBlank { "VibePlay user" }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text("Following", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Column(Modifier.weight(1f)) {
+                    TextButton(onClick = { expanded = true }) {
+                        Text(selected.title, color = selected.accent)
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        relationshipStyles.forEach { style ->
+                            DropdownMenuItem(
+                                text = { Text(style.title, color = style.accent) },
+                                onClick = {
+                                    selectedTag = style.backendType
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+                Button(onClick = { onInvite(selectedTag) }, enabled = !sending) {
+                    Text(if (sending) "Sending…" else "Invite")
                 }
             }
         }

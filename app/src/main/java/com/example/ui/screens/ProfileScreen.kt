@@ -104,7 +104,8 @@ fun ProfileScreen(
     onUnblockUser: (String) -> Unit,
     onOpenNotifications: () -> Unit,
     onSignOut: () -> Unit,
-    onOpenShop: () -> Unit = {}
+    onOpenShop: () -> Unit = {},
+    onOpenRelationships: () -> Unit = {}
 ) {
     val clipboardManager = LocalClipboardManager.current
     var showEditSheet by remember { mutableStateOf(false) }
@@ -466,6 +467,17 @@ fun ProfileScreen(
                 subtitle = "Buy VIP and premium frames with coins",
                 accentTint = VibeGold,
                 onClick = onOpenShop
+            )
+        }
+
+        // Relationship shortcut sits between Shop and Gifts & Achievements.
+        item {
+            ProfileActionRow(
+                icon = Icons.Filled.Group,
+                title = "Relationships",
+                subtitle = "Buddies · Bro · Confidant · Bestie",
+                accentTint = VibePink,
+                onClick = onOpenRelationships
             )
         }
 

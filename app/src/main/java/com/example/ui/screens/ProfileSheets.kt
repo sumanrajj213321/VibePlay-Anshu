@@ -971,7 +971,7 @@ fun PublicProfileSheet(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                "ID: VP-${targetUser.vibeId}$ageSuffix",
+                                "ID: VP-${targetUser.vibeId.removePrefix("VP-")}$ageSuffix",
                                 Modifier.weight(1f).testTag("public_profile_id_age"),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface,

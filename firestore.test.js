@@ -1334,7 +1334,7 @@ test("Own and public profile reads plus frame purchases are permitted only throu
   const userRef = aliceDb.collection("users").doc(ALICE_UID);
   const frameExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   await assertSucceeds(userRef.update({
-    coinBalance: 1000500 - 12000 - 15000 - 15000,
+    coinBalance: 1000500 - 15000,
     ownedFrameIds: ["neon_cyan"],
     activeFrameId: "neon_cyan",
     frameExpiresAt: { neon_cyan: frameExpiry },

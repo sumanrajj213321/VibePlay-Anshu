@@ -958,24 +958,6 @@ fun PublicProfileSheet(
                         BiologicalGenderBadge(gender = targetUser.gender, showGender = targetUser.showGender, compact = true)
                     }
                     if (targetUser.isVipActive) Row(Modifier.fillMaxWidth()) { VipBadgePill(targetUser.vipLevel) }
-                    targetUser.equippedTitleIds.chunked(2).forEach { titleRow ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            titleRow.forEach { titleId ->
-                                VibeShopCatalog.titles.firstOrNull { it.id == titleId }?.let { title ->
-                                    Surface(
-                                        Modifier.weight(1f),
-                                        shape = RoundedCornerShape(9.dp),
-                                        color = Color(title.colorArgb).copy(alpha = 0.16f),
-                                        border = BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(title.colorArgb).copy(alpha = 0.95f), Color.White.copy(alpha = 0.48f), Color(title.colorArgb).copy(alpha = 0.78f)))),
-                                        shadowElevation = 2.dp
-                                    ) {
-                                        Text(title.title.uppercase(), Modifier.padding(horizontal = 5.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall, color = Color(title.colorArgb), fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    }
-                                }
-                            }
-                            if (titleRow.size == 1) Spacer(Modifier.weight(1f))
-                        }
-                    }
                     val ageSuffix = if (targetUser.showAge && targetUser.formattedAge != null) " · ${targetUser.formattedAge}" else ""
                     Surface(
                         Modifier.fillMaxWidth(),

@@ -51,25 +51,29 @@ service cloud.firestore {
     // --- Validation Helpers ---
 
     function shopTitlePrice(itemId) {
-      return itemId == 'singer' ? 12000 :
-             itemId == 'charming' ? 15000 :
-             itemId == 'princess' ? 18000 :
-             itemId == 'prince' ? 18000 :
-             itemId == 'queen' ? 25000 :
-             itemId == 'king' ? 25000 :
-             itemId == 'boss' ? 30000 :
-             itemId == 'filthy_rich' ? 50000 :
-             itemId == 'legend' ? 65000 :
-             itemId == 'royal_star' ? 80000 : -1;
+      return {
+        'singer': 12000,
+        'charming': 15000,
+        'princess': 18000,
+        'prince': 18000,
+        'queen': 25000,
+        'king': 25000,
+        'boss': 30000,
+        'filthy_rich': 50000,
+        'legend': 65000,
+        'royal_star': 80000
+      }[itemId];
     }
 
     function isValidTitlePurchase(data, oldData, itemId) {
       let price = shopTitlePrice(itemId);
       let oldOwned = ('ownedTitleIds' in oldData) ? oldData.ownedTitleIds : [];
       let newOwned = ('ownedTitleIds' in data) ? data.ownedTitleIds : [];
-      return price >= 0 &&
+      let expiry = ('titleExpiresAt' in data && data.titleExpiresAt is map)
+        ? data.titleExpiresAt[itemId] : null;
+      let changed = data.diff(oldData).affectedKeys();
+      return price is int &&
              data.vipLevel == oldData.vipLevel &&
-             ('lastPurchasedTitleId' in data) &&
              data.lastPurchasedTitleId == itemId &&
              data.coinBalance is int &&
              data.coinBalance >= 0 &&
@@ -78,11 +82,10 @@ service cloud.firestore {
              newOwned.hasAll(oldOwned) &&
              newOwned.size() == oldOwned.size() + (itemId in oldOwned ? 0 : 1) &&
              itemId in newOwned &&
-             data.titleExpiresAt is map &&
-             data.titleExpiresAt[itemId] is timestamp &&
-             data.titleExpiresAt[itemId] > request.time - duration.value(1, 'm') &&
-             data.titleExpiresAt[itemId] <= request.time + duration.value(15, 'd') + duration.value(1, 'm') &&
-             data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'titleExpiresAt', 'lastPurchasedTitleId', 'updatedAt']);
+             expiry is timestamp &&
+             expiry > request.time - duration.value(1, 'm') &&
+             expiry <= request.time + duration.value(15, 'd') + duration.value(1, 'm') &&
+             changed.hasOnly(['coinBalance', 'ownedTitleIds', 'titleExpiresAt', 'lastPurchasedTitleId', 'updatedAt']);
     }
 
     function shopFramePrice(itemId) {

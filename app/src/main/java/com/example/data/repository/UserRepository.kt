@@ -448,13 +448,7 @@ class UserRepository(
                     expiryField to updatedExpiries,
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
-                if (category == "TITLE") {
-                    update["lastPurchasedTitleId"] = itemId
-                    update["lastTitlePurchaseAt"] = FieldValue.serverTimestamp()
-                } else {
-                    update[activeField] = itemId
-                    update["lastFramePurchaseAt"] = FieldValue.serverTimestamp()
-                }
+                update[activeField] = itemId
                 tx.update(userRef, update)
             }.await()
             Result.success(Unit)

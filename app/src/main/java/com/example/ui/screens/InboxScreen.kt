@@ -97,6 +97,7 @@ import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.Flow
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
@@ -1593,17 +1594,18 @@ fun NotificationsCenterSheet(
                                         onClick = {
                                             respondingInviteId = item.targetId
                                             inviteResponseMessage = ""
-                                            relationshipFirestore.collection("relationship_invites").document(item.targetId)
-                                                .update(
-                                                    mapOf(
-                                                        "status" to "ACCEPTED",
-                                                        "respondedAt" to FieldValue.serverTimestamp()
-                                                    )
-                                                )
-                                                .addOnSuccessListener {
+                                            FirebaseFunctions.getInstance("asia-south1")
+                                                .getHttpsCallable("respondRelationshipInvite")
+                                                .call(mapOf("inviteId" to item.targetId, "accept" to true))
+                                                .addOnSuccessListener { result ->
                                                     respondingInviteId = null
                                                     onMarkRead(item.id)
-                                                    inviteResponseMessage = "Relationship invitation accepted."
+                                                    val response = result.data as? Map<*, *>
+                                                    inviteResponseMessage = if (response?.get("expired") == true) {
+                                                        "This invitation expired after 48 hours and was automatically rejected."
+                                                    } else {
+                                                        "Relationship invitation accepted."
+                                                    }
                                                 }
                                                 .addOnFailureListener { error ->
                                                     respondingInviteId = null
@@ -1618,17 +1620,18 @@ fun NotificationsCenterSheet(
                                         onClick = {
                                             respondingInviteId = item.targetId
                                             inviteResponseMessage = ""
-                                            relationshipFirestore.collection("relationship_invites").document(item.targetId)
-                                                .update(
-                                                    mapOf(
-                                                        "status" to "REJECTED",
-                                                        "respondedAt" to FieldValue.serverTimestamp()
-                                                    )
-                                                )
-                                                .addOnSuccessListener {
+                                            FirebaseFunctions.getInstance("asia-south1")
+                                                .getHttpsCallable("respondRelationshipInvite")
+                                                .call(mapOf("inviteId" to item.targetId, "accept" to false))
+                                                .addOnSuccessListener { result ->
                                                     respondingInviteId = null
                                                     onMarkRead(item.id)
-                                                    inviteResponseMessage = "Relationship invitation declined."
+                                                    val response = result.data as? Map<*, *>
+                                                    inviteResponseMessage = if (response?.get("expired") == true) {
+                                                        "This invitation expired after 48 hours and was automatically rejected."
+                                                    } else {
+                                                        "Relationship invitation declined."
+                                                    }
                                                 }
                                                 .addOnFailureListener { error ->
                                                     respondingInviteId = null

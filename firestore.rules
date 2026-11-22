@@ -375,11 +375,11 @@ service cloud.firestore {
                        isValidTs(incoming().updatedAt) && (
         
         (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
-          (incoming().coinBalance < existing().coinBalance && incoming().activeTitleId is string && shopTitlePrice(incoming().activeTitleId) >= 0)
+          ((('ownedTitleIds' in incoming()) && (!('ownedTitleIds' in existing()) || incoming().ownedTitleIds != existing().ownedTitleIds)) || (('titleExpiresAt' in incoming()) && (!('titleExpiresAt' in existing()) || incoming().titleExpiresAt != existing().titleExpiresAt)))
             ? (incoming().activeTitleId is string &&
                shopTitlePrice(incoming().activeTitleId) >= 0 &&
                isValidTitlePurchase(incoming(), existing(), incoming().activeTitleId, shopTitlePrice(incoming().activeTitleId)))
-            : (incoming().coinBalance < existing().coinBalance && incoming().activeFrameId is string && shopFramePrice(incoming().activeFrameId) >= 0)
+            : ((('ownedFrameIds' in incoming()) && (!('ownedFrameIds' in existing()) || incoming().ownedFrameIds != existing().ownedFrameIds)) || (('frameExpiresAt' in incoming()) && (!('frameExpiresAt' in existing()) || incoming().frameExpiresAt != existing().frameExpiresAt)))
               ? ((incoming().vipLevel == existing().vipLevel &&
            incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
            incoming().ownedFrameIds is list &&

@@ -926,7 +926,7 @@ service cloud.firestore {
         incoming().status in ['ACCEPTED', 'REJECTED'] &&
         incoming().respondedAt == request.time &&
         existing().expiresAt is timestamp && existing().expiresAt > request.time &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'respondedAt']);
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'respondedAt']));
       allow delete: if false;
     }
 

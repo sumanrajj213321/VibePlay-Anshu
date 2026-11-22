@@ -76,7 +76,7 @@ fun ShopScreen(
         Text(
             when (selectedTab) {
                 0 -> "Upgrade your VIP level with coins"
-                1 -> "Premium avatar frames · shown around your profile photo"
+                else -> "Premium avatar frames · shown around your profile photo"
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

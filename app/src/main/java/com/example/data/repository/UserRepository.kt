@@ -420,17 +420,15 @@ class UserRepository(
         val uid = requireUserId()
         val userRef = db.collection("users").document(uid)
         return try {
-            val item = when (category) {
-                "TITLE" -> com.example.data.model.VibeShopCatalog.titles.firstOrNull { it.id == itemId }
-                "FRAME" -> com.example.data.model.VibeShopCatalog.frames.firstOrNull { it.id == itemId }
-                else -> null
-            } ?: throw IllegalArgumentException("Invalid shop item.")
+            require(category == "FRAME") { "Title purchases are temporarily unavailable." }
+            val item = com.example.data.model.VibeShopCatalog.frames.firstOrNull { it.id == itemId }
+                ?: throw IllegalArgumentException("Invalid frame item.")
             db.runTransaction { tx ->
                 val snap = tx.get(userRef)
                 require(snap.exists()) { "Profile not found." }
-                val ownedField = if (category == "TITLE") "ownedTitleIds" else "ownedFrameIds"
-                val expiryField = if (category == "TITLE") "titleExpiresAt" else "frameExpiresAt"
-                val activeField = if (category == "TITLE") "activeTitleId" else "activeFrameId"
+                val ownedField = "ownedFrameIds"
+                val expiryField = "frameExpiresAt"
+                val activeField = "activeFrameId"
                 val owned = (snap.get(ownedField) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
                 val expiries = (snap.get(expiryField) as? Map<*, *>)?.entries
                     ?.associate { it.key.toString() to (it.value as? Timestamp) } ?: emptyMap()
@@ -438,7 +436,7 @@ class UserRepository(
                 require(currentExpiry <= System.currentTimeMillis()) { "You already own this item. It expires first." }
                 val coins = snap.getLong("coinBalance") ?: 0L
                 require(coins >= item.coinPrice) { "Not enough coins. Need ${item.coinPrice} coins." }
-                val durationDays = if (category == "TITLE") 15L else 7L
+                val durationDays = 7L
                 val expiresAt = Timestamp(java.util.Date(System.currentTimeMillis() + durationDays * 24L * 60L * 60L * 1000L))
                 val updatedExpiries = expiries.filterValues { it != null }.mapValues { it.value!! }.toMutableMap()
                 updatedExpiries[itemId] = expiresAt
@@ -449,12 +447,7 @@ class UserRepository(
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
                 update[activeField] = itemId
-                if (category == "TITLE") {
-                    update["lastPurchasedTitleId"] = itemId
-                    update["lastTitlePurchaseAt"] = FieldValue.serverTimestamp()
-                } else {
-                    update["lastFramePurchaseAt"] = FieldValue.serverTimestamp()
-                }
+                update["lastFramePurchaseAt"] = FieldValue.serverTimestamp()
                 tx.update(userRef, update)
             }.await()
             Result.success(Unit)
@@ -470,38 +463,18 @@ class UserRepository(
         val uid = requireUserId()
         val userRef = db.collection("users").document(uid)
         return try {
-            require(category == "TITLE" || category == "FRAME")
+            require(category == "FRAME") { "Title equipping is temporarily unavailable." }
             db.runTransaction { tx ->
                 val snap = tx.get(userRef)
                 require(snap.exists()) { "Profile not found." }
-                val ownedField = if (category == "TITLE") "ownedTitleIds" else "ownedFrameIds"
-                val activeField = if (category == "TITLE") "activeTitleId" else "activeFrameId"
-                val expiryField = if (category == "TITLE") "titleExpiresAt" else "frameExpiresAt"
+                val ownedField = "ownedFrameIds"
+                val activeField = "activeFrameId"
+                val expiryField = "frameExpiresAt"
                 val owned = (snap.get(ownedField) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
                 val expiryMap = (snap.get(expiryField) as? Map<*, *>) ?: emptyMap<Any, Any>()
                 val expiry = itemId?.let { expiryMap[it] as? Timestamp }
                 require(itemId.isNullOrBlank() || (itemId in owned && expiry?.toDate()?.after(java.util.Date()) == true)) { "This item has expired. Purchase it again." }
-                if (category == "TITLE") {
-                    val current = ((snap.get("activeTitleIds") as? List<*>)?.filterIsInstance<String>()
-                        ?: listOfNotNull(snap.getString("activeTitleId")?.takeIf { it.isNotBlank() }))
-                        .distinct().filter { titleId ->
-                            val titleExpiry = expiryMap[titleId] as? Timestamp
-                            titleId in owned && titleExpiry?.toDate()?.after(java.util.Date()) == true
-                        }.take(4)
-                    val next = when {
-                        itemId.isNullOrBlank() -> emptyList()
-                        itemId in current -> current - itemId
-                        current.size < 4 -> current + itemId
-                        else -> throw IllegalStateException("You can equip up to 4 titles. Unequip one first.")
-                    }
-                    tx.update(userRef, mapOf(
-                        "activeTitleIds" to next,
-                        "activeTitleId" to (next.firstOrNull() ?: ""),
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    ))
-                } else {
-                    tx.update(userRef, mapOf(activeField to (itemId ?: ""), "updatedAt" to FieldValue.serverTimestamp()))
-                }
+                tx.update(userRef, mapOf(activeField to (itemId ?: ""), "updatedAt" to FieldValue.serverTimestamp()))
             }.await()
             Result.success(Unit)
         } catch (e: CancellationException) {

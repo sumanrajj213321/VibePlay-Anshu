@@ -138,3 +138,144 @@ exports.breakRelationshipTag = onCall(
     };
   }
 );
+
+
+// Create a pending relationship invitation and enforce pair cooldown server-side.
+exports.sendRelationshipInvite = onCall(
+  { region: "asia-south1" },
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Please sign in first.");
+    const senderId = request.auth.uid;
+    const otherUserId = request.data && request.data.otherUserId;
+    const tagType = request.data && request.data.tagType;
+    const allowedTags = ["BUDDIES", "BRO", "CONFIDANT", "BESTIE"];
+    if (typeof otherUserId !== "string" || !otherUserId || otherUserId === senderId ||
+        otherUserId.length > 128 || !allowedTags.includes(tagType)) {
+      throw new HttpsError("invalid-argument", "Choose a valid user and relationship tag.");
+    }
+
+    const senderRef = db.collection("users").doc(senderId);
+    const recipientRef = db.collection("users").doc(otherUserId);
+    const pairId = pairKey(senderId, otherUserId);
+    const pairRef = db.collection("relationship_pairs").doc(pairId);
+    const inviteRef = db.collection("relationship_invites").doc();
+    const notificationRef = db.collection("notifications").doc();
+
+    await db.runTransaction(async (tx) => {
+      const [senderSnap, recipientSnap, pairSnap] = await Promise.all([
+        tx.get(senderRef), tx.get(recipientRef), tx.get(pairRef)
+      ]);
+      if (!senderSnap.exists || !recipientSnap.exists ||
+          senderSnap.get("accountStatus") !== "ACTIVE" ||
+          recipientSnap.get("accountStatus") !== "ACTIVE") {
+        throw new HttpsError("not-found", "The selected user is unavailable.");
+      }
+      const pair = pairSnap.exists ? pairSnap.data() : {};
+      if (pair.tagStatus === "ACTIVE") {
+        throw new HttpsError("already-exists", "You already have an active relationship tag with this user.");
+      }
+      if (pair.pendingInviteId) {
+        throw new HttpsError("already-exists", "A relationship invitation is already pending.");
+      }
+      if (pair.tagCooldownUntil && pair.tagCooldownUntil.toMillis() > Date.now()) {
+        throw new HttpsError("failed-precondition", "You can invite this user again after the seven-day cooldown.");
+      }
+
+      const senderName = String(senderSnap.get("username") || "VibeUser").slice(0, 60);
+      const recipientName = String(recipientSnap.get("username") || "VibeUser").slice(0, 60);
+      const senderAvatar = String(senderSnap.get("avatarUrl") || "");
+      const recipientAvatar = String(recipientSnap.get("avatarUrl") || "");
+      tx.create(inviteRef, {
+        pairId, inviterId: senderId, invitedTo: otherUserId,
+        inviterName: senderName, invitedName: recipientName,
+        inviterAvatarUrl: senderAvatar, invitedAvatarUrl: recipientAvatar,
+        tagType, status: "PENDING", createdAt: FieldValue.serverTimestamp()
+      });
+      tx.set(pairRef, {
+        userIds: [senderId, otherUserId].sort(),
+        userDisplayNames: { [senderId]: senderName, [otherUserId]: recipientName },
+        userAvatarUrls: { [senderId]: senderAvatar, [otherUserId]: recipientAvatar },
+        tagStatus: "PENDING", pendingInviteId: inviteRef.id,
+        pendingTagType: tagType, invitedBy: senderId, invitedTo: otherUserId,
+        pendingAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+      tx.create(notificationRef, {
+        recipientId: otherUserId, senderId, senderName,
+        type: "RELATIONSHIP_INVITE", title: "Relationship invitation",
+        body: senderName + " invited you to become " + tagType.toLowerCase() + ".",
+        targetId: inviteRef.id, read: false, createdAt: FieldValue.serverTimestamp()
+      });
+    });
+    return { success: true, inviteId: inviteRef.id };
+  }
+);
+
+// Only the invited user can accept or reject a pending invitation.
+exports.respondRelationshipInvite = onCall(
+  { region: "asia-south1" },
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Please sign in first.");
+    const userId = request.auth.uid;
+    const inviteId = request.data && request.data.inviteId;
+    const accept = request.data && request.data.accept;
+    if (typeof inviteId !== "string" || !inviteId || inviteId.length > 128 ||
+        typeof accept !== "boolean") {
+      throw new HttpsError("invalid-argument", "Invalid invitation response.");
+    }
+    const inviteRef = db.collection("relationship_invites").doc(inviteId);
+    let inviterId = "";
+    let pairId = "";
+    await db.runTransaction(async (tx) => {
+      const inviteSnap = await tx.get(inviteRef);
+      if (!inviteSnap.exists) throw new HttpsError("not-found", "Invitation not found.");
+      const invite = inviteSnap.data();
+      if (invite.invitedTo !== userId) {
+        throw new HttpsError("permission-denied", "Only the invited user can respond.");
+      }
+      if (invite.status !== "PENDING") {
+        throw new HttpsError("failed-precondition", "This invitation has already been answered.");
+      }
+      pairId = invite.pairId;
+      inviterId = invite.inviterId;
+      const pairRef = db.collection("relationship_pairs").doc(pairId);
+      const pairSnap = await tx.get(pairRef);
+      if (!pairSnap.exists || pairSnap.get("pendingInviteId") !== inviteId) {
+        throw new HttpsError("failed-precondition", "This invitation is no longer active.");
+      }
+      const now = FieldValue.serverTimestamp();
+      tx.update(inviteRef, {
+        status: accept ? "ACCEPTED" : "REJECTED",
+        respondedAt: now
+      });
+      if (accept) {
+        tx.update(pairRef, {
+          tagStatus: "ACTIVE", tagType: invite.tagType,
+          tagStartedAt: now, activeInviteId: inviteId,
+          pendingInviteId: FieldValue.delete(),
+          pendingTagType: FieldValue.delete(),
+          invitedBy: FieldValue.delete(), invitedTo: FieldValue.delete(),
+          pendingAt: FieldValue.delete(), updatedAt: now
+        });
+      } else {
+        tx.update(pairRef, {
+          tagStatus: "NONE",
+          pendingInviteId: FieldValue.delete(),
+          pendingTagType: FieldValue.delete(),
+          invitedBy: FieldValue.delete(), invitedTo: FieldValue.delete(),
+          pendingAt: FieldValue.delete(), updatedAt: now
+        });
+      }
+    });
+
+    const responder = await db.collection("users").doc(userId).get();
+    const responderName = String(responder.get("username") || "VibeUser").slice(0, 60);
+    await db.collection("notifications").add({
+      recipientId: inviterId, senderId: userId, senderName: responderName,
+      type: "SYSTEM",
+      title: accept ? "Relationship invitation accepted" : "Relationship invitation declined",
+      body: responderName + (accept ? " accepted your relationship invitation." : " declined your relationship invitation."),
+      targetId: pairId, read: false, createdAt: FieldValue.serverTimestamp()
+    });
+    return { success: true, status: accept ? "ACCEPTED" : "REJECTED" };
+  }
+);

@@ -1,6 +1,11 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -201,7 +207,30 @@ private fun RelationshipFollowingCard(
 
 @Composable
 private fun RelationshipCustomMark(kind: Int, accent: Color, modifier: Modifier = Modifier) {
-    Canvas(modifier) {
+    val transition = rememberInfiniteTransition(label = "relationship-emblem")
+    val rotation by transition.animateFloat(
+        initialValue = -3f,
+        targetValue = 3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2200),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "emblem-rotation"
+    )
+    val glow by transition.animateFloat(
+        initialValue = 0.94f,
+        targetValue = 1.06f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1700),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "emblem-glow"
+    )
+    Canvas(modifier.graphicsLayer {
+        rotationZ = rotation
+        scaleX = glow
+        scaleY = glow
+    }) {
         val w = size.width
         val h = size.height
         val stroke = Stroke(width = w * 0.065f, cap = StrokeCap.Round)

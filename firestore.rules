@@ -375,11 +375,11 @@ service cloud.firestore {
                        isValidTs(incoming().updatedAt) && (
         
         (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
-          incoming().diff(existing()).affectedKeys().hasAny(['ownedTitleIds', 'titleExpiresAt'])
+          (incoming().coinBalance < existing().coinBalance && incoming().activeTitleId is string && shopTitlePrice(incoming().activeTitleId) >= 0)
             ? (incoming().activeTitleId is string &&
                shopTitlePrice(incoming().activeTitleId) >= 0 &&
                isValidTitlePurchase(incoming(), existing(), incoming().activeTitleId, shopTitlePrice(incoming().activeTitleId)))
-            : incoming().diff(existing()).affectedKeys().hasAny(['ownedFrameIds', 'frameExpiresAt'])
+            : (incoming().coinBalance < existing().coinBalance && incoming().activeFrameId is string && shopFramePrice(incoming().activeFrameId) >= 0)
               ? ((incoming().vipLevel == existing().vipLevel &&
            incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
            incoming().ownedFrameIds is list &&

@@ -26,7 +26,7 @@ jobs:
 
       - name: Install Firebase Admin SDK
         working-directory: functions
-        run: npm ci
+        run: npm install --no-package-lock --ignore-scripts
 
       - name: Validate read-only worker syntax
         run: node --check scripts/relationship-worker-dry-run.js

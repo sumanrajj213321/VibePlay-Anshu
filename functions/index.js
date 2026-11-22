@@ -2,6 +2,7 @@ const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { Timestamp } = require("firebase-admin/firestore");
 const logger = require("firebase-functions/logger");
 const { createHash } = require("node:crypto");
@@ -179,7 +180,31 @@ exports.sendRelationshipInvite = onCall(
         throw new HttpsError("already-exists", "You already have an active relationship tag with this user.");
       }
       if (pair.pendingInviteId) {
-        throw new HttpsError("already-exists", "A relationship invitation is already pending.");
+        const oldInviteRef = db.collection("relationship_invites").doc(pair.pendingInviteId);
+        const oldInviteSnap = await tx.get(oldInviteRef);
+        const oldInvite = oldInviteSnap.exists ? oldInviteSnap.data() : null;
+        const oldExpiry = oldInvite && oldInvite.expiresAt && typeof oldInvite.expiresAt.toMillis === "function"
+          ? oldInvite.expiresAt.toMillis()
+          : oldInvite && oldInvite.createdAt && typeof oldInvite.createdAt.toMillis === "function"
+            ? oldInvite.createdAt.toMillis() + 48 * 60 * 60 * 1000
+            : Date.now() + 48 * 60 * 60 * 1000;
+        if (oldInvite && oldInvite.status === "PENDING" && oldExpiry > Date.now()) {
+          throw new HttpsError("already-exists", "A relationship invitation is already pending.");
+        }
+        if (oldInvite && oldInvite.status === "PENDING") {
+          tx.update(oldInviteRef, {
+            status: "REJECTED", autoRejected: true, rejectionReason: "NO_RESPONSE_48_HOURS",
+            respondedAt: FieldValue.serverTimestamp()
+          });
+          if (oldInvite.notificationId) {
+            tx.set(db.collection("notifications").doc(oldInvite.notificationId), { read: true }, { merge: true });
+          }
+        }
+        tx.set(pairRef, {
+          tagStatus: "NONE", pendingInviteId: FieldValue.delete(),
+          pendingTagType: FieldValue.delete(), invitedBy: FieldValue.delete(),
+          invitedTo: FieldValue.delete(), pendingAt: FieldValue.delete()
+        }, { merge: true });
       }
       if (pair.tagCooldownUntil && pair.tagCooldownUntil.toMillis() > Date.now()) {
         throw new HttpsError("failed-precondition", "You can invite this user again after the seven-day cooldown.");
@@ -193,7 +218,9 @@ exports.sendRelationshipInvite = onCall(
         pairId, inviterId: senderId, invitedTo: otherUserId,
         inviterName: senderName, invitedName: recipientName,
         inviterAvatarUrl: senderAvatar, invitedAvatarUrl: recipientAvatar,
-        tagType, status: "PENDING", createdAt: FieldValue.serverTimestamp()
+        tagType, status: "PENDING", notificationId: notificationRef.id,
+        createdAt: FieldValue.serverTimestamp(),
+        expiresAt: Timestamp.fromMillis(Date.now() + 48 * 60 * 60 * 1000)
       });
       tx.set(pairRef, {
         userIds: [senderId, otherUserId].sort(),
@@ -229,6 +256,7 @@ exports.respondRelationshipInvite = onCall(
     const inviteRef = db.collection("relationship_invites").doc(inviteId);
     let inviterId = "";
     let pairId = "";
+    let expired = false;
     await db.runTransaction(async (tx) => {
       const inviteSnap = await tx.get(inviteRef);
       if (!inviteSnap.exists) throw new HttpsError("not-found", "Invitation not found.");
@@ -246,7 +274,29 @@ exports.respondRelationshipInvite = onCall(
       if (!pairSnap.exists || pairSnap.get("pendingInviteId") !== inviteId) {
         throw new HttpsError("failed-precondition", "This invitation is no longer active.");
       }
+      const expiryMs = invite.expiresAt && typeof invite.expiresAt.toMillis === "function"
+        ? invite.expiresAt.toMillis()
+        : invite.createdAt && typeof invite.createdAt.toMillis === "function"
+          ? invite.createdAt.toMillis() + 48 * 60 * 60 * 1000
+          : 0;
       const now = FieldValue.serverTimestamp();
+      if (expiryMs > 0 && expiryMs <= Date.now()) {
+        tx.update(inviteRef, {
+          status: "REJECTED", autoRejected: true,
+          rejectionReason: "NO_RESPONSE_48_HOURS", respondedAt: now
+        });
+        if (invite.notificationId) {
+          tx.set(db.collection("notifications").doc(invite.notificationId), { read: true }, { merge: true });
+        }
+        tx.update(pairRef, {
+          tagStatus: "NONE", pendingInviteId: FieldValue.delete(),
+          pendingTagType: FieldValue.delete(), invitedBy: FieldValue.delete(),
+          invitedTo: FieldValue.delete(), pendingAt: FieldValue.delete(),
+          updatedAt: now
+        });
+        expired = true;
+        return;
+      }
       tx.update(inviteRef, {
         status: accept ? "ACCEPTED" : "REJECTED",
         respondedAt: now
@@ -271,6 +321,9 @@ exports.respondRelationshipInvite = onCall(
       }
     });
 
+    if (expired) {
+      throw new HttpsError("deadline-exceeded", "This invitation expired after 48 hours without a response.");
+    }
     const responder = await db.collection("users").doc(userId).get();
     const responderName = String(responder.get("username") || "VibeUser").slice(0, 60);
     await db.collection("notifications").add({
@@ -281,5 +334,79 @@ exports.respondRelationshipInvite = onCall(
       targetId: pairId, read: false, createdAt: FieldValue.serverTimestamp()
     });
     return { success: true, status: accept ? "ACCEPTED" : "REJECTED" };
+  }
+);
+
+
+// Automatically reject unanswered relationship invitations after 48 hours.
+exports.expireRelationshipInvites = onSchedule(
+  {
+    schedule: "every 15 minutes",
+    timeZone: "Asia/Kolkata",
+    region: "asia-south1",
+    retryCount: 3
+  },
+  async () => {
+    const nowMs = Date.now();
+    const pending = await db.collection("relationship_invites")
+      .where("status", "==", "PENDING")
+      .limit(250)
+      .get();
+
+    for (const inviteDoc of pending.docs) {
+      const invite = inviteDoc.data();
+      const expiresAtMs = invite.expiresAt && typeof invite.expiresAt.toMillis === "function"
+        ? invite.expiresAt.toMillis()
+        : invite.createdAt && typeof invite.createdAt.toMillis === "function"
+          ? invite.createdAt.toMillis() + 48 * 60 * 60 * 1000
+          : 0;
+      if (!expiresAtMs || expiresAtMs > nowMs) continue;
+
+      const inviteRef = inviteDoc.ref;
+      const pairRef = db.collection("relationship_pairs").doc(invite.pairId);
+      const result = await db.runTransaction(async (tx) => {
+        const [freshInvite, freshPair] = await Promise.all([tx.get(inviteRef), tx.get(pairRef)]);
+        if (!freshInvite.exists || freshInvite.get("status") !== "PENDING") return null;
+        const current = freshInvite.data();
+        const currentExpiry = current.expiresAt && typeof current.expiresAt.toMillis === "function"
+          ? current.expiresAt.toMillis()
+          : current.createdAt && typeof current.createdAt.toMillis === "function"
+            ? current.createdAt.toMillis() + 48 * 60 * 60 * 1000
+            : 0;
+        if (!currentExpiry || currentExpiry > Date.now()) return null;
+
+        tx.update(inviteRef, {
+          status: "REJECTED", autoRejected: true,
+          rejectionReason: "NO_RESPONSE_48_HOURS",
+          respondedAt: FieldValue.serverTimestamp()
+        });
+        if (current.notificationId) {
+          tx.set(db.collection("notifications").doc(current.notificationId), { read: true }, { merge: true });
+        }
+        if (freshPair.exists && freshPair.get("pendingInviteId") === inviteDoc.id) {
+          tx.update(pairRef, {
+            tagStatus: "NONE", pendingInviteId: FieldValue.delete(),
+            pendingTagType: FieldValue.delete(), invitedBy: FieldValue.delete(),
+            invitedTo: FieldValue.delete(), pendingAt: FieldValue.delete(),
+            updatedAt: FieldValue.serverTimestamp()
+          });
+        }
+        return { inviterId: current.inviterId, invitedTo: current.invitedTo, pairId: current.pairId };
+      });
+
+      if (result && result.inviterId) {
+        await db.collection("notifications").add({
+          recipientId: result.inviterId,
+          senderId: result.invitedTo || "VIBEPLAY_SYSTEM",
+          senderName: "VibePlay",
+          type: "SYSTEM",
+          title: "Relationship invitation expired",
+          body: "Your relationship invitation was automatically rejected because there was no response within 48 hours.",
+          targetId: result.pairId || "",
+          read: false,
+          createdAt: FieldValue.serverTimestamp()
+        });
+      }
+    }
   }
 );

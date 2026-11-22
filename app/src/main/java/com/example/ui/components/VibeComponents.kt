@@ -150,6 +150,9 @@ fun VibeAvatar(
     val displayVipLevel = vipLevel.coerceIn(0L, 8L)
     val isNeonCyanFrame = frameColorArgb == 0xFF22D3EEL
     val isAuroraFrame = frameColorArgb == 0xFF34D399L
+    val isRoseGoldFrame = frameColorArgb == 0xFFF472B6L
+    val isRoyalGoldFrame = frameColorArgb == 0xFFFBBF24L
+    val isGalaxyFrame = frameColorArgb == 0xFFA78BFAL
     val vipColor = remember(displayVipLevel) {
         val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == displayVipLevel.toInt() }
         if (tier != null) Color(tier.badgeColorHex) else null
@@ -270,6 +273,15 @@ fun VibeAvatar(
                 modifier = Modifier.align(Alignment.Center).requiredSize(size * 1.55f),
                 pulseAlpha = pulseAlpha
             )
+        }
+        if (isGalaxyFrame) {
+            GalaxyFrameOverlay(Modifier.align(Alignment.Center).requiredSize(size * 1.55f), pulseAlpha)
+        }
+        if (isRoyalGoldFrame) {
+            RoyalGoldFrameOverlay(Modifier.align(Alignment.Center).requiredSize(size * 1.55f), pulseAlpha)
+        }
+        if (isRoseGoldFrame) {
+            RoseGoldFrameOverlay(Modifier.align(Alignment.Center).requiredSize(size * 1.55f), pulseAlpha)
         }
         if (online) {
             Box(
@@ -451,6 +463,83 @@ private fun AuroraPremiumFrameOverlay(
             drawCircle(champagne, 2.8.dp.toPx() * pulseAlpha, point)
             drawCircle(emerald.copy(alpha = 0.7f * pulseAlpha), 5.dp.toPx() * pulseAlpha, point, style = Stroke(1.dp.toPx()))
         }
+    }
+}
+
+
+@Composable
+private fun GalaxyFrameOverlay(modifier: Modifier, pulseAlpha: Float) {
+    Canvas(modifier) {
+        val cx=size.width/2f; val cy=size.height/2f; val r=size.minDimension*0.322f
+        val violet=Color(0xFFB69CFF).copy(alpha=pulseAlpha)
+        val blue=Color(0xFF68C8FF).copy(alpha=pulseAlpha)
+        val white=Color(0xFFF1E9FF).copy(alpha=pulseAlpha)
+        drawCircle(violet,r,androidx.compose.ui.geometry.Offset(cx,cy),style=Stroke(2.4.dp.toPx(),pathEffect=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(7.dp.toPx(),4.dp.toPx()))))
+        drawCircle(blue,r+7.dp.toPx(),androidx.compose.ui.geometry.Offset(cx,cy),style=Stroke(1.2.dp.toPx()))
+        // Orbiting elliptical rings and a pair of planetary satellites.
+        drawOval(violet,topLeft=androidx.compose.ui.geometry.Offset(cx-r*1.48f,cy-r*.42f),size=androidx.compose.ui.geometry.Size(r*2.96f,r*.84f),style=Stroke(2.dp.toPx()))
+        drawOval(blue,topLeft=androidx.compose.ui.geometry.Offset(cx-r*1.36f,cy-r*.30f),size=androidx.compose.ui.geometry.Size(r*2.72f,r*.60f),style=Stroke(1.dp.toPx()))
+        drawCircle(white,r*.12f,androidx.compose.ui.geometry.Offset(cx-r*1.36f,cy-r*.28f))
+        drawCircle(blue,r*.09f,androidx.compose.ui.geometry.Offset(cx+r*1.36f,cy+r*.28f))
+        // Star-shaped constellation accents.
+        val stars=listOf(androidx.compose.ui.geometry.Offset(cx,cy-r*1.38f),androidx.compose.ui.geometry.Offset(cx-r*1.10f,cy-r*.92f),androidx.compose.ui.geometry.Offset(cx+r*1.10f,cy-r*.92f),androidx.compose.ui.geometry.Offset(cx-r*1.12f,cy+r*.88f),androidx.compose.ui.geometry.Offset(cx+r*1.12f,cy+r*.88f),androidx.compose.ui.geometry.Offset(cx,cy+r*1.42f))
+        stars.forEachIndexed { i,p ->
+            val q=Path().apply { moveTo(p.x,p.y-r*.10f); lineTo(p.x+r*.055f,p.y-r*.055f); lineTo(p.x+r*.10f,p.y); lineTo(p.x+r*.055f,p.y+r*.055f); lineTo(p.x,p.y+r*.10f); lineTo(p.x-r*.055f,p.y+r*.055f); lineTo(p.x-r*.10f,p.y); lineTo(p.x-r*.055f,p.y-r*.055f); close() }
+            drawPath(q,if(i%2==0) white else blue)
+            drawCircle(violet,r*.045f,p)
+        }
+    }
+}
+
+@Composable
+private fun RoyalGoldFrameOverlay(modifier: Modifier, pulseAlpha: Float) {
+    Canvas(modifier) {
+        val cx=size.width/2f; val cy=size.height/2f; val r=size.minDimension*.322f
+        val gold=Color(0xFFFFD45C).copy(alpha=pulseAlpha); val light=Color(0xFFFFF0B0).copy(alpha=pulseAlpha)
+        val dark=Color(0xFFB87916).copy(alpha=pulseAlpha)
+        drawCircle(gold,r,androidx.compose.ui.geometry.Offset(cx,cy),style=Stroke(4.dp.toPx()))
+        drawCircle(light,r-6.dp.toPx(),androidx.compose.ui.geometry.Offset(cx,cy),style=Stroke(1.3.dp.toPx()))
+        // Regal shield crest, flanked by ornamental scrollwork.
+        val shield=Path().apply { moveTo(cx-r*.55f,cy-r*.62f); lineTo(cx+r*.55f,cy-r*.62f); lineTo(cx+r*.48f,cy-r*1.05f); lineTo(cx,cy-r*1.35f); lineTo(cx-r*.48f,cy-r*1.05f); close() }
+        drawPath(shield,dark,style=Stroke(3.dp.toPx())); drawPath(shield,light,style=Stroke(1.2.dp.toPx()))
+        for(side in listOf(-1f,1f)) {
+            val scroll=Path().apply { moveTo(cx+side*r*.82f,cy-r*.42f); cubicTo(cx+side*r*1.45f,cy-r*.68f,cx+side*r*1.52f,cy+r*.12f,cx+side*r*1.02f,cy+r*.32f); cubicTo(cx+side*r*1.40f,cy+r*.58f,cx+side*r*.92f,cy+r*.92f,cx+side*r*.72f,cy+r*.68f) }
+            drawPath(scroll,gold,style=Stroke(3.dp.toPx()))
+            for(i in 0..2) drawCircle(light,(3-i*.45f).dp.toPx(),androidx.compose.ui.geometry.Offset(cx+side*r*(1.03f+i*.13f),cy-r*.20f+i*r*.42f))
+        }
+        // Faceted gold medallion at the base.
+        val gem=Path().apply { moveTo(cx,cy+r*1.13f); lineTo(cx+r*.22f,cy+r*1.38f); lineTo(cx,cy+r*1.63f); lineTo(cx-r*.22f,cy+r*1.38f); close() }
+        drawPath(gem,gold,style=Stroke(3.dp.toPx())); drawLine(light,androidx.compose.ui.geometry.Offset(cx,cy+r*1.18f),androidx.compose.ui.geometry.Offset(cx,cy+r*1.58f),1.4.dp.toPx())
+    }
+}
+
+@Composable
+private fun RoseGoldFrameOverlay(modifier: Modifier, pulseAlpha: Float) {
+    Canvas(modifier) {
+        val cx=size.width/2f; val cy=size.height/2f; val r=size.minDimension*.322f
+        val rose=Color(0xFFFF9DB7).copy(alpha=pulseAlpha); val blush=Color(0xFFFFE0E8).copy(alpha=pulseAlpha); val copper=Color(0xFFB96878).copy(alpha=pulseAlpha)
+        drawCircle(rose,r,androidx.compose.ui.geometry.Offset(cx,cy),style=Stroke(3.dp.toPx()))
+        drawCircle(blush,r-5.dp.toPx(),androidx.compose.ui.geometry.Offset(cx,cy),style=Stroke(1.1.dp.toPx()))
+        // Floral garlands: paired petals create a soft feminine filigree silhouette.
+        for(side in listOf(-1f,1f)) {
+            for(i in 0..3) {
+                val x=cx+side*r*(.82f+i*.13f); val y=cy-r*.60f+i*r*.38f
+                val petal=Path().apply { moveTo(x,y); cubicTo(x+side*r*.28f,y-r*.20f,x+side*r*.43f,y+r*.08f,x,y+r*.18f); cubicTo(x-side*r*.12f,y+r*.05f,x-side*r*.12f,y-r*.10f,x,y); close() }
+                drawPath(petal,if(i%2==0) rose else copper,style=Stroke(2.2.dp.toPx()))
+                drawCircle(blush,r*.045f,androidx.compose.ui.geometry.Offset(x,y))
+            }
+            val vine=Path().apply { moveTo(cx+side*r*.78f,cy+r*.72f); cubicTo(cx+side*r*1.25f,cy+r*.35f,cx+side*r*1.25f,cy-r*.20f,cx+side*r*.78f,cy-r*.65f) }
+            drawPath(vine,copper,style=Stroke(1.8.dp.toPx()))
+        }
+        // Floral rosette at twelve o'clock and dangling teardrop pearl below.
+        for(i in 0..7) {
+            val angle=i*Math.PI/4.0
+            val x=cx+kotlin.math.cos(angle).toFloat()*r*.20f; val y=cy-r*1.28f+kotlin.math.sin(angle).toFloat()*r*.20f
+            drawOval(rose,topLeft=androidx.compose.ui.geometry.Offset(x-r*.075f,y-r*.13f),size=androidx.compose.ui.geometry.Size(r*.15f,r*.26f),style=Stroke(1.5.dp.toPx()),rotation= i*45f,pivot=androidx.compose.ui.geometry.Offset(x,y))
+        }
+        drawCircle(blush,r*.075f,androidx.compose.ui.geometry.Offset(cx,cy-r*1.28f))
+        val drop=Path().apply { moveTo(cx,cy+r*1.10f); cubicTo(cx+r*.36f,cy+r*1.40f,cx+r*.12f,cy+r*1.65f,cx,cy+r*1.68f); cubicTo(cx-r*.12f,cy+r*1.65f,cx-r*.36f,cy+r*1.40f,cx,cy+r*1.10f) }
+        drawPath(drop,rose,style=Stroke(2.6.dp.toPx())); drawCircle(blush,r*.045f,androidx.compose.ui.geometry.Offset(cx,cy+r*1.40f))
     }
 }
 

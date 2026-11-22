@@ -539,7 +539,7 @@ fun VipMembershipSheet(
                 }
             }
             item {
-                val activeTier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == profile.vipLevel.toInt() }
+                val activeTier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == profile.vipLevel.coerceAtMost(8L).toInt() }
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = if (activeTier != null) VibeGold.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)

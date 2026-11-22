@@ -216,20 +216,45 @@ private fun RelationshipFollowingCard(
 ) {
     var expanded by remember(person.peerId) { mutableStateOf(false) }
     var selectedTag by remember(person.peerId) { mutableStateOf("BUDDIES") }
-    var familiarity by remember(person.peerId, currentUserId) { mutableStateOf(0) }
+    var serverFamiliarity by remember(person.peerId, currentUserId) { mutableStateOf(0) }
+    var giftHistoryFamiliarity by remember(person.peerId, currentUserId) { mutableStateOf(0) }
     var pairStatus by remember(person.peerId, currentUserId) { mutableStateOf("NONE") }
+    val familiarity = maxOf(serverFamiliarity, giftHistoryFamiliarity)
     DisposableEffect(person.peerId, currentUserId) {
         val pairId = MessageDigest.getInstance("SHA-256")
             .digest(listOf(currentUserId, person.peerId).sorted().joinToString(":").toByteArray())
             .joinToString("") { "%02x".format(it) }
-        val registration: ListenerRegistration = FirebaseFirestore.getInstance()
+        val db = FirebaseFirestore.getInstance()
+        val pairRegistration: ListenerRegistration = db
             .collection("relationship_pairs").document(pairId)
             .addSnapshotListener { snapshot, _ ->
-                familiarity = (snapshot?.getLong("familiarityPoints") ?: 0L)
+                serverFamiliarity = (snapshot?.getLong("familiarityPoints") ?: 0L)
                     .coerceAtLeast(0L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
                 pairStatus = snapshot?.getString("tagStatus") ?: "NONE"
             }
-        onDispose { registration.remove() }
+        // Read successful gift transactions for an immediate progress projection.
+        // The trusted worker later persists the same total and activates eligible tags.
+        val giftsRegistration: ListenerRegistration = db
+            .collection("gift_transactions")
+            .whereArrayContains("participantIds", currentUserId)
+            .addSnapshotListener { snapshot, _ ->
+                val totalCoins = snapshot?.documents
+                    ?.asSequence()
+                    ?.filter { doc ->
+                        val senderId = doc.getString("senderId")
+                        val recipientId = doc.getString("recipientId")
+                        (senderId == currentUserId && recipientId == person.peerId) ||
+                            (senderId == person.peerId && recipientId == currentUserId)
+                    }
+                    ?.sumOf { doc -> (doc.getLong("coinCost") ?: 0L).coerceAtLeast(0L) }
+                    ?: 0L
+                giftHistoryFamiliarity = (totalCoins / 5L)
+                    .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            }
+        onDispose {
+            pairRegistration.remove()
+            giftsRegistration.remove()
+        }
     }
     val nextLevel = listOf(10000, 30000, 60000, 100000, 150000, 220000, 300000, 400000, 550000, 750000)
         .firstOrNull { familiarity < it } ?: 750000

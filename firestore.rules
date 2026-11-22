@@ -420,7 +420,7 @@ service cloud.firestore {
              incoming().frameExpiresAt is map && incoming().frameExpiresAt[incoming().activeFrameId] > request.time)) &&
            incoming().diff(existing()).affectedKeys().hasOnly(['activeFrameId', 'updatedAt'])) ||
           (incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
-           incoming().vipLevel >= 1 && incoming().vipLevel <= 30 &&
+           incoming().vipLevel >= 1 && incoming().vipLevel <= 8 &&
            (incoming().vipLevel > existing().vipLevel ||
             (!('vipExpiresAt' in existing()) || existing().vipExpiresAt <= request.time)) &&
            incoming().vipExpiresAt is timestamp &&

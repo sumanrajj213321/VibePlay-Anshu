@@ -130,7 +130,7 @@ fun ProfileScreen(
     var showAllRelationshipTags by remember(profile.userId) { mutableStateOf(true) }
     var selectedFeaturedPartnerId by remember(profile.userId) { mutableStateOf("") }
 
-    DisposableEffect(profile.userId) {
+    DisposableEffect(profile.userId, selectedFeaturedPartnerId) {
         val selectionRegistration = FirebaseFirestore.getInstance()
             .collection("relationship_profile_selection")
             .document(profile.userId)

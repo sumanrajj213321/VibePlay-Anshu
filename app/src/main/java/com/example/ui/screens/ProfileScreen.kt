@@ -86,9 +86,9 @@ import com.example.ui.theme.VibeCyan
 import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.functions.FirebaseFunctions
 
 @Composable
 fun ProfileScreen(
@@ -113,6 +113,7 @@ fun ProfileScreen(
     onOpenRelationships: () -> Unit = {}
 ) {
     val clipboardManager = LocalClipboardManager.current
+    val isOwnProfile = FirebaseAuth.getInstance().currentUser?.uid == profile.userId
     var showEditSheet by remember { mutableStateOf(false) }
     var showVipSheet by remember { mutableStateOf(false) }
     var showGiftHistory by remember { mutableStateOf(false) }
@@ -299,6 +300,7 @@ fun ProfileScreen(
                                             color = VibeGold
                                         )
                                     }
+                                    if (isOwnProfile) {
                                     OutlinedButton(
                                         enabled = partnerId.isNotBlank() && !isFeatured,
                                         onClick = {
@@ -330,6 +332,7 @@ fun ProfileScreen(
                                         }
                                     ) {
                                         Text(if (isFeatured) "Featured" else "Feature")
+                                    }
                                     }
                                 }
                             }

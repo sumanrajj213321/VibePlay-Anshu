@@ -32,6 +32,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.tasks.await
 
 class RoomViewModel(
@@ -108,6 +110,7 @@ class RoomViewModel(
     private var roomGiftTransactionsJob: Job? = null
     private var roomMessagesJob: Job? = null
     private var roomJoinJob: Job? = null
+    private var ownerHeartbeatJob: Job? = null
     private var joinedListenerDone = false
     private var roomJoinInProgress = false
     private var lastShownGiftMsgId: String? = null
@@ -187,6 +190,16 @@ class RoomViewModel(
             roomRepository.joinAsListener(loadedRoom, currentUser)
                 .onSuccess {
                     joinedListenerDone = true
+                    ownerHeartbeatJob?.cancel()
+                    if (loadedRoom.isOwner(currentUser.userId)) {
+                        ownerHeartbeatJob = launch {
+                            while (isActive) {
+                                delay(15_000L)
+                                roomRepository.updateOwnerHeartbeat(roomId)
+                                    .onFailure { error -> Log.w(TAG, "Host presence heartbeat failed", error) }
+                            }
+                        }
+                    }
                     roomGiftTransactionsJob?.cancel()
                     roomGiftTransactionsJob = launch {
                         roomRepository.observeRoomGiftTransactions(roomId)
@@ -420,6 +433,8 @@ class RoomViewModel(
         roomJoinInProgress = false
         roomJoinJob?.cancel()
         roomJoinJob = null
+        ownerHeartbeatJob?.cancel()
+        ownerHeartbeatJob = null
         voiceEngine.disconnect()
         roomMessagesJob?.cancel()
         roomMessagesJob = null
@@ -444,6 +459,8 @@ class RoomViewModel(
     }
 
     override fun onCleared() {
+        ownerHeartbeatJob?.cancel()
+        ownerHeartbeatJob = null
         super.onCleared()
         voiceEngine.disconnect()
     }

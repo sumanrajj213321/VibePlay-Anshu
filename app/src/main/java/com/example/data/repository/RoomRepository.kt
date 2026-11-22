@@ -1265,13 +1265,9 @@ class RoomRepository(
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
             ).await()
-            val verifiedSeat = seatRef.get(Source.SERVER).await()
-            val actualMuted = verifiedSeat.getBoolean("muted")
-                ?: throw IllegalStateException("Microphone state is missing on the server.")
-            check(actualMuted == muted) {
-                "Microphone state was not saved. Server still reports the mic as " +
-                    (if (actualMuted) "muted." else "unmuted.")
-            }
+            // The awaited update is the server acknowledgement. A second forced
+            // SERVER read can fail on a transient connection even after the write
+            // succeeded, preventing the ViewModel from enabling/disabling the mic.
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e

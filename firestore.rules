@@ -279,6 +279,27 @@ service cloud.firestore {
       );
     }
 
+    function giftMatchesCoinUpdates(data) {
+      let senderBefore = get(/databases/$(database)/documents/users/$(data.senderId)).data;
+      let senderAfter = getAfter(/databases/$(database)/documents/users/$(data.senderId)).data;
+      let senderSent = ('totalGiftsSent' in senderBefore) ? senderBefore.totalGiftsSent : 0;
+      let senderGiftCoins = ('totalGiftCoinsSent' in senderBefore) ? senderBefore.totalGiftCoinsSent : 0;
+      return senderAfter.coinBalance == senderBefore.coinBalance - data.coinCost &&
+             senderAfter.totalGiftsSent == senderSent + data.quantity &&
+             senderAfter.totalGiftCoinsSent == senderGiftCoins + data.coinCost &&
+             (
+               data.recipientId == data.senderId ||
+               (
+                 getAfter(/databases/$(database)/documents/users/$(data.recipientId)).data.totalGiftsReceived ==
+                   (('totalGiftsReceived' in get(/databases/$(database)/documents/users/$(data.recipientId)).data)
+                     ? get(/databases/$(database)/documents/users/$(data.recipientId)).data.totalGiftsReceived : 0) + data.quantity &&
+                 getAfter(/databases/$(database)/documents/users/$(data.recipientId)).data.totalGiftCoinsReceived ==
+                   (('totalGiftCoinsReceived' in get(/databases/$(database)/documents/users/$(data.recipientId)).data)
+                     ? get(/databases/$(database)/documents/users/$(data.recipientId)).data.totalGiftCoinsReceived : 0) + data.coinCost
+               )
+             );
+    }
+
     function isValidGiftTransaction(data) {
       return data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 &&
              data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 60 &&
@@ -809,6 +830,18 @@ service cloud.firestore {
                        isValidTs(incoming().createdAt) &&
                        isValidTs(incoming().updatedAt);
       allow update, delete: if false;
+    }
+
+
+    // Relationship familiarity is written only by the trusted gift trigger.
+    match /relationship_pairs/{pairId} {
+      allow get, list: if isSignedIn() &&
+        request.auth.uid in existing().userIds;
+      allow create, update, delete: if false;
+    }
+
+    match /relationship_gift_events/{eventId} {
+      allow read, write: if false;
     }
 
     match /gifts_catalog/{giftId} {

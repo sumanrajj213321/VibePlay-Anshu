@@ -60,6 +60,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -872,20 +873,31 @@ fun PublicProfileSheet(
 ) {
     var showReport by remember { mutableStateOf(false) }
     var followSheetTab by remember { mutableStateOf<Int?>(null) }
-    var publicPartnerName by remember(targetUser.userId) { mutableStateOf("") }
-    var publicPartnerAvatar by remember(targetUser.userId) { mutableStateOf("") }
-    var publicTagType by remember(targetUser.userId) { mutableStateOf("") }
+    val publicRelationshipTags = remember(targetUser.userId) {
+        mutableStateListOf<Map<String, String>>()
+    }
     var showPublicRelationship by remember(targetUser.userId) { mutableStateOf(true) }
     val isSelf = currentUserId.isNotBlank() && targetUser.userId == currentUserId
 
     DisposableEffect(targetUser.userId) {
         val registration = FirebaseFirestore.getInstance()
-            .collection("relationship_links")
-            .document(targetUser.userId)
+            .collection("relationship_public_tags")
+            .whereArrayContains("userIds", targetUser.userId)
             .addSnapshotListener { snapshot, _ ->
-                publicPartnerName = snapshot?.getString("partnerName").orEmpty()
-                publicPartnerAvatar = snapshot?.getString("partnerAvatarUrl").orEmpty()
-                publicTagType = snapshot?.getString("tagType").orEmpty()
+                val tags = snapshot?.documents.orEmpty().mapNotNull { doc ->
+                    val ids = doc.get("userIds") as? List<*>
+                    if (ids?.filterIsInstance<String>()?.contains(targetUser.userId) != true) return@mapNotNull null
+                    val partnerId = ids.filterIsInstance<String>().firstOrNull { it != targetUser.userId } ?: return@mapNotNull null
+                    val targetIsA = doc.getString("userAId") == targetUser.userId
+                    mapOf(
+                        "partnerId" to partnerId,
+                        "partnerName" to (if (targetIsA) doc.getString("userBName") else doc.getString("userAName")).orEmpty(),
+                        "partnerAvatarUrl" to (if (targetIsA) doc.getString("userBAvatarUrl") else doc.getString("userAAvatarUrl")).orEmpty(),
+                        "tagType" to doc.getString("tagType").orEmpty()
+                    )
+                }
+                publicRelationshipTags.clear()
+                publicRelationshipTags.addAll(tags.filter { it["tagType"].orEmpty().isNotBlank() })
             }
         onDispose { registration.remove() }
     }
@@ -1029,20 +1041,20 @@ fun PublicProfileSheet(
                 Text(targetUser.bio, style = MaterialTheme.typography.bodyMedium)
             }
 
-            if (publicTagType.isNotBlank() && !isSelf) {
+            if (publicRelationshipTags.isNotEmpty() && !isSelf) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     color = VibeGold.copy(alpha = 0.08f),
                     border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.48f))
                 ) {
-                    Column(Modifier.padding(13.dp)) {
+                    Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Connected Relationship", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text("Relationship Tags", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                             Text(
                                 if (showPublicRelationship) "Hide" else "Show",
                                 modifier = Modifier.clickable { showPublicRelationship = !showPublicRelationship }.padding(5.dp),
@@ -1052,22 +1064,25 @@ fun PublicProfileSheet(
                             )
                         }
                         if (showPublicRelationship) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                VibeAvatar(avatarUrl = targetUser.avatarUrl, username = targetUser.username, size = 54.dp)
-                                Text("✦", modifier = Modifier.padding(horizontal = 12.dp), color = VibeGold, fontSize = 25.sp, fontWeight = FontWeight.Black)
-                                VibeAvatar(avatarUrl = publicPartnerAvatar, username = publicPartnerName, size = 54.dp)
+                            publicRelationshipTags.forEach { tag ->
+                                val partnerName = tag["partnerName"].orEmpty()
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    VibeAvatar(avatarUrl = targetUser.avatarUrl, username = targetUser.username, size = 48.dp)
+                                    Text("✦", modifier = Modifier.padding(horizontal = 10.dp), color = VibeGold, fontSize = 23.sp, fontWeight = FontWeight.Black)
+                                    VibeAvatar(avatarUrl = tag["partnerAvatarUrl"].orEmpty(), username = partnerName, size = 48.dp)
+                                }
+                                Text(
+                                    "$partnerName · ${tag["tagType"].orEmpty().lowercase().replaceFirstChar { it.uppercase() }}",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    color = VibeGold,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
-                            Text(
-                                "${publicPartnerName.ifBlank { "VibePlay user" }} · ${publicTagType.lowercase().replaceFirstChar { it.uppercase() }}",
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                color = VibeGold,
-                                fontWeight = FontWeight.Bold
-                            )
                         }
                     }
                 }

@@ -317,7 +317,7 @@ service cloud.firestore {
       return data.recipientId is string && data.recipientId.size() >= 1 && data.recipientId.size() <= 128 &&
              data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 &&
              (!('senderName' in data) || (data.senderName is string && data.senderName.size() <= 60)) &&
-             data.type in ['FOLLOW', 'FRIEND_REQUEST', 'MESSAGE', 'ROOM_INVITE', 'GIFT', 'SYSTEM'] &&
+             data.type in ['FOLLOW', 'FRIEND_REQUEST', 'MESSAGE', 'ROOM_INVITE', 'GIFT', 'SYSTEM', 'RELATIONSHIP_INVITE'] &&
              data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
              data.body is string && data.body.size() >= 1 && data.body.size() <= 240 &&
              (!('targetId' in data) || (data.targetId is string && data.targetId.size() <= 128)) &&

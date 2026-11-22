@@ -101,6 +101,18 @@ exports.recordRelationshipFamiliarity = onDocumentCreated(
           tagType,
           updatedAt: FieldValue.serverTimestamp()
         });
+        const [userAId, userBId] = [senderId, recipientId].sort();
+        const userAProfile = userAId === senderId ? senderProfile : recipientProfile;
+        const userBProfile = userBId === senderId ? senderProfile : recipientProfile;
+        tx.set(db.collection("relationship_public_tags").doc(pairId), {
+          userIds: [userAId, userBId],
+          userAName: userAProfile.get("username") || userAProfile.get("displayName") || "VibePlay user",
+          userAAvatarUrl: userAProfile.get("avatarUrl") || "",
+          userBName: userBProfile.get("username") || userBProfile.get("displayName") || "VibePlay user",
+          userBAvatarUrl: userBProfile.get("avatarUrl") || "",
+          tagType,
+          updatedAt: FieldValue.serverTimestamp()
+        });
       }
 
       tx.set(pairRef, pairUpdate, { merge: true });
@@ -165,6 +177,7 @@ exports.breakRelationshipTag = onCall(
       });
       tx.delete(db.collection("relationship_links").doc(userId));
       tx.delete(db.collection("relationship_links").doc(otherUserId));
+      tx.delete(db.collection("relationship_public_tags").doc(pairId));
     });
 
     return {
@@ -355,6 +368,18 @@ exports.respondRelationshipInvite = onCall(
             partnerId: inviterId,
             partnerName: inviterProfile.get("username") || inviterProfile.get("displayName") || "VibePlay user",
             partnerAvatarUrl: inviterProfile.get("avatarUrl") || "",
+            tagType: invite.tagType,
+            updatedAt: now
+          });
+          const [userAId, userBId] = [inviterId, userId].sort();
+          const userAProfile = userAId === inviterId ? inviterProfile : recipientProfile;
+          const userBProfile = userBId === inviterId ? inviterProfile : recipientProfile;
+          tx.set(db.collection("relationship_public_tags").doc(pairId), {
+            userIds: [userAId, userBId],
+            userAName: userAProfile.get("username") || userAProfile.get("displayName") || "VibePlay user",
+            userAAvatarUrl: userAProfile.get("avatarUrl") || "",
+            userBName: userBProfile.get("username") || userBProfile.get("displayName") || "VibePlay user",
+            userBAvatarUrl: userBProfile.get("avatarUrl") || "",
             tagType: invite.tagType,
             updatedAt: now
           });

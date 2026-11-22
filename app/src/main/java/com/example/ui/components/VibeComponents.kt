@@ -380,70 +380,76 @@ private fun AuroraPremiumFrameOverlay(
         val h = size.height
         val cx = w / 2f
         val cy = h / 2f
-        val ring = h.coerceAtMost(w) * 0.322f
-        val cyan = Color(0xFF22D3EE).copy(alpha = 0.78f * pulseAlpha)
-        val ice = Color(0xFFD8FCFF).copy(alpha = 0.9f * pulseAlpha)
-        val blue = Color(0xFF168BFF).copy(alpha = 0.78f * pulseAlpha)
+        val r = h.coerceAtMost(w) * 0.322f
+        val gold = Color(0xFFFFD98A).copy(alpha = 0.92f * pulseAlpha)
+        val champagne = Color(0xFFFFF0C2).copy(alpha = 0.92f * pulseAlpha)
+        val emerald = Color(0xFF35D6A0).copy(alpha = 0.88f * pulseAlpha)
+        val amethyst = Color(0xFFB99AFF).copy(alpha = 0.82f * pulseAlpha)
         val center = androidx.compose.ui.geometry.Offset(cx, cy)
 
-        drawCircle(cyan, ring, center, style = Stroke(3.4.dp.toPx()))
-        drawCircle(ice, ring - 5.dp.toPx(), center, style = Stroke(1.2.dp.toPx()))
-        drawCircle(blue.copy(alpha = 0.55f), ring + 4.dp.toPx(), center, style = Stroke(1.3.dp.toPx()))
+        // Luxury Art-Deco double bezel: deliberately unlike Neon Aurora's cyan ring.
+        drawCircle(gold, r + 3.dp.toPx(), center, style = Stroke(3.8.dp.toPx()))
+        drawCircle(champagne, r - 3.dp.toPx(), center, style = Stroke(1.4.dp.toPx()))
+        drawCircle(emerald.copy(alpha = 0.72f * pulseAlpha), r + 8.dp.toPx(), center, style = Stroke(1.1.dp.toPx()))
 
-        val crown = Path().apply {
-            moveTo(cx - ring * 0.76f, cy - ring * 0.56f)
-            lineTo(cx - ring * 0.88f, cy - ring * 1.10f)
-            lineTo(cx - ring * 0.34f, cy - ring * 0.82f)
-            lineTo(cx, cy - ring * 1.42f)
-            lineTo(cx + ring * 0.34f, cy - ring * 0.82f)
-            lineTo(cx + ring * 0.88f, cy - ring * 1.10f)
-            lineTo(cx + ring * 0.76f, cy - ring * 0.56f)
+        // Elegant fan-shaped sunburst crest instead of a crown.
+        val crest = Path().apply {
+            moveTo(cx - r * 0.62f, cy - r * 0.70f)
+            cubicTo(cx - r * 0.52f, cy - r * 1.13f, cx - r * 0.20f, cy - r * 1.24f, cx, cy - r * 1.40f)
+            cubicTo(cx + r * 0.20f, cy - r * 1.24f, cx + r * 0.52f, cy - r * 1.13f, cx + r * 0.62f, cy - r * 0.70f)
+        }
+        drawPath(crest, gold, style = Stroke(3.2.dp.toPx()))
+        for (i in -3..3) {
+            val x = cx + i * r * 0.145f
+            val height = (1.08f - kotlin.math.abs(i) * 0.10f) * r
+            drawLine(champagne, androidx.compose.ui.geometry.Offset(x, cy - r * 0.78f), androidx.compose.ui.geometry.Offset(x, cy - height), 1.5.dp.toPx())
+        }
+        drawCircle(emerald, r * 0.105f, androidx.compose.ui.geometry.Offset(cx, cy - r * 1.28f))
+        drawCircle(champagne, r * 0.045f, androidx.compose.ui.geometry.Offset(cx, cy - r * 1.28f))
+
+        // Mirrored laurel branches with gold leaves; no wing silhouettes.
+        for (side in listOf(-1f, 1f)) {
+            val branch = Path().apply {
+                moveTo(cx + side * r * 0.82f, cy + r * 0.72f)
+                cubicTo(cx + side * r * 1.38f, cy + r * 0.28f, cx + side * r * 1.36f, cy - r * 0.42f, cx + side * r * 0.78f, cy - r * 0.78f)
+            }
+            drawPath(branch, gold, style = Stroke(2.6.dp.toPx()))
+            for (i in 0..4) {
+                val t = i / 4f
+                val x = cx + side * r * (0.88f + 0.36f * kotlin.math.sin(t * Math.PI).toFloat())
+                val y = cy + r * (0.58f - t * 1.22f)
+                val leaf = Path().apply {
+                    moveTo(x, y)
+                    cubicTo(x + side * r * 0.28f, y - r * 0.02f, x + side * r * 0.30f, y - r * 0.20f, x + side * r * 0.08f, y - r * 0.22f)
+                    cubicTo(x - side * r * 0.02f, y - r * 0.12f, x - side * r * 0.02f, y - r * 0.04f, x, y)
+                }
+                drawPath(leaf, if (i % 2 == 0) emerald else gold, style = Stroke(2.dp.toPx()))
+            }
+        }
+
+        // Faceted emerald pendant at six o'clock.
+        val jewel = Path().apply {
+            moveTo(cx, cy + r * 1.22f)
+            lineTo(cx + r * 0.20f, cy + r * 1.43f)
+            lineTo(cx, cy + r * 1.68f)
+            lineTo(cx - r * 0.20f, cy + r * 1.43f)
             close()
         }
-        drawPath(crown, cyan, style = Stroke(3.2.dp.toPx()))
-        drawPath(crown, ice, style = Stroke(1.1.dp.toPx()))
-        drawLine(ice, androidx.compose.ui.geometry.Offset(cx - ring * 0.76f, cy - ring * 0.56f), androidx.compose.ui.geometry.Offset(cx + ring * 0.76f, cy - ring * 0.56f), 2.8.dp.toPx())
+        drawPath(jewel, emerald, style = Stroke(2.8.dp.toPx()))
+        drawLine(champagne, androidx.compose.ui.geometry.Offset(cx, cy + r * 1.27f), androidx.compose.ui.geometry.Offset(cx, cy + r * 1.62f), 1.2.dp.toPx())
+        drawCircle(amethyst, r * 0.065f, androidx.compose.ui.geometry.Offset(cx - r * 1.08f, cy + r * 0.62f))
+        drawCircle(amethyst, r * 0.065f, androidx.compose.ui.geometry.Offset(cx + r * 1.08f, cy + r * 0.62f))
 
-        for (side in listOf(-1f, 1f)) {
-            val wing = Path().apply {
-                moveTo(cx + side * ring * 0.82f, cy - ring * 0.30f)
-                cubicTo(cx + side * ring * 1.48f, cy - ring * 0.72f, cx + side * ring * 1.72f, cy - ring * 0.10f, cx + side * ring * 1.16f, cy + ring * 0.40f)
-                cubicTo(cx + side * ring * 1.52f, cy + ring * 0.18f, cx + side * ring * 1.28f, cy + ring * 0.82f, cx + side * ring * 0.72f, cy + ring * 0.78f)
-            }
-            drawPath(wing, cyan, style = Stroke(3.2.dp.toPx()))
-            drawPath(wing, ice, style = Stroke(1.0.dp.toPx()))
-            for (i in 0..2) {
-                val y = cy - ring * 0.16f + i * ring * 0.29f
-                drawLine(blue, androidx.compose.ui.geometry.Offset(cx + side * ring * 0.82f, y), androidx.compose.ui.geometry.Offset(cx + side * ring * (1.25f - i * 0.12f), y + ring * 0.18f), 1.8.dp.toPx())
-            }
-        }
-
-        fun crystal(x: Float, y: Float, r: Float) {
-            val shape = Path().apply {
-                moveTo(x, y - r)
-                lineTo(x + r * 0.62f, y)
-                lineTo(x, y + r)
-                lineTo(x - r * 0.62f, y)
-                close()
-            }
-            drawPath(shape, cyan, style = Stroke(2.1.dp.toPx()))
-            drawPath(shape, ice, style = Stroke(0.8.dp.toPx()))
-        }
-        crystal(cx, cy - ring * 1.30f, ring * 0.13f)
-        crystal(cx, cy + ring * 1.17f, ring * 0.18f)
-        crystal(cx - ring * 1.02f, cy + ring * 0.82f, ring * 0.09f)
-        crystal(cx + ring * 1.02f, cy + ring * 0.82f, ring * 0.09f)
-
-        val sparkles = listOf(
-            androidx.compose.ui.geometry.Offset(cx - ring * 1.05f, cy - ring * 0.72f),
-            androidx.compose.ui.geometry.Offset(cx + ring * 1.05f, cy - ring * 0.72f),
-            androidx.compose.ui.geometry.Offset(cx - ring * 1.12f, cy + ring * 0.18f),
-            androidx.compose.ui.geometry.Offset(cx + ring * 1.12f, cy + ring * 0.18f)
+        // Slow luminous accents across the gold-and-emerald detailing.
+        val glints = listOf(
+            androidx.compose.ui.geometry.Offset(cx - r * 1.08f, cy - r * 0.48f),
+            androidx.compose.ui.geometry.Offset(cx + r * 1.08f, cy - r * 0.48f),
+            androidx.compose.ui.geometry.Offset(cx - r * 0.70f, cy + r * 0.96f),
+            androidx.compose.ui.geometry.Offset(cx + r * 0.70f, cy + r * 0.96f)
         )
-        sparkles.forEach { point ->
-            drawCircle(ice, 2.5.dp.toPx() * pulseAlpha, point)
-            drawLine(ice, androidx.compose.ui.geometry.Offset(point.x - 5.dp.toPx(), point.y), androidx.compose.ui.geometry.Offset(point.x + 5.dp.toPx(), point.y), 1.dp.toPx())
-            drawLine(ice, androidx.compose.ui.geometry.Offset(point.x, point.y - 5.dp.toPx()), androidx.compose.ui.geometry.Offset(point.x, point.y + 5.dp.toPx()), 1.dp.toPx())
+        glints.forEach { point ->
+            drawCircle(champagne, 2.8.dp.toPx() * pulseAlpha, point)
+            drawCircle(emerald.copy(alpha = 0.7f * pulseAlpha), 5.dp.toPx() * pulseAlpha, point, style = Stroke(1.dp.toPx()))
         }
     }
 }

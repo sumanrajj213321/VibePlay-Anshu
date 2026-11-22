@@ -86,6 +86,7 @@ import com.example.ui.theme.VibeCyan
 import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
 
@@ -152,7 +153,8 @@ fun ProfileScreen(
                         "partnerId" to (ids.firstOrNull { it != profile.userId } ?: ""),
                         "partnerName" to (if (isA) doc.getString("userBName") else doc.getString("userAName")).orEmpty(),
                         "partnerAvatarUrl" to (if (isA) doc.getString("userBAvatarUrl") else doc.getString("userAAvatarUrl")).orEmpty(),
-                        "tagType" to doc.getString("tagType").orEmpty()
+                        "tagType" to doc.getString("tagType").orEmpty(),
+                        "pairId" to doc.id
                     )
                 }.filter { it["tagType"].orEmpty().isNotBlank() }
             }
@@ -301,17 +303,30 @@ fun ProfileScreen(
                                         enabled = partnerId.isNotBlank() && !isFeatured,
                                         onClick = {
                                             relationshipFeatureStatus = "Updating featured partner…"
-                                            FirebaseFunctions.getInstance("asia-south1")
-                                                .getHttpsCallable("setMainRelationshipPartner")
-                                                .call(mapOf("partnerId" to partnerId))
-                                                .addOnSuccessListener {
-                                                    selectedFeaturedPartnerId = partnerId
-                                                    relationshipFeatureStatus = "$partnerName is now featured on your profile."
-                                                }
-                                                .addOnFailureListener { error ->
-                                                    relationshipFeatureStatus = error.localizedMessage
-                                                        ?: "Could not update featured partner."
-                                                }
+                                            val pairId = tag["pairId"].orEmpty()
+                                            if (pairId.isBlank()) {
+                                                relationshipFeatureStatus = "Relationship pair is unavailable."
+                                            } else {
+                                                FirebaseFirestore.getInstance()
+                                                    .collection("relationship_profile_selection")
+                                                    .document(profile.userId)
+                                                    .set(
+                                                        mapOf(
+                                                            "userId" to profile.userId,
+                                                            "partnerId" to partnerId,
+                                                            "pairId" to pairId,
+                                                            "updatedAt" to FieldValue.serverTimestamp()
+                                                        )
+                                                    )
+                                                    .addOnSuccessListener {
+                                                        selectedFeaturedPartnerId = partnerId
+                                                        relationshipFeatureStatus = "$partnerName is now featured on your profile."
+                                                    }
+                                                    .addOnFailureListener { error ->
+                                                        relationshipFeatureStatus = error.localizedMessage
+                                                            ?: "Could not update featured partner."
+                                                    }
+                                            }
                                         }
                                     ) {
                                         Text(if (isFeatured) "Featured" else "Feature")

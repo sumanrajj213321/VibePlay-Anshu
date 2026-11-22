@@ -503,6 +503,33 @@ test("Room chat, speaker requests, virtual gift batch, and filtered repository q
   });
   await assertSucceeds(giftBatch.commit());
 
+  // Self-gifts update sent and received totals on the same user document.
+  const selfGiftBatch = bobDb.batch();
+  selfGiftBatch.update(bobDb.collection("users").doc(BOB_UID), {
+    coinBalance: 1000400,
+    totalGiftsSent: 2,
+    totalGiftCoinsSent: 100,
+    totalGiftsReceived: 1,
+    totalGiftCoinsReceived: 50,
+    xp: 50,
+    level: 1,
+    updatedAt: pastDate(),
+  });
+  selfGiftBatch.set(bobDb.collection("gift_transactions").doc("tx_self_gift"), {
+    senderId: BOB_UID,
+    senderName: "Bob",
+    recipientId: BOB_UID,
+    recipientName: "Bob",
+    roomId: "room_1",
+    giftId: "gift_fire",
+    giftName: "Vibe Fire",
+    coinCost: 50,
+    quantity: 1,
+    participantIds: [BOB_UID, BOB_UID],
+    createdAt: pastDate(),
+  });
+  await assertSucceeds(selfGiftBatch.commit());
+
   // A forged low price for a known gift must be rejected.
   await assertFails(
     bobDb.collection("gift_transactions").doc("tx_forged_price").set({
@@ -1321,6 +1348,16 @@ test("Own and public profile reads plus title/frame cosmetic purchases are permi
     ownedTitleIds: ["singer", "charming"],
     lastPurchasedTitleId: "charming",
     titleExpiresAt: { singer: titleExpiry, charming: secondTitleExpiry },
+    updatedAt: pastDate(),
+  }));
+
+  // An expired title can be renewed without adding a duplicate owned ID.
+  const renewedSingerExpiry = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+  await assertSucceeds(userRef.update({
+    coinBalance: 1000500 - 12000 - 15000 - 12000,
+    ownedTitleIds: ["singer", "charming"],
+    lastPurchasedTitleId: "singer",
+    titleExpiresAt: { singer: renewedSingerExpiry, charming: secondTitleExpiry },
     updatedAt: pastDate(),
   }));
 

@@ -29,6 +29,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,7 @@ import com.example.data.model.FollowEdge
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.ListenerRegistration
 import java.security.MessageDigest
 import java.util.Date
 
@@ -110,6 +112,7 @@ fun RelationshipScreen(
             followingList.forEach { person ->
                 RelationshipFollowingCard(
                     person = person,
+                    currentUserId = currentUserId,
                     sending = sendingTo == person.peerId,
                     onInvite = { tagType ->
                         if (person.peerId.isBlank() || person.peerId == currentUserId) {
@@ -207,11 +210,31 @@ fun RelationshipScreen(
 @Composable
 private fun RelationshipFollowingCard(
     person: FollowEdge,
+    currentUserId: String,
     sending: Boolean,
     onInvite: (String) -> Unit
 ) {
     var expanded by remember(person.peerId) { mutableStateOf(false) }
     var selectedTag by remember(person.peerId) { mutableStateOf("BUDDIES") }
+    var familiarity by remember(person.peerId, currentUserId) { mutableStateOf(0) }
+    var pairStatus by remember(person.peerId, currentUserId) { mutableStateOf("NONE") }
+    DisposableEffect(person.peerId, currentUserId) {
+        val pairId = MessageDigest.getInstance("SHA-256")
+            .digest(listOf(currentUserId, person.peerId).sorted().joinToString(":").toByteArray())
+            .joinToString("") { "%02x".format(it) }
+        val registration: ListenerRegistration = FirebaseFirestore.getInstance()
+            .collection("relationship_pairs").document(pairId)
+            .addSnapshotListener { snapshot, _ ->
+                familiarity = (snapshot?.getLong("familiarityPoints") ?: 0L)
+                    .coerceAtLeast(0L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                pairStatus = snapshot?.getString("tagStatus") ?: "NONE"
+            }
+        onDispose { registration.remove() }
+    }
+    val nextLevel = listOf(10000, 30000, 60000, 100000, 150000, 220000, 300000, 400000, 550000, 750000)
+        .firstOrNull { familiarity < it } ?: 750000
+    val currentLevel = listOf(10000, 30000, 60000, 100000, 150000, 220000, 300000, 400000, 550000, 750000)
+        .count { familiarity >= it }
     val selected = relationshipStyles.first { it.backendType == selectedTag }
     Surface(
         modifier = Modifier.fillMaxWidth().padding(top = 9.dp),
@@ -222,6 +245,18 @@ private fun RelationshipFollowingCard(
         Column(Modifier.padding(12.dp)) {
             Text(person.peerName.ifBlank { "VibePlay user" }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             Text("Following", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                when (pairStatus) {
+                    "ACTIVE" -> "Relationship active • $familiarity familiarity • Level ${currentLevel.coerceAtLeast(1)}"
+                    "WAITING_FAMILIARITY" -> "Accepted • $familiarity/10,000 familiarity to unlock"
+                    "PENDING" -> "Invitation pending • $familiarity familiarity"
+                    "BROKEN" -> "Tag ended • $familiarity total familiarity"
+                    else -> "Familiarity: $familiarity • Next level: $nextLevel"
+                },
+                modifier = Modifier.padding(top = 4.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,

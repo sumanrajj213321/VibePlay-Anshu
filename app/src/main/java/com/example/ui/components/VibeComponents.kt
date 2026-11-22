@@ -260,7 +260,7 @@ fun VibeAvatar(
         }
         if (isNeonCyanFrame) {
             NeonAuroraFrameOverlay(
-                modifier = Modifier.align(Alignment.Center).requiredSize(size * 2.2f),
+                modifier = Modifier.align(Alignment.Center).requiredSize(size * 1.55f),
                 pulseAlpha = pulseAlpha
             )
         }

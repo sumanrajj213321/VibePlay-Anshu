@@ -186,9 +186,9 @@ service cloud.firestore {
              (!('occupantName' in data) || (data.occupantName is string && data.occupantName.size() <= 60)) &&
              (!('occupantAvatarUrl' in data) || (data.occupantAvatarUrl is string && data.occupantAvatarUrl.size() <= 500)) &&
              (!('occupantVipLevel' in data) || (data.occupantVipLevel is int && data.occupantVipLevel >= 0 && data.occupantVipLevel <= 30)) &&
-             (!('occupantGender' in data) || data.occupantGender in ['UNSPECIFIED', 'FEMALE', 'MALE', 'NON_BINARY']) &&
+             (!('occupantGender' in data) || (data.occupantGender is string && data.occupantGender.size() <= 24)) &&
              data.muted is bool &&
-             data.seatLocked is bool &&
+             (!('seatLocked' in data) || data.seatLocked is bool) &&
              data.speaking is bool &&
              (
                (seatIndex == '0' && data.seatIndex == 0 && data.role == 'HOST' && data.occupantId.size() > 0) ||
@@ -210,7 +210,7 @@ service cloud.firestore {
       return data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 &&
              data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 60 &&
              (!('senderVipLevel' in data) || (data.senderVipLevel is int && data.senderVipLevel >= 0 && data.senderVipLevel <= 30)) &&
-             (!('senderGender' in data) || data.senderGender in ['UNSPECIFIED', 'FEMALE', 'MALE', 'NON_BINARY']) &&
+             (!('senderGender' in data) || (data.senderGender is string && data.senderGender.size() <= 24)) &&
              data.text is string && data.text.size() >= 1 && data.text.size() <= 400 &&
              data.type in ['TEXT', 'GIFT', 'SYSTEM'] &&
              (!('giftId' in data) || (data.giftId is string && data.giftId.size() <= 128)) &&
@@ -225,7 +225,7 @@ service cloud.firestore {
              data.role == 'LISTENER' &&
              (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 500)) &&
              (!('vipLevel' in data) || (data.vipLevel is int && data.vipLevel >= 0 && data.vipLevel <= 30)) &&
-             (!('gender' in data) || data.gender in ['UNSPECIFIED', 'FEMALE', 'MALE', 'NON_BINARY']);
+             (!('gender' in data) || (data.gender is string && data.gender.size() <= 24));
     }
 
     function isValidConversation(data) {

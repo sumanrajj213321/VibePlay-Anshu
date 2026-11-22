@@ -109,7 +109,12 @@ fun RelationshipScreen(
                 )
             }
         } else {
-            followingList.forEach { person ->
+            followingList.forEach { storedPerson ->
+                // Older follow documents may rely on the document ID and omit peerId.
+                // The follow document ID is the followed user's UID.
+                val person = storedPerson.copy(
+                    peerId = storedPerson.peerId.ifBlank { storedPerson.id }
+                )
                 RelationshipFollowingCard(
                     person = person,
                     currentUserId = currentUserId,
@@ -219,7 +224,17 @@ private fun RelationshipFollowingCard(
     var serverFamiliarity by remember(person.peerId, currentUserId) { mutableStateOf(0) }
     var giftHistoryFamiliarity by remember(person.peerId, currentUserId) { mutableStateOf(0) }
     var pairStatus by remember(person.peerId, currentUserId) { mutableStateOf("NONE") }
+    var resolvedPeerName by remember(person.peerId) { mutableStateOf(person.peerName) }
     val familiarity = maxOf(serverFamiliarity, giftHistoryFamiliarity)
+    DisposableEffect(person.peerId) {
+        val profileRegistration = FirebaseFirestore.getInstance()
+            .collection("users").document(person.peerId)
+            .addSnapshotListener { snapshot, _ ->
+                val latestName = snapshot?.getString("username").orEmpty()
+                if (latestName.isNotBlank()) resolvedPeerName = latestName
+            }
+        onDispose { profileRegistration.remove() }
+    }
     DisposableEffect(person.peerId, currentUserId) {
         val pairId = MessageDigest.getInstance("SHA-256")
             .digest(listOf(currentUserId, person.peerId).sorted().joinToString(":").toByteArray())
@@ -268,7 +283,7 @@ private fun RelationshipFollowingCard(
         border = BorderStroke(1.dp, selected.accent.copy(alpha = 0.45f))
     ) {
         Column(Modifier.padding(12.dp)) {
-            Text(person.peerName.ifBlank { "VibePlay user" }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(resolvedPeerName.ifBlank { person.peerName }.ifBlank { "VibePlay user" }, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             Text("Following", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
                 when (pairStatus) {

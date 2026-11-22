@@ -348,13 +348,15 @@ exports.expireRelationshipInvites = onSchedule(
   },
   async () => {
     const nowMs = Date.now();
+    const cutoff = Timestamp.fromMillis(nowMs - 48 * 60 * 60 * 1000);
     const pending = await db.collection("relationship_invites")
-      .where("status", "==", "PENDING")
-      .limit(250)
+      .where("createdAt", "<=", cutoff)
+      .limit(500)
       .get();
 
     for (const inviteDoc of pending.docs) {
       const invite = inviteDoc.data();
+      if (invite.status !== "PENDING") continue;
       const expiresAtMs = invite.expiresAt && typeof invite.expiresAt.toMillis === "function"
         ? invite.expiresAt.toMillis()
         : invite.createdAt && typeof invite.createdAt.toMillis === "function"

@@ -857,7 +857,21 @@ service cloud.firestore {
     match /relationship_profile_selection/{userId} {
       allow get: if isSignedIn() && request.auth.uid == userId;
       allow list: if false;
-      allow create, update, delete: if false;
+      // Users may feature only an existing ACTIVE pair they belong to.
+      // Pair familiarity and relationship status remain server-worker controlled.
+      allow create, update: if isSignedIn() &&
+        request.auth.uid == userId &&
+        incoming().userId == userId &&
+        incoming().partnerId is string &&
+        incoming().partnerId != userId &&
+        incoming().pairId is string &&
+        incoming().keys().hasOnly(['userId', 'partnerId', 'pairId', 'updatedAt']) &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/relationship_pairs/$(incoming().pairId)) &&
+        get(/databases/$(database)/documents/relationship_pairs/$(incoming().pairId)).data.tagStatus == 'ACTIVE' &&
+        userId in get(/databases/$(database)/documents/relationship_pairs/$(incoming().pairId)).data.userIds &&
+        incoming().partnerId in get(/databases/$(database)/documents/relationship_pairs/$(incoming().pairId)).data.userIds;
+      allow delete: if isSignedIn() && request.auth.uid == userId;
     }
 
     match /relationship_gift_events/{eventId} {

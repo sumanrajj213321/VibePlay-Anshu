@@ -1,6 +1,8 @@
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { Timestamp } = require("firebase-admin/firestore");
 const logger = require("firebase-functions/logger");
 const { createHash } = require("node:crypto");
 
@@ -82,5 +84,57 @@ exports.recordRelationshipFamiliarity = onDocumentCreated(
       giftId: event.params.giftId,
       coinCost
     });
+  }
+);
+
+
+// Break an active relationship tag without deleting or resetting familiarity.
+// The pair remains locked from creating another tag for seven full days.
+exports.breakRelationshipTag = onCall(
+  { region: "asia-south1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+
+    const userId = request.auth.uid;
+    const otherUserId = request.data && request.data.otherUserId;
+    if (typeof otherUserId !== "string" || !otherUserId ||
+        otherUserId === userId || otherUserId.length > 128) {
+      throw new HttpsError("invalid-argument", "A valid other user is required.");
+    }
+
+    const pairId = pairKey(userId, otherUserId);
+    const pairRef = db.collection("relationship_pairs").doc(pairId);
+    const cooldownUntil = Timestamp.fromMillis(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await db.runTransaction(async (tx) => {
+      const pairSnap = await tx.get(pairRef);
+      if (!pairSnap.exists) {
+        throw new HttpsError("not-found", "Relationship pair was not found.");
+      }
+
+      const pair = pairSnap.data();
+      if (!Array.isArray(pair.userIds) || !pair.userIds.includes(userId) ||
+          !pair.userIds.includes(otherUserId)) {
+        throw new HttpsError("permission-denied", "You are not part of this relationship.");
+      }
+      if (pair.tagStatus !== "ACTIVE") {
+        throw new HttpsError("failed-precondition", "There is no active tag to break.");
+      }
+
+      tx.update(pairRef, {
+        tagStatus: "BROKEN",
+        tagBrokenAt: FieldValue.serverTimestamp(),
+        tagBrokenBy: userId,
+        tagCooldownUntil: cooldownUntil
+      });
+    });
+
+    return {
+      success: true,
+      cooldownUntil: cooldownUntil.toDate().toISOString(),
+      familiarityPreserved: true
+    };
   }
 );

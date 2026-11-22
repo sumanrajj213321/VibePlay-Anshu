@@ -304,7 +304,7 @@ fun ProfileScreen(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = "ID: VP-${profile.vibeId}",
+                                text = "ID: VP-${profile.vibeId.removePrefix("VP-")}",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold,

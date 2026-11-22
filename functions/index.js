@@ -162,13 +162,17 @@ exports.sendRelationshipInvite = onCall(
     const notificationRef = db.collection("notifications").doc();
 
     await db.runTransaction(async (tx) => {
-      const [senderSnap, recipientSnap, pairSnap] = await Promise.all([
-        tx.get(senderRef), tx.get(recipientRef), tx.get(pairRef)
+      const senderFollowingRef = senderRef.collection("following").doc(otherUserId);
+      const [senderSnap, recipientSnap, pairSnap, followingSnap] = await Promise.all([
+        tx.get(senderRef), tx.get(recipientRef), tx.get(pairRef), tx.get(senderFollowingRef)
       ]);
       if (!senderSnap.exists || !recipientSnap.exists ||
           senderSnap.get("accountStatus") !== "ACTIVE" ||
           recipientSnap.get("accountStatus") !== "ACTIVE") {
         throw new HttpsError("not-found", "The selected user is unavailable.");
+      }
+      if (!followingSnap.exists) {
+        throw new HttpsError("permission-denied", "You can invite only users you follow.");
       }
       const pair = pairSnap.exists ? pairSnap.data() : {};
       if (pair.tagStatus === "ACTIVE") {

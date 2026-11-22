@@ -66,24 +66,21 @@ service cloud.firestore {
     function isValidTitlePurchase(data, oldData, itemId, price) {
       return data.vipLevel == oldData.vipLevel &&
              data.lastPurchasedTitleId == itemId &&
-             data.lastTitlePurchaseAt is timestamp &&
-             data.lastTitlePurchaseAt > request.time - duration.value(1, 'm') &&
-             data.lastTitlePurchaseAt <= request.time + duration.value(1, 'm') &&
              data.coinBalance is int &&
              data.coinBalance >= 0 &&
              data.coinBalance == oldData.coinBalance - price &&
              data.ownedTitleIds is list &&
              data.ownedTitleIds.hasAll(('ownedTitleIds' in oldData) ? oldData.ownedTitleIds : []) &&
-             ((('ownedTitleIds' in oldData) && itemId in oldData.ownedTitleIds)
-               ? data.ownedTitleIds == oldData.ownedTitleIds
-               : data.ownedTitleIds.size() == (('ownedTitleIds' in oldData) ? oldData.ownedTitleIds.size() : 0) + 1) &&
+             data.ownedTitleIds.size() == (('ownedTitleIds' in oldData) ? oldData.ownedTitleIds.size() : 0) +
+               (('ownedTitleIds' in oldData && itemId in oldData.ownedTitleIds) ? 0 : 1) &&
              itemId in data.ownedTitleIds &&
              data.titleExpiresAt is map &&
              data.titleExpiresAt[itemId] is timestamp &&
              data.titleExpiresAt[itemId] > request.time - duration.value(1, 'm') &&
              data.titleExpiresAt[itemId] <= request.time + duration.value(15, 'd') + duration.value(1, 'm') &&
-             data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'activeTitleId', 'titleExpiresAt', 'lastPurchasedTitleId', 'lastTitlePurchaseAt', 'updatedAt']);
+             data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'titleExpiresAt', 'lastPurchasedTitleId', 'lastTitlePurchaseAt', 'updatedAt']);
     }
+
     function shopFramePrice(itemId) {
       return itemId == 'neon_cyan' ? 15000 :
              itemId == 'rose_gold' ? 25000 :
@@ -96,6 +93,7 @@ service cloud.firestore {
       return data.vipLevel == oldData.vipLevel &&
              data.coinBalance is int &&
              data.coinBalance >= 0 &&
+             data.coinBalance < oldData.coinBalance &&
              data.ownedFrameIds is list &&
              data.ownedFrameIds.hasAll(('ownedFrameIds' in oldData) ? oldData.ownedFrameIds : []) &&
              data.ownedFrameIds.size() >= (('ownedFrameIds' in oldData) ? oldData.ownedFrameIds.size() : 0) &&
@@ -108,11 +106,9 @@ service cloud.firestore {
              data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(1, 'm') &&
              shopFramePrice(data.activeFrameId) >= 0 &&
              data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&
-             data.lastFramePurchaseAt is timestamp &&
-             data.lastFramePurchaseAt > request.time - duration.value(1, 'm') &&
-             data.lastFramePurchaseAt <= request.time + duration.value(1, 'm') &&
              data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt']);
     }
+
     function hasValidEquippedTitles(data) {
       return data.activeTitleIds is list &&
              data.activeTitleIds.size() <= 4 &&

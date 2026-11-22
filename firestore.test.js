@@ -151,6 +151,107 @@ test("Only the owner can feature a partner from an ACTIVE relationship pair", as
   );
 });
 
+test("Relationship invitations are follow-only and only the invited user can respond", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
+  const malloryDb = testEnv.authenticatedContext("mallory_uid").firestore();
+  const pairId = "a".repeat(64);
+  const notificationId = "relationship-invite-test";
+  const expiresAt = new Date(Date.now() + 47 * 60 * 60 * 1000);
+
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const admin = ctx.firestore();
+    await admin.collection("users").doc(ALICE_UID).set(makeUserPayload(ALICE_UID, "Alice", "VP-100001"));
+    await admin.collection("users").doc(BOB_UID).set(makeUserPayload(BOB_UID, "Bob", "VP-200002"));
+    await admin.collection("users").doc("mallory_uid").set(makeUserPayload("mallory_uid", "Mallory", "VP-300003"));
+    await admin.collection("users").doc(ALICE_UID).collection("following").doc(BOB_UID).set({
+      peerId: BOB_UID,
+      peerName: "Bob",
+      peerAvatarUrl: "",
+      peerGender: "UNSPECIFIED",
+      createdAt: pastDate(),
+    });
+  });
+
+  const invite = {
+    pairId,
+    inviterId: ALICE_UID,
+    invitedTo: BOB_UID,
+    inviterName: "Alice",
+    invitedName: "Bob",
+    inviterAvatarUrl: "",
+    invitedAvatarUrl: "",
+    tagType: "BUDDIES",
+    status: "PENDING",
+    notificationId,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    expiresAt,
+  };
+  const notification = {
+    recipientId: BOB_UID,
+    senderId: ALICE_UID,
+    senderName: "Alice",
+    type: "RELATIONSHIP_INVITE",
+    title: "Relationship invitation",
+    body: "Alice invited you to become buddies.",
+    targetId: pairId,
+    read: false,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+
+  const inviteBatch = aliceDb.batch();
+  inviteBatch.set(aliceDb.collection("relationship_invites").doc(pairId), invite);
+  inviteBatch.set(aliceDb.collection("notifications").doc(notificationId), notification);
+  await assertSucceeds(inviteBatch.commit());
+
+  // A person the sender does not follow cannot create an invitation.
+  const invalidPairId = "b".repeat(64);
+  const invalidBatch = aliceDb.batch();
+  invalidBatch.set(aliceDb.collection("relationship_invites").doc(invalidPairId), {
+    ...invite,
+    pairId: invalidPairId,
+    invitedTo: "mallory_uid",
+    notificationId: "relationship-invite-invalid",
+  });
+  invalidBatch.set(aliceDb.collection("notifications").doc("relationship-invite-invalid"), {
+    ...notification,
+    recipientId: "mallory_uid",
+    targetId: invalidPairId,
+  });
+  await assertFails(invalidBatch.commit());
+
+  // Only the invited user may accept or reject; the inviter cannot respond.
+  await assertFails(
+    aliceDb.collection("relationship_invites").doc(pairId).update({
+      status: "ACCEPTED",
+      respondedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    })
+  );
+  await assertFails(
+    malloryDb.collection("relationship_invites").doc(pairId).update({
+      status: "ACCEPTED",
+      respondedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    })
+  );
+
+  await assertSucceeds(
+    bobDb.collection("relationship_invites").doc(pairId).update({
+      status: "ACCEPTED",
+      respondedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    })
+  );
+
+  // The client cannot write protected pair familiarity or activation records.
+  await assertFails(
+    bobDb.collection("relationship_pairs").doc(pairId).set({
+      userIds: [ALICE_UID, BOB_UID],
+      tagStatus: "ACTIVE",
+      tagType: "BUDDIES",
+      familiarityPoints: 10000,
+    })
+  );
+});
+
 test("Unauthenticated users cannot read or write any collection", async () => {
   const unauthDb = testEnv.unauthenticatedContext().firestore();
   await assertFails(unauthDb.collection("users").where("accountStatus", "==", "ACTIVE").get());

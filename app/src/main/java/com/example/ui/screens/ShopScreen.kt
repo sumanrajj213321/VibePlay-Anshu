@@ -65,7 +65,7 @@ fun ShopScreen(
             Text("${profile.coinBalance} Coins", color = VibeGold, fontWeight = FontWeight.Bold)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            listOf("VIP", "Frames", "Titles").forEachIndexed { index, label ->
+            listOf("VIP", "Frames").forEachIndexed { index, label ->
                 FilterChip(
                     selected = selectedTab == index,
                     onClick = { selectedTab = index },
@@ -77,7 +77,6 @@ fun ShopScreen(
             when (selectedTab) {
                 0 -> "Upgrade your VIP level with coins"
                 1 -> "Premium avatar frames · shown around your profile photo"
-                else -> "Bold highlighted titles · shown only on your profile"
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -119,34 +118,12 @@ fun ShopScreen(
                         previewFrameColorArgb = item.colorArgb
                     )
                 }
-                else -> items(VibeShopCatalog.titles, key = { it.id }) { item ->
-                    val owned = profile.isTitleActive(item.id)
-                    val equipped = item.id in profile.equippedTitleIds
-                    val canEquip = equipped || profile.equippedTitleIds.size < 4
-                    ShopCard(
-                        title = item.title,
-                        subtitle = item.subtitle + " · Valid for 15 days",
-                        price = item.coinPrice,
-                        accent = Color(item.colorArgb),
-                        status = when { equipped -> "Unequip"; owned && canEquip -> "Equip"; owned -> "Limit 4"; else -> "Purchase" },
-                        enabled = if (owned) canEquip else profile.coinBalance >= item.coinPrice,
-                        onClick = { if (owned) onEquip("TITLE", item.id) else onPurchase("TITLE", item.id) },
-                        icon = "🏷️"
-                    )
-                }
+
             }
             if (selectedTab == 1 && profile.isFrameActive(profile.activeFrameId)) {
                 item {
                     Button(onClick = { onEquip("FRAME", null) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = VibeViolet)) {
                         Text("Remove equipped frame")
-                    }
-                }
-            }
-            if (selectedTab == 2 && profile.equippedTitleIds.isNotEmpty()) {
-                item {
-                    Text("${profile.equippedTitleIds.size}/4 titles equipped", modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
-                    Button(onClick = { onEquip("TITLE", null) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = VibeViolet)) {
-                        Text("Remove all profile titles")
                     }
                 }
             }

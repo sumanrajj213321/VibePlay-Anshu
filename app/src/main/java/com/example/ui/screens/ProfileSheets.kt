@@ -977,7 +977,7 @@ fun PublicProfileSheet(
                                 fontWeight = FontWeight.ExtraBold
                             )
                             Text(
-                                "ID-${targetUser.vibeId}$ageSuffix",
+                                "ID: VP-${targetUser.vibeId}$ageSuffix",
                                 Modifier.weight(1f).testTag("public_profile_id_age"),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -1007,7 +1007,7 @@ fun PublicProfileSheet(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text("🎁 GIFTING", style = MaterialTheme.typography.labelSmall, color = VibePink, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                            Text("${formatPublicGiftCount(targetUser.totalGiftsReceived)} TOTAL GIFTS", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold)
+                            Text("${formatPublicGiftCount(targetUser.totalGiftsReceived)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold)
                         }
                     }
                 }

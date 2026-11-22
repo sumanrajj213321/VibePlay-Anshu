@@ -1,14 +1,17 @@
 "use strict";
 
-// READ-ONLY relationship migration probe.
-// This file intentionally never writes to Firestore.
 const admin = require("firebase-admin");
 const { createHash } = require("node:crypto");
 
 const LEVELS = [10000, 30000, 60000, 100000, 150000, 220000, 300000, 400000, 550000, 750000];
+const ALLOWED_TAGS = ["BUDDIES", "BRO", "CONFIDANT", "BESTIE"];
+const PAGE_SIZE = 250;
+const EXPIRY_MS = 48 * 60 * 60 * 1000;
+
 function pairIdFor(a, b) {
   return createHash("sha256").update([a, b].sort().join(":")).digest("hex");
 }
+
 function levelFor(points) {
   let level = 0;
   for (let i = 0; i < LEVELS.length; i += 1) {
@@ -26,9 +29,224 @@ function loadServiceAccount() {
   return parsed;
 }
 
+function validateGift(gift) {
+  return typeof gift.senderId === "string" && gift.senderId &&
+    typeof gift.recipientId === "string" && gift.recipientId &&
+    gift.senderId !== gift.recipientId &&
+    Number.isSafeInteger(gift.coinCost) && gift.coinCost > 0;
+}
+
+async function processGift(db, giftDoc, dryRun, stats) {
+  const gift = giftDoc.data();
+  if (!validateGift(gift)) {
+    if (gift.senderId === gift.recipientId && gift.senderId) stats.selfGiftsIgnored += 1;
+    else stats.malformedGiftTransactions += 1;
+    return;
+  }
+
+  const senderId = gift.senderId;
+  const recipientId = gift.recipientId;
+  const pairId = pairIdFor(senderId, recipientId);
+  const pairRef = db.collection("relationship_pairs").doc(pairId);
+  const eventRef = db.collection("relationship_gift_events").doc(giftDoc.id);
+
+  if (dryRun) {
+    const [eventSnap, pairSnap] = await Promise.all([eventRef.get(), pairRef.get()]);
+    if (eventSnap.exists) {
+      stats.alreadyProcessedGiftTransactions += 1;
+      return;
+    }
+    const pair = pairSnap.exists ? pairSnap.data() : {};
+    const oldCoins = Number.isSafeInteger(pair.totalGiftCoins) && pair.totalGiftCoins >= 0
+      ? pair.totalGiftCoins : 0;
+    stats.validUnprocessedGiftTransactions += 1;
+    stats.projectedGiftCoins += gift.coinCost;
+    const existing = stats.pairs.get(pairId) || {
+      pairId, userIds: [senderId, recipientId].sort(), newGiftTransactions: 0,
+      newGiftCoins: 0, existingGiftCoins: oldCoins
+    };
+    existing.newGiftTransactions += 1;
+    existing.newGiftCoins += gift.coinCost;
+    stats.pairs.set(pairId, existing);
+    return;
+  }
+
+  const outcome = await db.runTransaction(async (tx) => {
+    const [eventSnap, pairSnap] = await Promise.all([tx.get(eventRef), tx.get(pairRef)]);
+    if (eventSnap.exists) return "already_processed";
+
+    const pair = pairSnap.exists ? pairSnap.data() : {};
+    const oldCoins = Number.isSafeInteger(pair.totalGiftCoins) && pair.totalGiftCoins >= 0
+      ? pair.totalGiftCoins : 0;
+    const totalGiftCoins = oldCoins + gift.coinCost;
+    const familiarityPoints = Math.floor(totalGiftCoins / 5);
+    const pairUpdate = {
+      userIds: [senderId, recipientId].sort(),
+      totalGiftCoins,
+      familiarityPoints,
+      level: levelFor(familiarityPoints),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    const activatesTag = pair.tagStatus === "WAITING_FAMILIARITY" &&
+      familiarityPoints >= 10000 && ALLOWED_TAGS.includes(pair.acceptedTagType);
+    let profiles = null;
+    if (activatesTag) {
+      const senderRef = db.collection("users").doc(senderId);
+      const recipientRef = db.collection("users").doc(recipientId);
+      const [senderProfile, recipientProfile] = await Promise.all([tx.get(senderRef), tx.get(recipientRef)]);
+      profiles = { senderProfile, recipientProfile };
+      pairUpdate.tagStatus = "ACTIVE";
+      pairUpdate.tagType = pair.acceptedTagType;
+      pairUpdate.tagStartedAt = admin.firestore.FieldValue.serverTimestamp();
+      pairUpdate.activatedAtFamiliarity = familiarityPoints;
+      pairUpdate.acceptedTagType = admin.firestore.FieldValue.delete();
+    }
+
+    tx.set(pairRef, pairUpdate, { merge: true });
+    tx.create(eventRef, {
+      giftId: giftDoc.id,
+      pairId,
+      coinCost: gift.coinCost,
+      processedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    if (activatesTag && profiles) {
+      const tagType = pair.acceptedTagType;
+      const senderProfile = profiles.senderProfile;
+      const recipientProfile = profiles.recipientProfile;
+      tx.set(db.collection("relationship_links").doc(senderId), {
+        partnerId: recipientId,
+        partnerName: recipientProfile.get("username") || recipientProfile.get("displayName") || "VibePlay user",
+        partnerAvatarUrl: recipientProfile.get("avatarUrl") || "",
+        tagType,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      tx.set(db.collection("relationship_links").doc(recipientId), {
+        partnerId: senderId,
+        partnerName: senderProfile.get("username") || senderProfile.get("displayName") || "VibePlay user",
+        partnerAvatarUrl: senderProfile.get("avatarUrl") || "",
+        tagType,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      const [userAId, userBId] = [senderId, recipientId].sort();
+      const userAProfile = userAId === senderId ? senderProfile : recipientProfile;
+      const userBProfile = userBId === senderId ? senderProfile : recipientProfile;
+      tx.set(db.collection("relationship_public_tags").doc(pairId), {
+        userIds: [userAId, userBId],
+        userAName: userAProfile.get("username") || userAProfile.get("displayName") || "VibePlay user",
+        userAAvatarUrl: userAProfile.get("avatarUrl") || "",
+        userBName: userBProfile.get("username") || userBProfile.get("displayName") || "VibePlay user",
+        userBAvatarUrl: userBProfile.get("avatarUrl") || "",
+        tagType,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    return activatesTag ? "activated" : "processed";
+  });
+
+  if (outcome === "already_processed") stats.alreadyProcessedGiftTransactions += 1;
+  else {
+    stats.appliedGiftTransactions += 1;
+    if (outcome === "activated") stats.waitingTagsActivated += 1;
+  }
+}
+
+async function processExpiredInvite(db, inviteDoc, dryRun, stats, nowMs) {
+  const initial = inviteDoc.data();
+  if (initial.status !== "PENDING") {
+    stats.nonPendingInvitationsIgnored += 1;
+    return;
+  }
+  const expiry = initial.expiresAt && typeof initial.expiresAt.toMillis === "function"
+    ? initial.expiresAt.toMillis()
+    : initial.createdAt && typeof initial.createdAt.toMillis === "function"
+      ? initial.createdAt.toMillis() + EXPIRY_MS : 0;
+  if (!expiry || expiry > nowMs) return;
+  if (dryRun) {
+    stats.invitationsEligibleForExpiry += 1;
+    return;
+  }
+
+  const inviteRef = inviteDoc.ref;
+  const pairRef = db.collection("relationship_pairs").doc(initial.pairId);
+  const notificationId = "relationship-expired-" + inviteDoc.id;
+  const notificationRef = db.collection("notifications").doc(notificationId);
+
+  const expired = await db.runTransaction(async (tx) => {
+    const [freshInvite, freshPair, notification] = await Promise.all([
+      tx.get(inviteRef), tx.get(pairRef), tx.get(notificationRef)
+    ]);
+    if (!freshInvite.exists || freshInvite.get("status") !== "PENDING") return false;
+    const current = freshInvite.data();
+    const currentExpiry = current.expiresAt && typeof current.expiresAt.toMillis === "function"
+      ? current.expiresAt.toMillis()
+      : current.createdAt && typeof current.createdAt.toMillis === "function"
+        ? current.createdAt.toMillis() + EXPIRY_MS : 0;
+    if (!currentExpiry || currentExpiry > Date.now()) return false;
+
+    tx.update(inviteRef, {
+      status: "REJECTED",
+      autoRejected: true,
+      rejectionReason: "NO_RESPONSE_48_HOURS",
+      respondedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    if (current.notificationId) {
+      tx.set(db.collection("notifications").doc(current.notificationId), { read: true }, { merge: true });
+    }
+    if (freshPair.exists && freshPair.get("pendingInviteId") === inviteDoc.id) {
+      tx.update(pairRef, {
+        tagStatus: "NONE",
+        pendingInviteId: admin.firestore.FieldValue.delete(),
+        pendingTagType: admin.firestore.FieldValue.delete(),
+        invitedBy: admin.firestore.FieldValue.delete(),
+        invitedTo: admin.firestore.FieldValue.delete(),
+        pendingAt: admin.firestore.FieldValue.delete(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    if (!notification.exists && current.inviterId) {
+      tx.create(notificationRef, {
+        recipientId: current.inviterId,
+        senderId: current.invitedTo || "VIBEPLAY_SYSTEM",
+        senderName: "VibePlay",
+        type: "SYSTEM",
+        title: "Relationship invitation expired",
+        body: "Your relationship invitation was automatically rejected because there was no response within 48 hours.",
+        targetId: current.pairId || "",
+        read: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    return true;
+  });
+  if (expired) stats.invitationsAutoRejected += 1;
+}
+
+async function scanPages(query, handler) {
+  let cursor = null;
+  let scanned = 0;
+  while (true) {
+    let pageQuery = query.limit(PAGE_SIZE);
+    if (cursor) pageQuery = pageQuery.startAfter(cursor);
+    const page = await pageQuery.get();
+    if (page.empty) break;
+    for (const doc of page.docs) await handler(doc);
+    scanned += page.size;
+    cursor = page.docs[page.docs.length - 1];
+    if (page.size < PAGE_SIZE) break;
+  }
+  return scanned;
+}
+
 async function main() {
-  if (process.env.RELATIONSHIP_WORKER_MODE !== "dry-run") {
-    throw new Error("Refusing to run: RELATIONSHIP_WORKER_MODE must equal dry-run.");
+  const mode = process.env.RELATIONSHIP_WORKER_MODE;
+  if (!["dry-run", "apply"].includes(mode)) {
+    throw new Error("Set RELATIONSHIP_WORKER_MODE to dry-run or apply.");
+  }
+  const dryRun = mode === "dry-run";
+  if (!dryRun && process.env.RELATIONSHIP_WORKER_CONFIRM !== "APPLY") {
+    throw new Error("Production writes blocked: set RELATIONSHIP_WORKER_CONFIRM=APPLY explicitly.");
   }
 
   const serviceAccount = loadServiceAccount();
@@ -41,113 +259,62 @@ async function main() {
     projectId: serviceAccount.project_id
   });
   const db = admin.firestore();
+  const stats = {
+    giftTransactionsScanned: 0,
+    validUnprocessedGiftTransactions: 0,
+    alreadyProcessedGiftTransactions: 0,
+    malformedGiftTransactions: 0,
+    selfGiftsIgnored: 0,
+    appliedGiftTransactions: 0,
+    waitingTagsActivated: 0,
+    projectedGiftCoins: 0,
+    pairs: new Map(),
+    oldInvitationsScanned: 0,
+    invitationsEligibleForExpiry: 0,
+    invitationsAutoRejected: 0,
+    nonPendingInvitationsIgnored: 0
+  };
 
-  const giftSnapshot = await db.collection("gift_transactions")
-    .orderBy("createdAt", "desc")
-    .limit(500)
-    .get();
+  const giftQuery = db.collection("gift_transactions").orderBy("createdAt", "asc");
+  stats.giftTransactionsScanned = await scanPages(giftQuery, async (doc) => {
+    await processGift(db, doc, dryRun, stats);
+  });
 
-  let validUnprocessed = 0;
-  let malformed = 0;
-  let selfGifts = 0;
-  let alreadyProcessed = 0;
-  const pairTotals = new Map();
-
-  for (const doc of giftSnapshot.docs) {
-    const gift = doc.data();
-    const senderId = gift.senderId;
-    const recipientId = gift.recipientId;
-    const coinCost = gift.coinCost;
-
-    if (typeof senderId !== "string" || !senderId ||
-        typeof recipientId !== "string" || !recipientId ||
-        !Number.isSafeInteger(coinCost) || coinCost <= 0) {
-      malformed += 1;
-      continue;
-    }
-    if (senderId === recipientId) {
-      selfGifts += 1;
-      continue;
-    }
-
-    const processed = await db.collection("relationship_gift_events").doc(doc.id).get();
-    if (processed.exists) {
-      alreadyProcessed += 1;
-      continue;
-    }
-
-    validUnprocessed += 1;
-    const ids = [senderId, recipientId].sort();
-    const key = ids.join(":");
-    const current = pairTotals.get(key) || { coinCost: 0, gifts: 0 };
-    current.coinCost += coinCost;
-    current.gifts += 1;
-    current.userIds = ids;
-    pairTotals.set(key, current);
-  }
+  const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - EXPIRY_MS);
+  const inviteQuery = db.collection("relationship_invites")
+    .where("createdAt", "<=", cutoff)
+    .orderBy("createdAt", "asc");
+  stats.oldInvitationsScanned = await scanPages(inviteQuery, async (doc) => {
+    await processExpiredInvite(db, doc, dryRun, stats, Date.now());
+  });
 
   const pairProjections = [];
-  for (const item of pairTotals.values()) {
-    const pairRef = db.collection("relationship_pairs").doc(pairIdFor(item.userIds[0], item.userIds[1]));
-    const pairSnap = await pairRef.get();
-    const pair = pairSnap.exists ? pairSnap.data() : {};
-    const previousCoins = Number.isSafeInteger(pair.totalGiftCoins) && pair.totalGiftCoins >= 0 ? pair.totalGiftCoins : 0;
-    const projectedCoins = previousCoins + item.coinCost;
+  for (const pair of stats.pairs.values()) {
+    const projectedCoins = pair.existingGiftCoins + pair.newGiftCoins;
     const projectedFamiliarity = Math.floor(projectedCoins / 5);
     pairProjections.push({
-      newGiftTransactions: item.gifts,
-      newGiftCoins: item.coinCost,
-      existingGiftCoins: previousCoins,
+      newGiftTransactions: pair.newGiftTransactions,
+      newGiftCoins: pair.newGiftCoins,
+      existingGiftCoins: pair.existingGiftCoins,
       projectedTotalGiftCoins: projectedCoins,
       projectedFamiliarity,
-      projectedLevel: levelFor(projectedFamiliarity),
-      wouldUnlockWaitingTag: pair.tagStatus === "WAITING_FAMILIARITY" && projectedFamiliarity >= 10000
+      projectedLevel: levelFor(projectedFamiliarity)
     });
   }
 
-  const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - 48 * 60 * 60 * 1000);
-  const expirySnapshot = await db.collection("relationship_invites")
-    .where("createdAt", "<=", cutoff)
-    .limit(500)
-    .get();
-
-  let expiredPending = 0;
-  let otherInviteStatuses = 0;
-  for (const doc of expirySnapshot.docs) {
-    const invite = doc.data();
-    if (invite.status !== "PENDING") {
-      otherInviteStatuses += 1;
-      continue;
-    }
-    const expiry = invite.expiresAt && typeof invite.expiresAt.toMillis === "function"
-      ? invite.expiresAt.toMillis()
-      : invite.createdAt && typeof invite.createdAt.toMillis === "function"
-        ? invite.createdAt.toMillis() + 48 * 60 * 60 * 1000
-        : 0;
-    if (expiry > 0 && expiry <= Date.now()) expiredPending += 1;
-  }
-
   const report = {
-    mode: "DRY_RUN_READ_ONLY",
+    mode: dryRun ? "DRY_RUN_READ_ONLY" : "APPLY_PRODUCTION_WRITES",
     projectId: serviceAccount.project_id,
-    giftTransactionsScanned: giftSnapshot.size,
-    validUnprocessedGiftTransactions: validUnprocessed,
-    alreadyProcessedGiftTransactions: alreadyProcessed,
-    malformedGiftTransactions: malformed,
-    selfGiftTransactionsIgnored: selfGifts,
-    distinctPairsWithUnprocessedGifts: pairTotals.size,
-    projectedCoinCostByPair: Array.from(pairTotals.values()).reduce((sum, item) => sum + item.coinCost, 0),
+    ...Object.fromEntries(Object.entries(stats).filter(([key]) => key !== "pairs")),
+    distinctPairsWithUnprocessedGifts: stats.pairs.size,
     pairProjections,
-    oldInvitationsScanned: expirySnapshot.size,
-    invitationsEligibleForExpiry: expiredPending,
-    nonPendingInvitationsIgnored: otherInviteStatuses,
-    writesPerformed: 0
+    writesPerformed: dryRun ? 0 : stats.appliedGiftTransactions + stats.invitationsAutoRejected
   };
   console.log(JSON.stringify(report, null, 2));
   await admin.app().delete();
 }
 
 main().catch((error) => {
-  console.error("Read-only relationship probe failed:", error.message);
+  console.error("Relationship worker failed:", error.message);
   process.exitCode = 1;
 });

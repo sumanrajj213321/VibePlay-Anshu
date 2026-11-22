@@ -223,14 +223,19 @@ data class VoiceStage(
             val ownerId = room.effectiveOwnerId
             val ownerName = room.effectiveOwnerName
             val ownerOnline = room.effectiveOwnerOnline
+            // Seat 0 is updated atomically when the current host enters; prefer its
+            // occupant/profile fields over stale owner/host fields on legacy room docs.
+            val hostId = rawHost?.occupantId?.ifBlank { ownerId } ?: ownerId
+            val hostName = rawHost?.occupantName?.ifBlank { ownerName } ?: ownerName
+            val hostAvatar = rawHost?.occupantAvatarUrl?.ifBlank { room.hostAvatarUrl } ?: room.hostAvatarUrl
             val hostSeat = VoiceSeat(
                 id = "0",
                 seatIndex = 0L,
                 role = "HOST",
-                occupantId = ownerId,
-                occupantName = ownerName,
-                // Keep the owner's avatar available for the faded OFFLINE host tile.
-                occupantAvatarUrl = rawHost?.occupantAvatarUrl?.ifBlank { room.hostAvatarUrl } ?: room.hostAvatarUrl,
+                occupantId = hostId,
+                occupantName = hostName,
+                // Keep the latest host avatar available for the faded OFFLINE tile.
+                occupantAvatarUrl = hostAvatar,
                 occupantVipLevel = rawHost?.occupantVipLevel ?: 0L,
                 occupantFrameColorArgb = rawHost?.occupantFrameColorArgb,
                 occupantGender = rawHost?.occupantGender ?: "UNSPECIFIED",

@@ -1132,7 +1132,8 @@ private fun HostSeatTile(
                     username = seat.occupantName,
                     size = 76.dp,
                     vipLevel = seat.occupantVipLevel,
-                    speaking = !seat.muted
+                    speaking = !seat.muted,
+                    frameColorArgb = seat.occupantFrameColorArgb
                 )
             } else {
                 Box(
@@ -1227,7 +1228,8 @@ private fun SpeakerSeatTile(
                     username = seat.occupantName,
                     size = 54.dp,
                     vipLevel = seat.occupantVipLevel,
-                    speaking = !seat.muted
+                    speaking = !seat.muted,
+                    frameColorArgb = seat.occupantFrameColorArgb
                 )
                 Surface(
                     shape = CircleShape,

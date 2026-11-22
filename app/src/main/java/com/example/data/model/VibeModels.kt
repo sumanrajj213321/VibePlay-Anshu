@@ -608,7 +608,7 @@ object VibeShopCatalog {
         ShopCosmeticItem("royal_star", "Royal Star", 80_000L, 0xFFA78BFA, "A premium royal signature")
     )
     val frames = listOf(
-        ShopCosmeticItem("neon_cyan", "Neon Cyan", 15_000L, 0xFF22D3EE, "Electric cyan avatar frame"),
+        ShopCosmeticItem("neon_cyan", "Neon Aurora", 15_000L, 0xFF22D3EE, "Animated ornate neon-cyan avatar frame"),
         ShopCosmeticItem("rose_gold", "Rose Gold", 25_000L, 0xFFF472B6, "Soft rose-gold shimmer"),
         ShopCosmeticItem("royal_gold", "Royal Gold", 40_000L, 0xFFFBBF24, "A golden royal outline"),
         ShopCosmeticItem("galaxy", "Galaxy", 60_000L, 0xFFA78BFA, "Deep-space violet frame"),

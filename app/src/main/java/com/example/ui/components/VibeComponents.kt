@@ -71,6 +71,7 @@ import kotlin.math.sin
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -78,8 +79,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.ImageLoader
 import coil.compose.AsyncImage
+import coil.decode.GifDecoder
 import com.google.firebase.firestore.FirebaseFirestore
+import android.content.Context
 import android.util.Base64
 import com.example.BuildConfig
 import com.example.R
@@ -96,6 +100,17 @@ import com.example.ui.theme.VibeViolet
 import com.example.ui.theme.VibeVioletBright
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
+
+private object NeonCyanFrameImageLoader {
+    @Volatile private var instance: ImageLoader? = null
+
+    fun get(context: Context): ImageLoader = instance ?: synchronized(this) {
+        instance ?: ImageLoader.Builder(context.applicationContext)
+            .components { add(GifDecoder.Factory()) }
+            .build()
+            .also { instance = it }
+    }
+}
 
 @DrawableRes
 fun coverDrawableRes(coverKey: String): Int = when (coverKey) {
@@ -141,6 +156,8 @@ fun VibeAvatar(
         }
     }
     val displayVipLevel = vipLevel.coerceIn(0L, 8L)
+    val isNeonCyanFrame = frameColorArgb == 0xFF22D3EEL
+    val frameImageLoader = remember { NeonCyanFrameImageLoader.get(LocalContext.current) }
     val vipColor = remember(displayVipLevel) {
         val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == displayVipLevel.toInt() }
         if (tier != null) Color(tier.badgeColorHex) else null
@@ -180,7 +197,7 @@ fun VibeAvatar(
         modifier = modifier
             .size(size)
             .drawBehind {
-                if (frameColorArgb != null) {
+                if (frameColorArgb != null && !isNeonCyanFrame) {
                     val frameColor = Color(frameColorArgb)
                     val centerX = this.size.width / 2f
                     val centerY = this.size.height / 2f
@@ -214,14 +231,14 @@ fun VibeAvatar(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxSize(if (isNeonCyanFrame) 0.43f else 1f)
                 .clip(CircleShape)
                 .border(
-                    width = if (frameColorArgb != null || speaking || vipLevel > 0) 3.5.dp else 1.5.dp,
+                    width = if (isNeonCyanFrame) 0.dp else if (frameColorArgb != null || speaking || vipLevel > 0) 3.5.dp else 1.5.dp,
                     brush = borderBrush,
                     shape = CircleShape
                 )
-                .padding(2.5.dp)
+                .padding(if (isNeonCyanFrame) 0.dp else 2.5.dp)
                 .clip(CircleShape)
                 .background(
                     Brush.linearGradient(
@@ -249,6 +266,15 @@ fun VibeAvatar(
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
+        if (isNeonCyanFrame) {
+            AsyncImage(
+                model = R.drawable.neon_cyan_ornate_frame,
+                imageLoader = frameImageLoader,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
         }
         if (online) {
             Box(

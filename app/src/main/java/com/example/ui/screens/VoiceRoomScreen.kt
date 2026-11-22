@@ -1179,21 +1179,6 @@ private fun HostSeatTile(
                             .size(14.dp)
                     )
                 }
-            } else {
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = VibeCoral,
-                    border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.surface),
-                    modifier = Modifier.testTag("host_offline_badge")
-                ) {
-                    Text(
-                        text = "OFFLINE",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
             }
         }
         Spacer(modifier = Modifier.height(6.dp))

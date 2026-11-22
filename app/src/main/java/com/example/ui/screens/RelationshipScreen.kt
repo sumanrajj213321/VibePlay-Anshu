@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import com.example.data.model.FollowEdge
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Timestamp
+import com.google.firebase.Timestamp
 import java.security.MessageDigest
 import java.util.Date
 

@@ -66,6 +66,9 @@ service cloud.firestore {
     function isValidTitlePurchase(data, oldData, itemId, price) {
       return data.vipLevel == oldData.vipLevel &&
              data.lastPurchasedTitleId == itemId &&
+             data.lastTitlePurchaseAt is timestamp &&
+             data.lastTitlePurchaseAt > request.time - duration.value(1, 'm') &&
+             data.lastTitlePurchaseAt <= request.time + duration.value(1, 'm') &&
              data.coinBalance is int &&
              data.coinBalance >= 0 &&
              data.coinBalance == oldData.coinBalance - price &&
@@ -79,7 +82,7 @@ service cloud.firestore {
              data.titleExpiresAt[itemId] is timestamp &&
              data.titleExpiresAt[itemId] > request.time - duration.value(1, 'm') &&
              data.titleExpiresAt[itemId] <= request.time + duration.value(15, 'd') + duration.value(1, 'm') &&
-             data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'titleExpiresAt', 'lastPurchasedTitleId', 'updatedAt']);
+             data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedTitleIds', 'titleExpiresAt', 'lastPurchasedTitleId', 'lastTitlePurchaseAt', 'updatedAt']);
     }
 
     function shopFramePrice(itemId) {
@@ -107,7 +110,10 @@ service cloud.firestore {
              data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(1, 'm') &&
              shopFramePrice(data.activeFrameId) >= 0 &&
              data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&
-             data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'updatedAt']);
+             data.lastFramePurchaseAt is timestamp &&
+             data.lastFramePurchaseAt > request.time - duration.value(1, 'm') &&
+             data.lastFramePurchaseAt <= request.time + duration.value(1, 'm') &&
+             data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt']);
     }
 
     function hasValidEquippedTitles(data) {
@@ -390,15 +396,38 @@ service cloud.firestore {
                        isValidTs(incoming().createdAt) &&
                        isValidTs(incoming().updatedAt);
 
+      // Cosmetic purchases use isolated, small validation paths.
       allow update: if isSignedIn() && isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTs(incoming().updatedAt) &&
+                       incoming().role == existing().role &&
+                       incoming().accountStatus == existing().accountStatus &&
+                       incoming().diff(existing()).affectedKeys().hasAny(['lastTitlePurchaseAt']) &&
+                       ('lastPurchasedTitleId' in incoming()) &&
+                       incoming().lastPurchasedTitleId is string &&
+                       shopTitlePrice(incoming().lastPurchasedTitleId) >= 0 &&
+                       isValidTitlePurchase(incoming(), existing(), incoming().lastPurchasedTitleId, shopTitlePrice(incoming().lastPurchasedTitleId));
+
+      allow update: if isSignedIn() && isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTs(incoming().updatedAt) &&
+                       incoming().role == existing().role &&
+                       incoming().accountStatus == existing().accountStatus &&
+                       incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+                       isValidFramePurchase(incoming(), existing());
+
+      allow update: if isSignedIn() && isValidId(userId) &&
+                       !incoming().diff(existing()).affectedKeys().hasAny(['lastTitlePurchaseAt', 'lastFramePurchaseAt']) &&
                        incoming().userId == existing().userId &&
                        incoming().createdAt == existing().createdAt &&
                        isValidTs(incoming().updatedAt) && (
         
         (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
-(('lastPurchasedTitleId' in incoming()) && incoming().lastPurchasedTitleId is string && shopTitlePrice(incoming().lastPurchasedTitleId) >= 0 && isValidTitlePurchase(incoming(), existing(), incoming().lastPurchasedTitleId, shopTitlePrice(incoming().lastPurchasedTitleId))) ||
-          isValidFramePurchase(incoming(), existing()) ||
-          (incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarUrl', 'coverUrl', 'gender', 'genderChangeCount', 'age', 'ageRange', 'showAge', 'showGender', 'showOnlineStatus', 'online', 'followingCount', 'followersCount', 'updatedAt']) &&
+(incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarUrl', 'coverUrl', 'gender', 'genderChangeCount', 'age', 'ageRange', 'showAge', 'showGender', 'showOnlineStatus', 'online', 'followingCount', 'followersCount', 'updatedAt']) &&
            isValidUserProfile(incoming()) &&
            incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
            ((incoming().gender == (('gender' in existing()) ? existing().gender : 'UNSPECIFIED') &&

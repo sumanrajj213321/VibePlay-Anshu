@@ -21,7 +21,7 @@ on:
       - 'scripts/relationship-worker-dry-run.js'
       - '.github/workflows/relationship-worker-dry-run.yml'
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "17 * * * *"
 
 concurrency:
   group: relationship-worker-main

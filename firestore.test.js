@@ -1338,16 +1338,20 @@ test("Own and public profile reads plus title/frame cosmetic purchases are permi
     ownedTitleIds: ["singer"],
     activeTitleId: "singer",
     titleExpiresAt: { singer: titleExpiry },
+    lastPurchasedTitleId: "singer",
+    lastTitlePurchaseAt: new Date(),
     updatedAt: pastDate(),
   }));
 
-  // A second title can be purchased without equipping either title.
+  // A second title can be purchased while selecting it as the active title.
   const secondTitleExpiry = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
   await assertSucceeds(userRef.update({
     coinBalance: 1000500 - 12000 - 15000,
     ownedTitleIds: ["singer", "charming"],
     activeTitleId: "charming",
     titleExpiresAt: { singer: titleExpiry, charming: secondTitleExpiry },
+    lastPurchasedTitleId: "charming",
+    lastTitlePurchaseAt: new Date(),
     updatedAt: pastDate(),
   }));
 
@@ -1358,6 +1362,8 @@ test("Own and public profile reads plus title/frame cosmetic purchases are permi
     ownedTitleIds: ["singer", "charming"],
     activeTitleId: "singer",
     titleExpiresAt: { singer: renewedSingerExpiry, charming: secondTitleExpiry },
+    lastPurchasedTitleId: "singer",
+    lastTitlePurchaseAt: new Date(),
     updatedAt: pastDate(),
   }));
 
@@ -1367,6 +1373,7 @@ test("Own and public profile reads plus title/frame cosmetic purchases are permi
     ownedFrameIds: ["neon_cyan"],
     activeFrameId: "neon_cyan",
     frameExpiresAt: { neon_cyan: frameExpiry },
+    lastFramePurchaseAt: new Date(),
     updatedAt: pastDate(),
   }));
 

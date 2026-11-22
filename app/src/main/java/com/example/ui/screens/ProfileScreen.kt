@@ -86,6 +86,7 @@ import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.FirebaseFunctions
 
 @Composable
 fun ProfileScreen(
@@ -127,8 +128,15 @@ fun ProfileScreen(
     var linkedTagType by remember(profile.userId) { mutableStateOf("") }
     var allRelationshipTags by remember(profile.userId) { mutableStateOf<List<Map<String, String>>>(emptyList()) }
     var showAllRelationshipTags by remember(profile.userId) { mutableStateOf(true) }
+    var selectedFeaturedPartnerId by remember(profile.userId) { mutableStateOf("") }
 
     DisposableEffect(profile.userId) {
+        val selectionRegistration = FirebaseFirestore.getInstance()
+            .collection("relationship_profile_selection")
+            .document(profile.userId)
+            .addSnapshotListener { snapshot, _ ->
+                selectedFeaturedPartnerId = snapshot?.getString("partnerId").orEmpty()
+            }
         val tagsRegistration = FirebaseFirestore.getInstance()
             .collection("relationship_public_tags")
             .whereArrayContains("userIds", profile.userId)
@@ -150,9 +158,13 @@ fun ProfileScreen(
             .collection("relationship_pairs")
             .whereArrayContains("userIds", profile.userId)
             .addSnapshotListener { snapshot, _ ->
-                val activePair = snapshot?.documents?.firstOrNull {
+                val activePairs = snapshot?.documents.orEmpty().filter {
                     it.getString("tagStatus") == "ACTIVE"
                 }
+                val activePair = activePairs.firstOrNull { pair ->
+                    val ids = pair.get("userIds") as? List<*>
+                    ids?.filterIsInstance<String>()?.any { it == selectedFeaturedPartnerId } == true
+                } ?: activePairs.firstOrNull()
                 val ids = activePair?.get("userIds") as? List<*>
                 val otherId = ids?.filterIsInstance<String>()?.firstOrNull { it != profile.userId }.orEmpty()
                 linkedTagType = activePair?.getString("tagType").orEmpty()
@@ -174,6 +186,7 @@ fun ProfileScreen(
                 }
             }
         onDispose {
+            selectionRegistration.remove()
             tagsRegistration.remove()
             pairRegistration.remove()
             partnerRegistration?.remove()
@@ -256,12 +269,43 @@ fun ProfileScreen(
                         }
                         if (showAllRelationshipTags) {
                             allRelationshipTags.forEach { tag ->
-                                Text(
-                                    "${tag["partnerName"].orEmpty()} · ${tag["tagType"].orEmpty().lowercase().replaceFirstChar { it.uppercase() }}",
+                                Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    color = VibeGold,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(
+                                            "${tag["partnerName"].orEmpty()} · ${tag["tagType"].orEmpty().lowercase().replaceFirstChar { it.uppercase() }}",
+                                            color = VibeGold,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        if (selectedFeaturedPartnerId == tag["partnerId"]) {
+                                            Text("Shown on main profile", color = VibeCyan, style = MaterialTheme.typography.labelSmall)
+                                        }
+                                    }
+                                    OutlinedButton(
+                                        onClick = {
+                                            val partnerId = tag["partnerId"].orEmpty()
+                                            if (partnerId.isNotBlank()) {
+                                                FirebaseFunctions.getInstance("asia-south1")
+                                                    .getHttpsCallable("setMainRelationshipPartner")
+                                                    .call(mapOf("partnerId" to partnerId))
+                                                    .addOnSuccessListener {
+                                                        selectedFeaturedPartnerId = partnerId
+                                                        linkedPartnerId = partnerId
+                                                        linkedPartnerName = tag["partnerName"].orEmpty()
+                                                        linkedPartnerAvatar = tag["partnerAvatarUrl"].orEmpty()
+                                                        linkedTagType = tag["tagType"].orEmpty()
+                                                    }
+                                            }
+                                        },
+                                        enabled = tag["partnerId"].orEmpty().isNotBlank() &&
+                                            selectedFeaturedPartnerId != tag["partnerId"]
+                                    ) {
+                                        Text(if (selectedFeaturedPartnerId == tag["partnerId"]) "Selected" else "Set as main")
+                                    }
+                                }
                             }
                         }
                     }

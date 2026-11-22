@@ -5,6 +5,7 @@ import com.example.data.livekit.VoiceConnectionState
 import com.example.data.model.VoiceRoom
 import com.example.data.model.VoiceSeat
 import com.example.data.model.VoiceStage
+import com.example.data.model.VibeCatalogDefaults
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,6 +14,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ExampleUnitTest {
+
+    @Test
+    fun vipCatalog_hasOnlyEightLevelsWithUniqueBadgeColors() {
+        val tiers = VibeCatalogDefaults.vipTiers
+        assertEquals((1..8).toList(), tiers.map { it.level })
+        assertEquals(8, tiers.map { it.badgeColorHex }.distinct().size)
+    }
 
     @Test
     fun voiceStage_alwaysBuildsNineSeats_evenWhenEmpty() {

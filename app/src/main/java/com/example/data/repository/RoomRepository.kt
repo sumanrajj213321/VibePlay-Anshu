@@ -112,14 +112,17 @@ class RoomRepository(
             }
         }
         return combine(roomFlow, sessionsFlow, clockFlow) { room, sessions, nowMillis ->
-            if (room == null || !room.ownerOnline) {
-                room
+            if (room == null) {
+                null
             } else {
+                // Derive host presence from the latest session heartbeat even when the
+                // persisted ownerOnline flag is false. Otherwise a stale false value
+                // prevents a returning host's fresh session from ever being observed.
                 val ownerSession = sessions.documents.firstOrNull { it.id == room.effectiveOwnerId }
                 val lastSeen = ownerSession?.getTimestamp("lastSeenAt")
                     ?: ownerSession?.getTimestamp("joinedAt")
                 val heartbeatFresh = lastSeen != null &&
-                    nowMillis - lastSeen.toDate().time <= 45_000L
+                    nowMillis - lastSeen.toDate().time in 0..45_000L
                 room.copy(ownerOnline = heartbeatFresh)
             }
         }

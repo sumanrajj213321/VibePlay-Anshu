@@ -572,7 +572,9 @@ private fun ChatDetailScreen(
                 .joinToString("") { "%02x".format(it) }
         }
     }
-    var pairFamiliarity by remember(relationshipPairId) { mutableStateOf(0L) }
+    var serverPairFamiliarity by remember(relationshipPairId) { mutableStateOf(0L) }
+    var giftHistoryFamiliarity by remember(relationshipPairId) { mutableStateOf(0L) }
+    val pairFamiliarity = maxOf(serverPairFamiliarity, giftHistoryFamiliarity)
     var pairTagStatus by remember(relationshipPairId) { mutableStateOf("NONE") }
     var pairTagType by remember(relationshipPairId) { mutableStateOf("") }
     DisposableEffect(relationshipPairId) {
@@ -582,12 +584,31 @@ private fun ChatDetailScreen(
             val registration = FirebaseFirestore.getInstance()
                 .collection("relationship_pairs").document(relationshipPairId)
                 .addSnapshotListener { snapshot, _ ->
-                    pairFamiliarity = snapshot?.getLong("familiarityPoints") ?: 0L
+                    serverPairFamiliarity = (snapshot?.getLong("familiarityPoints") ?: 0L).coerceAtLeast(0L)
                     pairTagStatus = snapshot?.getString("tagStatus") ?: "NONE"
                     pairTagType = snapshot?.getString("tagType")
                         ?: snapshot?.getString("acceptedTagType").orEmpty()
                 }
-            onDispose { registration.remove() }
+            val giftsRegistration = FirebaseFirestore.getInstance()
+                .collection("gift_transactions")
+                .whereArrayContains("participantIds", currentUser.userId)
+                .addSnapshotListener { snapshot, _ ->
+                    val coinsBetweenPair = snapshot?.documents
+                        ?.asSequence()
+                        ?.filter { gift ->
+                            val senderId = gift.getString("senderId")
+                            val recipientId = gift.getString("recipientId")
+                            (senderId == currentUser.userId && recipientId == peerId) ||
+                                (senderId == peerId && recipientId == currentUser.userId)
+                        }
+                        ?.sumOf { gift -> (gift.getLong("coinCost") ?: 0L).coerceAtLeast(0L) }
+                        ?: 0L
+                    giftHistoryFamiliarity = coinsBetweenPair / 5L
+                }
+            onDispose {
+                registration.remove()
+                giftsRegistration.remove()
+            }
         }
     }
 
@@ -598,6 +619,7 @@ private fun ChatDetailScreen(
     var showReportDialog by remember { mutableStateOf(false) }
     var showGroupInfoSheet by remember { mutableStateOf(false) }
     var showGiftPicker by remember { mutableStateOf(false) }
+    var selectedGiftQuantity by remember { mutableStateOf(1L) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -1008,6 +1030,29 @@ private fun ChatDetailScreen(
             ) {
                 Text("Send a gift to $headerTitle", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text("Your current balance: ${currentUser.coinBalance} coins", style = MaterialTheme.typography.bodySmall, color = VibeGold)
+                Text("Combo quantity", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(1L, 5L, 10L, 20L).forEach { quantity ->
+                        OutlinedButton(
+                            onClick = { selectedGiftQuantity = quantity },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = if (selectedGiftQuantity == quantity) VibeCyan else MaterialTheme.colorScheme.onSurface
+                            ),
+                            border = BorderStroke(
+                                1.dp,
+                                if (selectedGiftQuantity == quantity) VibeCyan else MaterialTheme.colorScheme.outline
+                            )
+                        ) {
+                            Text("${quantity}x", fontWeight = if (selectedGiftQuantity == quantity) FontWeight.Bold else FontWeight.Normal)
+                        }
+                    }
+                }
+                Text("Selected combo is sent as one gift transaction.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().height(360.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1016,10 +1061,7 @@ private fun ChatDetailScreen(
                         Surface(
                             shape = RoundedCornerShape(14.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                onSendGift(gift, 1L)
-                                showGiftPicker = false
-                            }
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(14.dp),
@@ -1029,9 +1071,25 @@ private fun ChatDetailScreen(
                                 Text(gift.emoji, style = MaterialTheme.typography.headlineMedium)
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(gift.name, fontWeight = FontWeight.SemiBold)
-                                    Text("${gift.coinCost} coins", color = VibeGold, style = MaterialTheme.typography.labelSmall)
+                                    val comboCost = gift.coinCost.toLong() * selectedGiftQuantity
+                                    Text(
+                                        "${gift.coinCost} coins each · ${comboCost} coins total",
+                                        color = VibeGold,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
                                 }
-                                Text("Send", color = VibeCyan, fontWeight = FontWeight.Bold)
+                                val comboCost = gift.coinCost.toLong() * selectedGiftQuantity
+                                Button(
+                                    onClick = {
+                                        onSendGift(gift, selectedGiftQuantity)
+                                        showGiftPicker = false
+                                        selectedGiftQuantity = 1L
+                                    },
+                                    enabled = comboCost <= currentUser.coinBalance,
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                                ) {
+                                    Text(if (comboCost <= currentUser.coinBalance) "Send ${selectedGiftQuantity}x" else "Not enough")
+                                }
                             }
                         }
                     }

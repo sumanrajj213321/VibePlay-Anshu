@@ -275,7 +275,10 @@ async function main() {
     nonPendingInvitationsIgnored: 0
   };
 
-  const giftQuery = db.collection("gift_transactions").orderBy("createdAt", "asc");
+  // Use document ID ordering so legacy gift documents without createdAt are not skipped.
+  // Idempotency is enforced by relationship_gift_events inside each transaction.
+  const giftQuery = db.collection("gift_transactions")
+    .orderBy(admin.firestore.FieldPath.documentId(), "asc");
   stats.giftTransactionsScanned = await scanPages(giftQuery, async (doc) => {
     await processGift(db, doc, dryRun, stats);
   });

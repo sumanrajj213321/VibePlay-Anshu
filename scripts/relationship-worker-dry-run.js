@@ -239,6 +239,61 @@ async function scanPages(query, handler) {
   return scanned;
 }
 
+async function syncActivePublicTags(db, dryRun, stats) {
+  const query = db.collection("relationship_pairs")
+    .orderBy(admin.firestore.FieldPath.documentId(), "asc");
+  let pendingBatch = db.batch();
+  let pendingWrites = 0;
+
+  stats.activeRelationshipPairsScanned = await scanPages(query, async (pairDoc) => {
+    const pair = pairDoc.data();
+    if (pair.tagStatus !== "ACTIVE" || !ALLOWED_TAGS.includes(pair.tagType)) return;
+    const ids = Array.isArray(pair.userIds)
+      ? [...new Set(pair.userIds.filter((id) => typeof id === "string" && id))]
+      : [];
+    if (ids.length !== 2) return;
+
+    const [userAId, userBId] = ids.sort();
+    const publicRef = db.collection("relationship_public_tags").doc(pairDoc.id);
+    const [publicSnap, userA, userB] = await Promise.all([
+      publicRef.get(),
+      db.collection("users").doc(userAId).get(),
+      db.collection("users").doc(userBId).get()
+    ]);
+    const next = {
+      userIds: [userAId, userBId],
+      userAName: userA.get("username") || userA.get("displayName") || "VibePlay user",
+      userAAvatarUrl: userA.get("avatarUrl") || "",
+      userBName: userB.get("username") || userB.get("displayName") || "VibePlay user",
+      userBAvatarUrl: userB.get("avatarUrl") || "",
+      tagType: pair.tagType
+    };
+    const current = publicSnap.exists ? publicSnap.data() : {};
+    const unchanged = JSON.stringify(current.userIds || []) === JSON.stringify(next.userIds) &&
+      current.userAName === next.userAName &&
+      current.userAAvatarUrl === next.userAAvatarUrl &&
+      current.userBName === next.userBName &&
+      current.userBAvatarUrl === next.userBAvatarUrl &&
+      current.tagType === next.tagType;
+    if (unchanged) return;
+
+    stats.publicTagsNeedingSync += 1;
+    if (dryRun) return;
+    pendingBatch.set(publicRef, {
+      ...next,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    pendingWrites += 1;
+    if (pendingWrites >= 450) {
+      await pendingBatch.commit();
+      pendingBatch = db.batch();
+      pendingWrites = 0;
+    }
+  });
+
+  if (!dryRun && pendingWrites > 0) await pendingBatch.commit();
+}
+
 async function main() {
   const mode = process.env.RELATIONSHIP_WORKER_MODE;
   if (!["dry-run", "apply"].includes(mode)) {
@@ -272,7 +327,9 @@ async function main() {
     oldInvitationsScanned: 0,
     invitationsEligibleForExpiry: 0,
     invitationsAutoRejected: 0,
-    nonPendingInvitationsIgnored: 0
+    nonPendingInvitationsIgnored: 0,
+    activeRelationshipPairsScanned: 0,
+    publicTagsNeedingSync: 0
   };
 
   // Use document ID ordering so legacy gift documents without createdAt are not skipped.
@@ -290,6 +347,8 @@ async function main() {
   stats.oldInvitationsScanned = await scanPages(inviteQuery, async (doc) => {
     await processExpiredInvite(db, doc, dryRun, stats, Date.now());
   });
+
+  await syncActivePublicTags(db, dryRun, stats);
 
   const pairProjections = [];
   for (const pair of stats.pairs.values()) {

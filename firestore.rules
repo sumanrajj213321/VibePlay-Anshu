@@ -677,15 +677,22 @@ service cloud.firestore {
                                  incoming().userId == request.auth.uid &&
                                  incoming().joinedAt is timestamp &&
                                  incoming().joinedAt == request.time &&
-                                 incoming().lastSeenAt is timestamp &&
-                                 incoming().lastSeenAt == request.time &&
-                                 incoming().keys().hasOnly(['userId', 'joinedAt', 'lastSeenAt']);
+                                 incoming().keys().hasOnly(['userId', 'joinedAt', 'lastSeenAt']) &&
+                                 (!('lastSeenAt' in incoming()) ||
+                                  (incoming().lastSeenAt is timestamp && incoming().lastSeenAt == request.time));
         allow update: if isSignedIn() && sessionUserId == request.auth.uid &&
                                  incoming().userId == existing().userId &&
-                                 incoming().joinedAt == existing().joinedAt &&
-                                 incoming().lastSeenAt is timestamp &&
-                                 incoming().lastSeenAt == request.time &&
-                                 incoming().diff(existing()).affectedKeys().hasOnly(['lastSeenAt']);
+                                 (
+                                   (incoming().joinedAt is timestamp &&
+                                    incoming().joinedAt == request.time &&
+                                    incoming().keys().hasOnly(['userId', 'joinedAt', 'lastSeenAt']) &&
+                                    (!('lastSeenAt' in incoming()) ||
+                                     (incoming().lastSeenAt is timestamp && incoming().lastSeenAt == request.time))) ||
+                                   (incoming().joinedAt == existing().joinedAt &&
+                                    incoming().lastSeenAt is timestamp &&
+                                    incoming().lastSeenAt == request.time &&
+                                    incoming().diff(existing()).affectedKeys().hasOnly(['lastSeenAt']))
+                                 );
         allow delete: if isSignedIn() && sessionUserId == request.auth.uid;
       }
 

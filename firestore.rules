@@ -802,6 +802,7 @@ service cloud.firestore {
                        request.auth.uid in incoming().participantIds &&
                        isValidGiftTransaction(incoming()) &&
                        isTrustedGiftPrice(incoming()) &&
+                       giftMatchesCoinUpdates(incoming()) &&
                        isValidTs(incoming().createdAt);
       allow update, delete: if false;
     }

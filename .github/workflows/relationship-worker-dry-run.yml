@@ -20,6 +20,8 @@ on:
     paths:
       - 'scripts/relationship-worker-dry-run.js'
       - '.github/workflows/relationship-worker-dry-run.yml'
+  schedule:
+    - cron: "*/15 * * * *"
 
 permissions:
   contents: read
@@ -49,6 +51,12 @@ jobs:
         run: |
           echo "Automatic push runs are read-only."
           echo "RELATIONSHIP_WORKER_MODE=dry-run" >> "$GITHUB_ENV"
+
+      - name: Configure free scheduled production processing
+        if: github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+        run: |
+          echo "RELATIONSHIP_WORKER_MODE=apply" >> "$GITHUB_ENV"
+          echo "RELATIONSHIP_WORKER_CONFIRM=APPLY" >> "$GITHUB_ENV"
 
       - name: Configure manually selected mode
         if: github.event_name == 'workflow_dispatch'

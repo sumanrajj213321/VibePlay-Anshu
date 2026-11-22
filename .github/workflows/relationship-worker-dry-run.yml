@@ -1,0 +1,33 @@
+name: Relationship Worker Dry Run
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  relationship-dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Firebase Admin SDK
+        working-directory: functions
+        run: npm ci
+
+      - name: Validate read-only worker syntax
+        run: node --check scripts/relationship-worker-dry-run.js
+
+      - name: Inspect relationship processing candidates (read-only)
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          RELATIONSHIP_WORKER_MODE: dry-run
+        run: node scripts/relationship-worker-dry-run.js

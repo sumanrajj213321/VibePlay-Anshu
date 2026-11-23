@@ -60,6 +60,10 @@ async function numericAgoraUid(firebaseUid) {
 }
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+    if (request.method === "GET" && url.pathname === "/health") {
+      return json({ ok: true, service: "vibeplay-agora-token", version: 1 });
+    }
     if (request.method === "OPTIONS") return json({ ok: true });
     if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
     try {

@@ -202,6 +202,7 @@ fun VoiceRoomScreen(
         onLeaveRoom = { roomViewModel.leaveRoom(onBack) },
         onSendRoomMessage = { text -> roomViewModel.sendRoomMessage(currentUser, text) },
         onToggleSeatMute = { seat -> roomViewModel.toggleSeatMute(seat) },
+        onEnableMicrophone = { roomViewModel.enableMicrophone() },
         onToggleSeatLock = { seat, locked -> roomViewModel.toggleSeatLock(seat, locked) },
         onMuteAllSpeakers = { roomViewModel.muteAllSpeakers() },
         onJoinSpeakerSeat = { seatIndex -> roomViewModel.joinSpeakerSeat(currentRoom, seatIndex, currentUser) },
@@ -271,6 +272,7 @@ internal fun VoiceRoomStageContent(
     onLeaveRoom: () -> Unit,
     onSendRoomMessage: (String) -> Unit,
     onToggleSeatMute: (VoiceSeat) -> Unit,
+    onEnableMicrophone: () -> Unit,
     onToggleSeatLock: (VoiceSeat, Boolean) -> Unit = { _, _ -> },
     onMuteAllSpeakers: () -> Unit = {},
     onJoinSpeakerSeat: (seatIndex: Int) -> Unit,
@@ -313,6 +315,8 @@ internal fun VoiceRoomStageContent(
     var inviteTargetSeatIndex by remember { mutableStateOf<Int?>(null) }
     var activeSeatDialog by remember { mutableStateOf<VoiceSeat?>(null) }
     var reportTarget by remember { mutableStateOf<Triple<String, String, String>?>(null) }
+    var pendingSeatAfterPermission by remember { mutableStateOf<Int?>(null) }
+    var pendingMicEnable by remember { mutableStateOf(false) }
 
     var hasAudioPermission by remember {
         mutableStateOf(
@@ -325,7 +329,18 @@ internal fun VoiceRoomStageContent(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasAudioPermission = granted
-        if (!granted) {
+        if (granted) {
+            val pendingSeat = pendingSeatAfterPermission
+            pendingSeatAfterPermission = null
+            if (pendingSeat != null) {
+                onJoinSpeakerSeat(pendingSeat)
+            } else if (pendingMicEnable) {
+                pendingMicEnable = false
+                onEnableMicrophone()
+            }
+        } else {
+            pendingSeatAfterPermission = null
+            pendingMicEnable = false
             scope.launch {
                 snackbarHostState.showSnackbar("Microphone permission is required to speak on stage.")
             }
@@ -442,6 +457,7 @@ internal fun VoiceRoomStageContent(
                                     when {
                                         mySeat != null -> {
                                             if (!hasAudioPermission) {
+                                                pendingMicEnable = true
                                                 micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                             } else {
                                                 onToggleSeatMute(mySeat)
@@ -757,6 +773,7 @@ internal fun VoiceRoomStageContent(
                                                     }
                                                     else -> {
                                                         if (!hasAudioPermission) {
+                                                            pendingSeatAfterPermission = seat.seatIndex.toInt()
                                                             micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                                         } else {
                                                             onJoinSpeakerSeat(seat.seatIndex.toInt())

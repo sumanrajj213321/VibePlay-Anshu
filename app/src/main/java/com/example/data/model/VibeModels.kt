@@ -477,6 +477,12 @@ data class DirectMessage(
     val type: String = "TEXT",
     val text: String = "",
     val imageUri: String = "",
+    val giftId: String = "",
+    val giftName: String = "",
+    val giftEmoji: String = "",
+    val giftCoins: Long = 0L,
+    val recipientId: String = "",
+    val recipientName: String = "",
     val read: Boolean = false,
     val createdAt: Timestamp? = null
 )
@@ -548,7 +554,8 @@ data class GiftBurstEvent(
     val recipientName: String,
     val giftName: String,
     val giftEmoji: String,
-    val coinCost: Long
+    val coinCost: Long,
+    val giftId: String = ""
 )
 
 object LevelProgression {

@@ -88,6 +88,7 @@ import com.example.data.repository.RoomRepository
 import com.example.data.repository.UserRepository
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.ExploreScreen
+import com.example.ui.screens.FruitTreasureScreen
 import com.example.ui.screens.GiftRankingScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.InboxScreen
@@ -475,9 +476,13 @@ private fun AuthenticatedVibePlayApp(
                                         onOpenUserProfile = { target ->
                                             viewModel.inspectUser(target.userId, target) { inspectedUser = it }
                                         },
-                                        onVerifyPasscode = { r, pin -> viewModel.verifyRoomPasscode(r, pin) }
+                                        onVerifyPasscode = { r, pin -> viewModel.verifyRoomPasscode(r, pin) },
+                                        onOpenGame = { navController.navigate("fruit_treasure") },
+                                        onOpenShop = { navController.navigate("shop") }
                                     )
                                 }
+
+                                composable("fruit_treasure") { FruitTreasureScreen(onBack = { navController.popBackStack() }) }
 
                                 composable("gift_rankings") {
                                     GiftRankingScreen(

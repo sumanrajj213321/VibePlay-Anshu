@@ -47,6 +47,25 @@ class VibePlayViewModel(
 ) : ViewModel() {
 
     private val _statusMessage = MutableStateFlow<String?>(null)
+
+    private var onlineHeartbeatJob: Job? = null
+
+    fun startOnlineHeartbeat() {
+        if (onlineHeartbeatJob?.isActive == true) return
+        onlineHeartbeatJob = viewModelScope.launch {
+            while (true) {
+                userRepository.setOnlineStatus(true)
+                kotlinx.coroutines.delay(15_000L)
+            }
+        }
+    }
+
+    fun stopOnlineHeartbeat() {
+        onlineHeartbeatJob?.cancel()
+        onlineHeartbeatJob = null
+        viewModelScope.launch { userRepository.setOnlineStatus(false) }
+    }
+
     private var inspectedUserProfileJob: Job? = null
     val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
 

@@ -296,12 +296,13 @@ class UserRepository(
             .setContentType("image/jpeg")
             .build()
 
-        // Resolve the reference returned by the completed upload, then verify the
-        // object exists before requesting its download URL.
-        val uploadedRef = coverRef.putFile(uri, metadata).await().storage
-        val uploadedMetadata = uploadedRef.metadata.await()
-        require(uploadedMetadata.sizeBytes > 0L) { "Cover photo upload completed but the stored file is empty." }
-        return uploadedRef.downloadUrl.await().toString()
+        // Wait for the upload task itself to complete, then resolve the URL from
+        // that exact completed task snapshot. Avoid a separate metadata lookup,
+        // which can report object-not-found and prevent an otherwise valid save.
+        val uploadTask = coverRef.putFile(uri, metadata)
+        uploadTask.await()
+        val completedRef = uploadTask.snapshot.storage
+        return completedRef.downloadUrl.await().toString()
     }
 
     suspend fun updateProfile(

@@ -93,24 +93,6 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
             }
         }
     }
-    LaunchedEffect(score, spins, dailyBonusClaimed, cloudProgressLoaded, cloudProgressRef) {
-        val ref = cloudProgressRef
-        if (cloudProgressLoaded && ref != null) {
-            try {
-                ref.set(
-                    mapOf(
-                        "score" to score.coerceAtLeast(0),
-                        "spins" to spins.coerceAtLeast(0),
-                        "dailyBonusDate" to if (dailyBonusClaimed) todayKey else "",
-                        "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
-                    ),
-                    SetOptions.merge()
-                ).await()
-            } catch (_: Exception) {
-                message = "Cloud sync pending. Your device copy is safe."
-            }
-        }
-    }
     LaunchedEffect(musicOn, soundOn) {
         progressPrefs.edit().putBoolean("music_on", musicOn).putBoolean("sound_on", soundOn).apply()
     }
@@ -230,7 +212,7 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
                         }
                     }
                 },
-                enabled = !dailyBonusClaimed && !claimingBonus && cloudProgressLoaded,
+                enabled = !dailyBonusClaimed && !claimingBonus && !spinning && cloudProgressLoaded,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF236BCE))
             ) { Text(if (claimingBonus) "PLEASE WAIT" else if (dailyBonusClaimed) "CLAIMED" else if (!cloudProgressLoaded) "LOADING" else "+25 POINTS") }
         }
@@ -246,16 +228,45 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
             }
         }
         Surface(color = Color(0xFF210B65), shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDA4DFF))) { Text(message, Modifier.fillMaxWidth().padding(14.dp), color = Color.White) }
-        Button(onClick = { if (!spinning) spinning = true }, enabled = !spinning, modifier = Modifier.fillMaxWidth().height(62.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF24D900)), shape = RoundedCornerShape(32.dp)) { Text(if (spinning) "SPINNING..." else "SPIN", style = MaterialTheme.typography.headlineMedium) }
+        Button(onClick = { if (!spinning && cloudProgressLoaded) spinning = true }, enabled = !spinning && cloudProgressLoaded, modifier = Modifier.fillMaxWidth().height(62.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF24D900)), shape = RoundedCornerShape(32.dp)) { Text(if (spinning) "SPINNING..." else "SPIN", style = MaterialTheme.typography.headlineMedium) }
         LaunchedEffect(spinning) {
             if (spinning) {
                 message = "Fruit reels are spinning..."
                 repeat(12) { reels = List(9) { Fruit.entries.random() }; if (latestSoundOn) tone.startTone(ToneGenerator.TONE_PROP_BEEP, 55); delay(115) }
-                spins += 1
-                spinning = false
                 val lines = listOf(listOf(0,1,2), listOf(3,4,5), listOf(6,7,8), listOf(0,4,8), listOf(2,4,6))
                 val wins = lines.count { reels[it[0]] == reels[it[1]] && reels[it[1]] == reels[it[2]] }
-                if (wins > 0) { score += wins * 10; message = "Fruit match! +${wins * 10} points"; if (latestSoundOn) tone.startTone(ToneGenerator.TONE_PROP_ACK, 240) } else message = "Try again! Free play — no coins deducted."
+                val ref = cloudProgressRef
+                if (ref == null) {
+                    spins = (spins + 1).coerceAtMost(10_000_000)
+                    if (wins > 0) score = (score + wins * 10).coerceAtMost(1_000_000_000)
+                    progressPrefs.edit().putInt("score", score).putInt("spins", spins).apply()
+                } else {
+                    try {
+                        val updated = FirebaseFirestore.getInstance(context.getString(R.string.firestore_database_id))
+                            .runTransaction<Pair<Int, Int>> { transaction ->
+                                val snapshot = transaction.get(ref)
+                                val cloudScore = (snapshot.getLong("score") ?: 0L).coerceIn(0L, 1_000_000_000L).toInt()
+                                val cloudSpins = (snapshot.getLong("spins") ?: 0L).coerceIn(0L, 10_000_000L).toInt()
+                                val nextScore = (maxOf(score, cloudScore) + wins * 10).coerceAtMost(1_000_000_000)
+                                val nextSpins = (maxOf(spins, cloudSpins) + 1).coerceAtMost(10_000_000)
+                                transaction.set(ref, mapOf(
+                                    "score" to nextScore,
+                                    "spins" to nextSpins,
+                                    "dailyBonusDate" to if (dailyBonusClaimed) todayKey else "",
+                                    "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                                ), SetOptions.merge())
+                                nextScore to nextSpins
+                            }.await()
+                        score = updated.first
+                        spins = updated.second
+                        progressPrefs.edit().putInt("score", score).putInt("spins", spins).apply()
+                    } catch (_: Exception) {
+                        message = "Cloud save failed. Your last spin may not be recorded; check connection and retry."
+                    }
+                }
+                spinning = false
+                if (wins > 0) { message = "Fruit match! +${wins * 10} points"; if (latestSoundOn) tone.startTone(ToneGenerator.TONE_PROP_ACK, 240) }
+                else if (message != "Cloud save failed. Your last spin may not be recorded; check connection and retry.") message = "Try again! Free play — no coins deducted."
             }
         }
         Text("FREE ARCADE MODE • No coins are used", color = Color(0xFFB7D9FF), modifier = Modifier.align(Alignment.CenterHorizontally))

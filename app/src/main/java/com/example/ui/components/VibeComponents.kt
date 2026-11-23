@@ -944,7 +944,7 @@ fun VoiceRoomCard(
 
 @Composable
 fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
-    if (gift.id == "gift_couple_kiss") {
+    if (gift.id == "gift_sunset_love") {
         Image(
             painter = painterResource(R.drawable.couple_kiss_thumbnail),
             contentDescription = gift.name,
@@ -976,22 +976,23 @@ fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
 fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val couple = event?.giftId == "gift_couple_kiss"
+    val videoGift = event?.giftId == "gift_sunset_love"
     var videoUrl by remember(event?.id) { mutableStateOf<String?>(null) }
     var videoReady by remember(event?.id) { mutableStateOf(false) }
     var videoLoadFailed by remember(event?.id) { mutableStateOf(false) }
     val progress by animateFloatAsState(
         targetValue = if (event == null) 0f else 1f,
-        animationSpec = tween(if (couple) 5200 else 5000, easing = LinearEasing),
+        animationSpec = tween(if (videoGift) 5200 else 5000, easing = LinearEasing),
         label = "full_screen_gift_progress"
     )
 
     LaunchedEffect(event?.id) {
         val active = event
         if (active != null) {
-            if (active.giftId == "gift_couple_kiss") {
+            if (active.giftId == "gift_sunset_love") {
                 videoUrl = runCatching {
                     FirebaseStorage.getInstance().reference
-                        .child("gift-assets/couple_kiss_gift.mp4")
+                        .child("gift-assets/sunset_love_gift.mp4")
                         .downloadUrl.await().toString()
                 }.getOrNull()
                 if (videoUrl == null) videoLoadFailed = true
@@ -1007,7 +1008,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
     }
 
     LaunchedEffect(event?.id, videoReady, videoLoadFailed) {
-        if (couple && event != null) {
+        if (videoGift && event != null) {
             when {
                 videoReady -> { delay(5200L); onFinished() }
                 videoLoadFailed -> { delay(5000L); onFinished() }
@@ -1016,7 +1017,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
     }
 
     if (event != null) {
-        val accent = if (couple) Color(0xFFFF8DBB) else when (event.giftId) {
+        val accent = if (couple || videoGift) Color(0xFFFF8DBB) else when (event.giftId) {
             "gift_love_promise", "gift_moonlight_dance" -> Color(0xFFFF78B7)
             "gift_royal_phoenix", "gift_galaxy_crown" -> Color(0xFFFFC857)
             "gift_crystal_wave", "gift_ocean_palace", "gift_diamond_rain" -> Color(0xFF55DDF5)
@@ -1025,9 +1026,9 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
         }
         Box(
             modifier.fillMaxSize().zIndex(100f)
-                .then(if (couple && videoUrl != null && !videoLoadFailed) Modifier.background(Color.Black) else Modifier.background(Brush.verticalGradient(listOf(Color(0xFF08091E), Color(0xFF171039), Color(0xFF260F36), Color(0xFF08091E)))))
+                .then(if (videoGift && videoUrl != null && !videoLoadFailed) Modifier.background(Color.Black) else Modifier.background(Brush.verticalGradient(listOf(Color(0xFF08091E), Color(0xFF171039), Color(0xFF260F36), Color(0xFF08091E)))))
         ) {
-            if (couple && videoUrl != null && !videoLoadFailed) {
+            if (videoGift && videoUrl != null && !videoLoadFailed) {
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->
@@ -1053,7 +1054,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                     },
                     onRelease = { it.stopPlayback() }
                 )
-            } else if (!couple || videoLoadFailed) {
+            } else if (!videoGift || videoLoadFailed) {
                 Canvas(Modifier.fillMaxSize()) {
                     val w=size.width; val h=size.height
                     drawRect(Brush.radialGradient(listOf(accent.copy(alpha=0.34f),Color.Transparent),Offset(w*0.5f,h*0.48f),w*0.78f))
@@ -1063,10 +1064,31 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                         drawCircle(if(i%3==0) accent.copy(alpha=0.78f) else Color.White.copy(alpha=0.55f),(2f+(i%4)*1.2f)*density,Offset(x,(y-drift*h*0.18f+h)%h))
                     }
                     for(ring in 1..4) drawCircle(accent.copy(alpha=0.18f-ring*0.025f),w*(0.12f+ring*0.12f+progress*0.08f),Offset(w*0.5f,h*0.49f),style=Stroke(width=2.5f.dp.toPx()))
-                    val center=Offset(w*0.5f,h*0.48f); val g=w*(0.13f+0.035f*kotlin.math.sin(progress*Math.PI.toFloat()))
-                    val shape=Path().apply { moveTo(center.x,center.y-g); lineTo(center.x+g*0.72f,center.y); lineTo(center.x,center.y+g); lineTo(center.x-g*0.72f,center.y); close() }
-                    drawPath(shape,accent); drawPath(shape,Color.White.copy(alpha=0.85f),style=Stroke(width=3.dp.toPx()))
-                    for(i in 0..11) { val angle=i*(Math.PI.toFloat()*2f/12f); val inner=g*1.35f; val outer=g*(1.8f+progress*0.45f); drawLine(accent,Offset(center.x+kotlin.math.cos(angle)*inner,center.y+kotlin.math.sin(angle)*inner),Offset(center.x+kotlin.math.cos(angle)*outer,center.y+kotlin.math.sin(angle)*outer),strokeWidth=3.dp.toPx()) }
+                    if (couple) {
+                        val approach=(progress*1.45f).coerceIn(0f,1f)
+                        val lx=w*(0.25f+0.19f*approach); val rx=w*(0.75f-0.19f*approach)
+                        val y=h*0.43f; val r=w*0.075f; val lean=if(progress>0.72f) r*0.16f else 0f
+                        drawOval(Color(0xFF5A2D58),Offset(lx-r*1.05f,y-r*1.25f),androidx.compose.ui.geometry.Size(r*2.1f,r*2.55f))
+                        drawCircle(Color(0xFFFFD8C8),r*0.88f,Offset(lx+lean,y))
+                        drawOval(Color(0xFF3A234C),Offset(lx-r,y-r*1.12f),androidx.compose.ui.geometry.Size(r*2f,r*0.82f))
+                        drawCircle(Color(0xFF35213D),r*0.075f,Offset(lx-r*0.3f,y)); drawCircle(Color(0xFF35213D),r*0.075f,Offset(lx+r*0.3f,y))
+                        drawCircle(Color(0xFFFF91B6),r*0.13f,Offset(lx-r*0.48f,y+r*0.28f)); drawCircle(Color(0xFFFF91B6),r*0.13f,Offset(lx+r*0.48f,y+r*0.28f))
+                        drawRoundRect(Color(0xFFFF78B7),Offset(lx-r*1.12f,y+r*0.92f),androidx.compose.ui.geometry.Size(r*2.24f,h*0.28f),androidx.compose.ui.geometry.CornerRadius(r*0.55f))
+                        drawCircle(Color(0xFF20243D),r*1.05f,Offset(rx,y-r*0.12f)); drawCircle(Color(0xFFFFDCCB),r*0.86f,Offset(rx-lean,y))
+                        drawOval(Color(0xFF20243D),Offset(rx-r,y-r*1.08f),androidx.compose.ui.geometry.Size(r*2f,r*0.72f))
+                        drawCircle(Color(0xFF27304A),r*0.075f,Offset(rx-r*0.3f,y)); drawCircle(Color(0xFF27304A),r*0.075f,Offset(rx+r*0.3f,y))
+                        drawRoundRect(Color(0xFF5B8DDA),Offset(rx-r*1.12f,y+r*0.92f),androidx.compose.ui.geometry.Size(r*2.24f,h*0.28f),androidx.compose.ui.geometry.CornerRadius(r*0.55f))
+                        if(progress>0.72f) {
+                            val glow=(progress-0.72f)/0.28f
+                            drawCircle(Color(0xFFFFA7CF).copy(alpha=glow),r*0.25f,Offset(w*0.5f,y+r*0.2f))
+                            for(i in 0..8) { val angle=i*(Math.PI.toFloat()*2f/9f); val rad=r*(1.3f+glow*0.8f); drawCircle(Color(0xFFFFC4DF).copy(alpha=glow),r*0.055f,Offset(w*0.5f+kotlin.math.cos(angle)*rad,y+kotlin.math.sin(angle)*rad)) }
+                        }
+                    } else {
+                                            val center=Offset(w*0.5f,h*0.48f); val g=w*(0.13f+0.035f*kotlin.math.sin(progress*Math.PI.toFloat()))
+                            val shape=Path().apply { moveTo(center.x,center.y-g); lineTo(center.x+g*0.72f,center.y); lineTo(center.x,center.y+g); lineTo(center.x-g*0.72f,center.y); close() }
+                            drawPath(shape,accent); drawPath(shape,Color.White.copy(alpha=0.85f),style=Stroke(width=3.dp.toPx()))
+                            for(i in 0..11) { val angle=i*(Math.PI.toFloat()*2f/12f); val inner=g*1.35f; val outer=g*(1.8f+progress*0.45f); drawLine(accent,Offset(center.x+kotlin.math.cos(angle)*inner,center.y+kotlin.math.sin(angle)*inner),Offset(center.x+kotlin.math.cos(angle)*outer,center.y+kotlin.math.sin(angle)*outer),strokeWidth=3.dp.toPx()) }
+                    }
                 }
             }
 

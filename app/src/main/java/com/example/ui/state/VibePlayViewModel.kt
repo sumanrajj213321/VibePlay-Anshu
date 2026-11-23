@@ -205,8 +205,8 @@ class VibePlayViewModel(
     val activeGiftsCatalog: StateFlow<List<GiftCatalogItem>> =
         roomRepository.observeActiveGifts()
             .map { remote ->
-                val curatedIds = VibeCatalogDefaults.defaultGifts.map { it.id }.toSet()
-                remote.filter { it.id in curatedIds }.ifEmpty { VibeCatalogDefaults.defaultGifts }
+                val curatedById = remote.filter { gift -> VibeCatalogDefaults.defaultGifts.any { it.id == gift.id } }.associateBy { it.id }
+                VibeCatalogDefaults.defaultGifts.map { defaultGift -> curatedById[defaultGift.id] ?: defaultGift }
             }
             .catch { error ->
                 unwrapFirestoreError(error)

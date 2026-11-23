@@ -537,6 +537,21 @@ data class ModerationReport(
 
 @Keep
 @IgnoreExtraProperties
+data class GlobalGiftAnnouncement(
+    @DocumentId val id: String = "",
+    val giftTransactionId: String = "",
+    val senderId: String = "",
+    val senderName: String = "",
+    val recipientId: String = "",
+    val recipientName: String = "",
+    val roomId: String = "",
+    val giftName: String = "",
+    val totalCoins: Long = 0L,
+    val createdAt: Timestamp? = null
+)
+
+@Keep
+@IgnoreExtraProperties
 data class GiftCatalogItem(
     @DocumentId val id: String = "",
     val name: String = "",

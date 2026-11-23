@@ -991,6 +991,27 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /global_gift_announcements/{announcementId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() &&
+        isValidId(announcementId) &&
+        incoming().giftTransactionId == announcementId &&
+        incoming().senderId == request.auth.uid &&
+        incoming().totalCoins is int && incoming().totalCoins >= 10000 &&
+        incoming().senderName is string && incoming().senderName.size() >= 1 && incoming().senderName.size() <= 60 &&
+        incoming().recipientName is string && incoming().recipientName.size() >= 1 && incoming().recipientName.size() <= 60 &&
+        incoming().giftName is string && incoming().giftName.size() >= 1 && incoming().giftName.size() <= 60 &&
+        incoming().roomId is string &&
+        existsAfter(/databases/$(database)/documents/gift_transactions/$(announcementId)) &&
+        getAfter(/databases/$(database)/documents/gift_transactions/$(announcementId)).data.senderId == incoming().senderId &&
+        getAfter(/databases/$(database)/documents/gift_transactions/$(announcementId)).data.recipientId == incoming().recipientId &&
+        getAfter(/databases/$(database)/documents/gift_transactions/$(announcementId)).data.roomId == incoming().roomId &&
+        getAfter(/databases/$(database)/documents/gift_transactions/$(announcementId)).data.coinCost == incoming().totalCoins &&
+        getAfter(/databases/$(database)/documents/gift_transactions/$(announcementId)).data.giftName == incoming().giftName &&
+        isValidTs(incoming().createdAt);
+      allow update, delete: if false;
+    }
+
     match /notifications/{notificationId} {
       allow get: if isSignedIn() && isValidId(notificationId) && (existing().recipientId == request.auth.uid);
       allow list: if isSignedIn() && (existing().recipientId == request.auth.uid);

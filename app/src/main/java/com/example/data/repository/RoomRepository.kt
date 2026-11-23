@@ -260,6 +260,18 @@ class RoomRepository(
                     .sortedByDescending { it.createdAt?.seconds ?: 0L }
             }
 
+    fun observeLatestGlobalGiftAnnouncement(): Flow<com.example.data.model.GlobalGiftAnnouncement?> =
+        db.collection("global_gift_announcements")
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(1)
+            .snapshots()
+            .map { snapshot ->
+                snapshot.documents.firstOrNull()?.toObject(
+                    com.example.data.model.GlobalGiftAnnouncement::class.java,
+                    DocumentSnapshot.ServerTimestampBehavior.ESTIMATE
+                )
+            }
+
     fun observeGiftHistory(userId: String): Flow<List<GiftTransaction>> =
         db.collection("gift_transactions")
             .whereArrayContains("participantIds", userId)
@@ -1689,6 +1701,23 @@ class RoomRepository(
                         "createdAt" to FieldValue.serverTimestamp()
                     )
                 )
+
+                if (totalCost >= 10_000L) {
+                    tx.set(
+                        db.collection("global_gift_announcements").document(giftTransactionRef.id),
+                        mapOf(
+                            "giftTransactionId" to giftTransactionRef.id,
+                            "senderId" to uid,
+                            "senderName" to sender.username.take(60),
+                            "recipientId" to recipientId,
+                            "recipientName" to recipientName.take(60),
+                            "roomId" to roomId,
+                            "giftName" to (if (safeQty > 1L) "${safeQty}x " else "") + gift.name.take(60),
+                            "totalCoins" to totalCost,
+                            "createdAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                }
 
                 val qtyLabel = if (safeQty > 1L) "${safeQty}x " else ""
                 tx.set(

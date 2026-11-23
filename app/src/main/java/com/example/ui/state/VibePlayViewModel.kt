@@ -11,6 +11,7 @@ import com.example.data.model.DirectMessage
 import com.example.data.model.FollowEdge
 import com.example.data.model.GiftCatalogItem
 import com.example.data.model.GiftTransaction
+import com.example.data.model.GlobalGiftAnnouncement
 import com.example.data.model.ModerationReport
 import com.example.data.model.PrivateAccount
 import com.example.data.model.RoomCreationLock
@@ -193,6 +194,14 @@ class VibePlayViewModel(
                 emit(emptyList())
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
+
+    val latestGlobalGiftAnnouncement: StateFlow<GlobalGiftAnnouncement?> =
+        roomRepository.observeLatestGlobalGiftAnnouncement()
+            .catch { error ->
+                Log.w(TAG, "Unable to observe global gift announcements", unwrapFirestoreError(error))
+                emit(null)
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
     val giftRankings: StateFlow<List<UserProfile>> =
         userRepository.observeGiftRankings()

@@ -4,6 +4,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import com.example.data.model.GlobalGiftAnnouncement
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -221,6 +230,7 @@ private fun AuthenticatedVibePlayApp(
     val giftHistory by viewModel.giftHistory.collectAsStateWithLifecycle()
     val giftRankings by viewModel.giftRankings.collectAsStateWithLifecycle()
     val activeGifts by viewModel.activeGiftsCatalog.collectAsStateWithLifecycle()
+    val latestGlobalGiftAnnouncement by viewModel.latestGlobalGiftAnnouncement.collectAsStateWithLifecycle()
     val recentRoomIds by viewModel.recentRoomIds.collectAsStateWithLifecycle()
     val darkTheme by viewModel.darkTheme.collectAsStateWithLifecycle()
     val roomEffectsEnabled by viewModel.roomEffectsEnabled.collectAsStateWithLifecycle()
@@ -733,6 +743,10 @@ private fun AuthenticatedVibePlayApp(
                         }
                     }
                 }
+                GlobalGiftAnnouncementTicker(
+                    announcement = latestGlobalGiftAnnouncement,
+                    modifier = Modifier.align(Alignment.TopStart).fillMaxWidth()
+                )
             }
 
             inspectedUser?.let { target ->
@@ -837,6 +851,61 @@ private fun AuthenticatedVibePlayApp(
                         TextButton(onClick = { passwordPromptRoom = null }) { Text("Cancel") }
                     }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GlobalGiftAnnouncementTicker(announcement: GlobalGiftAnnouncement?, modifier: Modifier = Modifier) {
+    var displayed by remember { mutableStateOf<GlobalGiftAnnouncement?>(null) }
+    var lastId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(announcement?.id) {
+        val item = announcement ?: return@LaunchedEffect
+        val fresh = item.createdAt?.seconds?.let { it >= (System.currentTimeMillis() / 1000L) - 30L } == true
+        if (lastId == null) {
+            lastId = item.id
+            if (fresh) {
+                displayed = item
+                delay(5_200L)
+                if (displayed?.id == item.id) displayed = null
+            }
+        } else if (item.id != lastId) {
+            lastId = item.id
+            displayed = item
+            delay(5_200L)
+            if (displayed?.id == item.id) displayed = null
+        }
+    }
+    BoxWithConstraints(modifier = modifier) {
+        val item = displayed
+        val x by animateDpAsState(if (item == null) maxWidth else -maxWidth, tween(5_000), label = "gift_ticker")
+        if (item != null) {
+            Surface(
+                modifier = Modifier.align(Alignment.TopStart).padding(top = 8.dp).offset(x = x)
+                    .fillMaxWidth(0.88f).height(42.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(1.dp, VibeGold.copy(alpha = 0.85f), RoundedCornerShape(10.dp)),
+                color = androidx.compose.ui.graphics.Color(0xE91A1428),
+                shape = RoundedCornerShape(10.dp), shadowElevation = 8.dp
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(
+                        VibeViolet.copy(alpha = 0.92f),
+                        androidx.compose.ui.graphics.Color(0xEE241A38),
+                        VibeGold.copy(alpha = 0.30f)
+                    ))).padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "★ ${item.senderName} ne ${item.recipientName} ko ${item.giftName} bheja • ${item.totalCoins} coins!",
+                        color = androidx.compose.ui.graphics.Color.White,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 1,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
     }

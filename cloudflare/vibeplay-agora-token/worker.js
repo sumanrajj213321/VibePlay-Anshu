@@ -56,7 +56,7 @@ async function authenticate(request) {
 }
 async function numericAgoraUid(firebaseUid) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(firebaseUid));
-  return new DataView(digest).getUint32(0, false) || 1;
+  return (new DataView(digest).getUint32(0, false) & 0x7fffffff) || 1;
 }
 export default {
   async fetch(request, env) {
@@ -91,7 +91,7 @@ export default {
         if (stringField(seats[index], "occupantId") === uid) {
           seatIndex = index;
           muted = boolField(seats[index], "muted", true);
-          locked = boolField(seats[index], "seatLocked", false);
+          locked = boolField(seats[index], "seatLocked", true);
           break;
         }
       }

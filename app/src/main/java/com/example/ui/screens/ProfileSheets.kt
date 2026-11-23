@@ -49,6 +49,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -433,6 +434,20 @@ fun ImageCropDialog(
                             offsetX = 0f
                             offsetY = 0f
                         }) { Text("Reset") }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text("1×", style = MaterialTheme.typography.labelSmall)
+                        Slider(
+                            value = zoom,
+                            onValueChange = { zoom = it.coerceIn(1f, 5f) },
+                            valueRange = 1f..5f,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text("5×", style = MaterialTheme.typography.labelSmall)
                     }
                 } else {
                     Text(

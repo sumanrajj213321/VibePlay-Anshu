@@ -1,6 +1,13 @@
 package com.example.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import android.media.AudioManager
+import android.media.ToneGenerator
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -77,6 +84,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.data.model.AppNotification
@@ -632,9 +640,23 @@ private fun ChatDetailScreen(
         onMarkRead()
     }
 
-    LaunchedEffect(messages.size) {
+    var lastGiftSoundMessageId by remember(conversation.id) { mutableStateOf("") }
+    LaunchedEffect(messages.size, messages.lastOrNull()?.id) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.lastIndex)
+            val latestMessage = messages.last()
+            if (latestMessage.type == "GIFT" && latestMessage.id.isNotBlank() &&
+                latestMessage.id != lastGiftSoundMessageId
+            ) {
+                lastGiftSoundMessageId = latestMessage.id
+                val toneIndex = Math.floorMod(latestMessage.giftId.hashCode(), 16)
+                val toneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 75)
+                try {
+                    toneGenerator.startTone(ToneGenerator.TONE_DTMF_0 + toneIndex, 420)
+                } finally {
+                    toneGenerator.release()
+                }
+            }
         }
     }
 
@@ -885,6 +907,35 @@ private fun ChatDetailScreen(
                                             ?: if (isMine && currentUser.isVipActive) currentUser.vipLevel else 0L,
                                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
                                     )
+                                }
+                            }
+                            if (msg.type == "GIFT") {
+                                val giftInfinite = rememberInfiniteTransition(label = "inbox_gift_${msg.id}")
+                                val giftFloat by giftInfinite.animateFloat(
+                                    initialValue = -4f,
+                                    targetValue = 4f,
+                                    animationSpec = infiniteRepeatable(tween(550), repeatMode = RepeatMode.Reverse),
+                                    label = "inbox_gift_float"
+                                )
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(22.dp),
+                                    color = Color.Transparent,
+                                    border = BorderStroke(1.5.dp, Brush.horizontalGradient(listOf(VibeGold, VibePink, VibeCyan)))
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .background(Brush.verticalGradient(listOf(Color(0xFF21134D), Color(0xFF32165D), Color(0xFF173A59))))
+                                            .padding(14.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        Text("✨ SPECIAL GIFT ✨", color = VibeGold, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelMedium)
+                                        Text(msg.giftEmoji.ifBlank { "🎁" }, fontSize = 58.sp, modifier = Modifier.offset(y = giftFloat.dp))
+                                        Text(msg.giftName.ifBlank { "Virtual Gift" }, color = Color.White, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
+                                        Text("${senderName} sent a gift!", color = VibeGold, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                        Text("To ${msg.recipientName.ifBlank { headerTitle }}  •  ${msg.giftCoins} Coins", color = Color.White, style = MaterialTheme.typography.labelSmall)
+                                    }
                                 }
                             }
                             if (msg.type == "IMAGE" && msg.imageUri.isNotBlank()) {

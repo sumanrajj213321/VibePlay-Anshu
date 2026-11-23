@@ -119,10 +119,22 @@ class RoomRepository(
                 }
             }
 
-    fun observeRoom(roomId: String): Flow<VoiceRoom?> =
-        db.collection("rooms").document(roomId)
-            .snapshots()
+    fun observeRoom(roomId: String): Flow<VoiceRoom?> {
+        val roomRef = db.collection("rooms").document(roomId)
+        val roomFlow = roomRef.snapshots()
             .map { it.toObject(VoiceRoom::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE) }
+        val sessionsFlow = roomRef.collection("room_sessions").snapshots()
+            .combine(roomPresenceClock()) { snapshot, now ->
+                snapshot.documents.filter { isFreshRoomSession(it, now) }.map { it.id }.toSet()
+            }
+        return combine(roomFlow, sessionsFlow) { room, activeSessionIds ->
+            if (room == null) null
+            else room.copy(
+                ownerOnline = room.ownerOnline && room.effectiveOwnerId.isNotBlank() &&
+                    room.effectiveOwnerId in activeSessionIds
+            )
+        }
+    }
 
     fun observeNineSeats(roomId: String): Flow<List<VoiceSeat>> {
         val roomRef = db.collection("rooms").document(roomId)

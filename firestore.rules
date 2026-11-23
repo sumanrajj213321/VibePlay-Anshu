@@ -563,7 +563,23 @@ service cloud.firestore {
                          incoming().score is int && incoming().score >= 0 && incoming().score <= 1000000000 &&
                          incoming().spins is int && incoming().spins >= 0 && incoming().spins <= 10000000 &&
                          incoming().dailyBonusDate is string &&
-                         incoming().dailyBonusDate.matches('^[0-9]{8}
+                         incoming().dailyBonusDate.matches('^([0-9]{8})?$') &&
+                         isValidTs(incoming().updatedAt);
+        allow update: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         gameId == 'fruit_treasure' &&
+                         incoming().keys().hasOnly(['score', 'spins', 'dailyBonusDate', 'updatedAt']) &&
+                         incoming().keys().hasAll(['score', 'spins', 'dailyBonusDate', 'updatedAt']) &&
+                         incoming().score is int && incoming().score >= existing().score && incoming().score <= 1000000000 &&
+                         incoming().spins is int && incoming().spins >= existing().spins && incoming().spins <= 10000000 &&
+                         incoming().dailyBonusDate is string &&
+                         incoming().dailyBonusDate.matches('^([0-9]{8})?$') &&
+                         isValidTs(incoming().updatedAt) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['score', 'spins', 'dailyBonusDate', 'updatedAt']);
+        allow delete: if false;
+      }
+
+      match /following/{targetId} {
         allow get, list: if isSignedIn();
         allow create, update: if isSignedIn() && isValidId(userId) && isValidId(targetId) &&
                                  request.auth.uid == userId &&

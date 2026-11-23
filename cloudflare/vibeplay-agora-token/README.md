@@ -26,4 +26,4 @@ Open `https://vibeplay-agora-token.sumanrajj213321.workers.dev/health`. A deploy
 POST `{"roomId":"<room-id>"}` with `Authorization: Bearer <Firebase-ID-token>`.
 
 ## Important Agora limitation
-Agora's publish-audio token privilege is enforced only when co-host authentication is enabled for the Agora project. Without that project setting, a listener token may not prevent publishing. Also, an already-issued speaker publish privilege can remain valid for up to 5 minutes; the Android client must immediately mute/unpublish when Firestore moderation changes arrive.
+Agora's publish-audio token privilege is enforced only when co-host authentication is enabled for the Agora project. Without that project setting, a listener token may not prevent publishing. An issued speaker publish privilege can remain valid until its one-hour expiry. The Android client mutes locally as soon as Firestore moderation changes arrive and requests a refreshed token to rejoin with the updated role.

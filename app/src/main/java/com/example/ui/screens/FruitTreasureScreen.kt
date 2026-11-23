@@ -41,6 +41,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 
 private enum class Fruit(val color: Color) { CHERRY(Color(0xFFFF397D)), GRAPE(Color(0xFFB34CFF)), LEMON(Color(0xFFFFD83D)), ORANGE(Color(0xFFFF9B28)), MELON(Color(0xFFFF5365)), KIWI(Color(0xFF9AE34B)) }
 
@@ -60,6 +61,8 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
         }
     }
     var cloudProgressLoaded by remember(signedInUid) { mutableStateOf(false) }
+    var claimingBonus by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     var reels by remember { mutableStateOf(List(9) { Fruit.entries.random() }) }
     var spinning by remember { mutableStateOf(false) }
     var musicOn by remember { mutableStateOf(progressPrefs.getBoolean("music_on", false)) }
@@ -186,7 +189,48 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column { Text("DAILY BONUS", color = Color.White, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold); Text(if (dailyBonusClaimed) "Claimed today" else "One free daily score bonus", color = Color(0xFFB7D9FF), style = MaterialTheme.typography.labelSmall) }
-            Button(onClick = { if (!dailyBonusClaimed) { score += 25; dailyBonusClaimed = true; message = "Daily bonus claimed: +25 points" } }, enabled = !dailyBonusClaimed, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF236BCE))) { Text(if (dailyBonusClaimed) "CLAIMED" else "+25 POINTS") }
+            Button(
+                onClick = {
+                    if (!dailyBonusClaimed && !claimingBonus && cloudProgressLoaded) {
+                        val ref = cloudProgressRef
+                        if (ref == null) {
+                            score = (score + 25).coerceAtMost(1_000_000_000)
+                            dailyBonusClaimed = true
+                            message = "Daily bonus claimed: +25 points"
+                        } else {
+                            claimingBonus = true
+                            scope.launch {
+                                try {
+                                    val awarded = FirebaseFirestore.getInstance(context.getString(R.string.firestore_database_id)).runTransaction { transaction ->
+                                        val snapshot = transaction.get(ref)
+                                        val savedDate = snapshot.getString("dailyBonusDate").orEmpty()
+                                        val cloudScore = (snapshot.getLong("score") ?: 0L).coerceIn(0L, 1_000_000_000L).toInt()
+                                        val cloudSpins = (snapshot.getLong("spins") ?: 0L).coerceIn(0L, 10_000_000L).toInt()
+                                        if (savedDate == todayKey) false else {
+                                            transaction.set(ref, mapOf(
+                                                "score" to (maxOf(score, cloudScore) + 25).coerceAtMost(1_000_000_000),
+                                                "spins" to maxOf(spins, cloudSpins),
+                                                "dailyBonusDate" to todayKey,
+                                                "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                                            ), SetOptions.merge())
+                                            true
+                                        }
+                                    }.await()
+                                    dailyBonusClaimed = true
+                                    if (awarded) {
+                                        score = (score + 25).coerceAtMost(1_000_000_000)
+                                        message = "Daily bonus claimed: +25 points"
+                                    } else message = "Daily bonus already claimed on another device."
+                                } catch (_: Exception) {
+                                    message = "Could not claim daily bonus. Please try again."
+                                } finally { claimingBonus = false }
+                            }
+                        }
+                    }
+                },
+                enabled = !dailyBonusClaimed && !claimingBonus && cloudProgressLoaded,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF236BCE))
+            ) { Text(if (claimingBonus) "PLEASE WAIT" else if (dailyBonusClaimed) "CLAIMED" else if (!cloudProgressLoaded) "LOADING" else "+25 POINTS") }
         }
         Column(Modifier.fillMaxWidth().background(Color(0xFF10094C), RoundedCornerShape(22.dp)).border(3.dp, Color(0xFFB64DFF), RoundedCornerShape(22.dp)).padding(8.dp)) {
             for (row in 0..2) {

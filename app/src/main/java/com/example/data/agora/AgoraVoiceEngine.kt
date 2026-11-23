@@ -86,6 +86,10 @@ class AgoraVoiceEngine {
             _connectionState.value = VoiceConnectionState.Error("Agora connection error ($err)")
         }
 
+        override fun onLeaveChannel(stats: IRtcEngineEventHandler.RtcStats?) {
+            joined = false
+        }
+
         override fun onConnectionLost() {
             joined = false
             _connectionState.value = VoiceConnectionState.Error("Voice connection lost. Re-enter the room to reconnect.")
@@ -183,6 +187,16 @@ class AgoraVoiceEngine {
         if (!published) {
             micShouldPublish = false
             engine?.muteLocalAudioStream(true)
+
+            // A muted/removed/locked seat must lose its server-side publish privilege too.
+            // Rejoin as audience after the Firestore seat write has completed.
+            if (tokenAllowsPublish) {
+                val roomId = activeRoomId
+                if (roomId != null) {
+                    joinWithFreshServerAuthorization(roomId)
+                }
+            }
+
             val current = _connectionState.value
             if (current is VoiceConnectionState.Connected) {
                 _connectionState.value = current.copy(micPublished = false)

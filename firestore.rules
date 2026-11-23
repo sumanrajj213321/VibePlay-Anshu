@@ -262,14 +262,19 @@ service cloud.firestore {
     }
 
     function defaultGiftUnitPrice(giftId) {
-      return giftId == 'gift_rose' ? 10 :
-             giftId == 'gift_mic' ? 25 :
-             giftId == 'gift_fire' ? 50 :
-             giftId == 'gift_party' ? 100 :
-             giftId == 'gift_heart' ? 180 :
-             giftId == 'gift_crown' ? 500 :
-             giftId == 'gift_rocket' ? 999 :
-             giftId == 'gift_diamond' ? 1500 : -1;
+      return giftId == 'gift_aurora_bloom' ? 20 :
+             giftId == 'gift_starfall' ? 45 :
+             giftId == 'gift_crystal_wave' ? 90 :
+             giftId == 'gift_love_promise' ? 180 :
+             giftId == 'gift_couple_kiss' ? 360 :
+             giftId == 'gift_sunset_love' ? 480 :
+             giftId == 'gift_moonlight_dance' ? 520 :
+             giftId == 'gift_royal_phoenix' ? 850 :
+             giftId == 'gift_galaxy_crown' ? 1200 :
+             giftId == 'gift_diamond_rain' ? 1800 :
+             giftId == 'gift_dragon_flight' ? 2600 :
+             giftId == 'gift_ocean_palace' ? 3800 :
+             giftId == 'gift_vibe_universe' ? 5500 : -1;
     }
 
     function isTrustedGiftPrice(data) {

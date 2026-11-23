@@ -945,30 +945,45 @@ fun VoiceRoomCard(
 @Composable
 fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
     if (gift.id == "gift_sunset_love") {
-        Image(
-            painter = painterResource(R.drawable.couple_kiss_thumbnail),
-            contentDescription = gift.name,
-            modifier = modifier.clip(RoundedCornerShape(12.dp)),
-            contentScale = ContentScale.Crop
-        )
-    } else {
-        val colors = when (gift.category.lowercase()) {
-            "love" -> listOf(Color(0xFFFF7BAE), Color(0xFF7D3C98))
-            "premium" -> listOf(Color(0xFFFFC857), Color(0xFF7C3AED))
-            else -> listOf(Color(0xFF39C6D8), Color(0xFF4F46E5))
+        Image(painter = painterResource(R.drawable.couple_kiss_thumbnail), contentDescription = gift.name,
+            modifier = modifier.clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
+        return
+    }
+    val colors = when (gift.id) {
+        "gift_couple_kiss", "gift_love_promise", "gift_moonlight_dance" -> listOf(Color(0xFFFF8DBB), Color(0xFF713A91))
+        "gift_royal_phoenix", "gift_galaxy_crown" -> listOf(Color(0xFFFFC857), Color(0xFF8138A8))
+        "gift_crystal_wave", "gift_diamond_rain", "gift_ocean_palace" -> listOf(Color(0xFF37D9E8), Color(0xFF2450A4))
+        "gift_dragon_flight", "gift_vibe_universe" -> listOf(Color(0xFF9B70F5), Color(0xFF22215D))
+        else -> listOf(Color(0xFF42D5C7), Color(0xFF3153A5))
+    }
+    Canvas(modifier = modifier.clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(colors))) {
+        val c = Offset(size.width * 0.5f, size.height * 0.48f)
+        val u = size.minDimension * 0.22f
+        val white = Color.White
+        val gold = Color(0xFFFFE6A3)
+        fun diamond(x: Float, y: Float, r: Float, color: Color) {
+            val p = Path().apply { moveTo(x,y-r); lineTo(x+r*0.72f,y); lineTo(x,y+r); lineTo(x-r*0.72f,y); close() }
+            drawPath(p,color); drawLine(white,Offset(x,y-r),Offset(x,y+r),1.2.dp.toPx())
         }
-        Box(
-            modifier = modifier.clip(RoundedCornerShape(12.dp))
-                .background(Brush.linearGradient(colors)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = gift.name.take(1).uppercase(),
-                color = Color.White,
-                fontWeight = FontWeight.Black,
-                style = MaterialTheme.typography.titleLarge
-            )
+        when (gift.id) {
+            "gift_aurora_bloom" -> {
+                for(i in 0..7){val a=i*Math.PI.toFloat()/4f;drawCircle(Color(0xFFFFD5F0),u*0.5f,Offset(c.x+kotlin.math.cos(a)*u*0.72f,c.y+kotlin.math.sin(a)*u*0.72f))}
+                drawCircle(gold,u*0.4f,c);drawLine(white,Offset(c.x,c.y+u*0.4f),Offset(c.x,c.y+u*1.6f),3.dp.toPx())
+            }
+            "gift_starfall" -> { diamond(c.x,c.y,u*1.3f,gold);drawLine(white,Offset(c.x-u*1.5f,c.y+u*1.4f),Offset(c.x+u*1.4f,c.y-u*1.4f),3.dp.toPx()) }
+            "gift_crystal_wave" -> { val p=Path().apply{moveTo(0f,size.height*0.7f);cubicTo(size.width*0.25f,size.height*0.05f,size.width*0.65f,size.height*0.98f,size.width,size.height*0.25f);lineTo(size.width,size.height);lineTo(0f,size.height);close()};drawPath(p,Color(0xFF8CFBFF));drawLine(white,Offset(0f,size.height*0.7f),Offset(size.width,size.height*0.25f),2.dp.toPx()) }
+            "gift_love_promise" -> { val p=Path().apply{moveTo(c.x,c.y+u*1.2f);cubicTo(c.x-u*2f,c.y,c.x-u*1.2f,c.y-u*1.5f,c.x,c.y-u*0.45f);cubicTo(c.x+u*1.2f,c.y-u*1.5f,c.x+u*2f,c.y,c.x,c.y+u*1.2f)};drawPath(p,Color(0xFFFFD0E4));drawPath(p,gold,style=Stroke(2.dp.toPx())) }
+            "gift_couple_kiss" -> { drawCircle(Color(0xFFFFD8C8),u*0.65f,Offset(c.x-u*0.72f,c.y-u*0.45f));drawCircle(Color(0xFFFFD8C8),u*0.65f,Offset(c.x+u*0.72f,c.y-u*0.45f));drawOval(Color(0xFF512B59),Offset(c.x-u*1.35f,c.y-u*1.15f),androidx.compose.ui.geometry.Size(u*1.25f,u*0.7f));drawOval(Color(0xFF29365C),Offset(c.x+u*0.1f,c.y-u*1.15f),androidx.compose.ui.geometry.Size(u*1.25f,u*0.7f));drawRoundRect(Color(0xFFFF8DBB),Offset(c.x-u*1.35f,c.y+u*0.2f),androidx.compose.ui.geometry.Size(u*2.7f,u*1.35f),androidx.compose.ui.geometry.CornerRadius(u*0.5f)) }
+            "gift_moonlight_dance" -> { drawCircle(gold,u*1.05f,Offset(c.x+u*0.55f,c.y-u*0.45f));drawCircle(colors.first(),u*0.92f,Offset(c.x+u*0.95f,c.y-u*0.75f));drawLine(white,Offset(c.x-u*0.7f,c.y-u*0.2f),Offset(c.x+u*0.7f,c.y+u*0.7f),4.dp.toPx());drawLine(gold,Offset(c.x-u*0.7f,c.y-u*0.2f),Offset(c.x-u*1.1f,c.y+u*1.25f),3.dp.toPx()) }
+            "gift_royal_phoenix" -> { val p=Path().apply{moveTo(c.x,c.y+u*1.4f);cubicTo(c.x-u*2f,c.y+u*0.2f,c.x-u*1.8f,c.y-u*1.5f,c.x,c.y-u*0.4f);cubicTo(c.x+u*1.8f,c.y-u*1.5f,c.x+u*2f,c.y+u*0.2f,c.x,c.y+u*1.4f)};drawPath(p,gold);drawCircle(Color(0xFFFF8A36),u*0.42f,c) }
+            "gift_galaxy_crown" -> { val p=Path().apply{moveTo(c.x-u*1.3f,c.y-u*0.7f);lineTo(c.x-u,c.y+u*0.65f);lineTo(c.x+u,c.y+u*0.65f);lineTo(c.x+u*1.3f,c.y-u*0.7f);lineTo(c.x+u*0.35f,c.y-u*0.1f);lineTo(c.x,c.y-u*1.1f);lineTo(c.x-u*0.35f,c.y-u*0.1f);close()};drawPath(p,gold) }
+            "gift_diamond_rain" -> { diamond(c.x,c.y,u,white);diamond(c.x-u*1.1f,c.y-u*0.8f,u*0.42f,gold);diamond(c.x+u*1.15f,c.y+u*0.75f,u*0.48f,white) }
+            "gift_dragon_flight" -> { val p=Path().apply{moveTo(c.x-u*1.5f,c.y+u*0.7f);cubicTo(c.x-u*0.3f,c.y-u*1.8f,c.x+u*0.3f,c.y+u*1.8f,c.x+u*1.5f,c.y-u*0.7f);lineTo(c.x+u*0.65f,c.y-u*0.35f);lineTo(c.x+u*0.95f,c.y-u*1.35f);lineTo(c.x-u*0.15f,c.y-u*0.6f);close()};drawPath(p,Color(0xFFD6B9FF));drawPath(p,white,style=Stroke(2.dp.toPx())) }
+            "gift_ocean_palace" -> { drawRoundRect(Color(0xFFB6F8FF),Offset(c.x-u*1.35f,c.y-u*0.2f),androidx.compose.ui.geometry.Size(u*2.7f,u*1.35f),androidx.compose.ui.geometry.CornerRadius(u*0.12f));for(i in -1..1){val x=c.x+i*u*0.9f;val p=Path().apply{moveTo(x-u*0.42f,c.y-u*0.2f);lineTo(x,c.y-u*1.15f);lineTo(x+u*0.42f,c.y-u*0.2f);close()};drawPath(p,gold)} }
+            "gift_vibe_universe" -> { drawCircle(white,u*0.48f,c);drawCircle(gold,u,c,style=Stroke(3.dp.toPx()));drawOval(white,Offset(c.x-u*1.5f,c.y-u*0.48f),androidx.compose.ui.geometry.Size(u*3f,u*0.95f),style=Stroke(3.dp.toPx())) }
+            else -> diamond(c.x,c.y,u,white)
         }
+        for(i in 0..3)drawCircle(white.copy(alpha=0.75f),1.8.dp.toPx(),Offset(size.width*(0.16f+i*0.22f),size.height*(0.16f+(i%2)*0.68f)))
     }
 }
 

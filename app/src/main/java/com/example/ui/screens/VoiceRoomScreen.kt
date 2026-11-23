@@ -907,22 +907,14 @@ internal fun VoiceRoomStageContent(
             }
 
             if (roomEffectsEnabled) {
-                // VIP Stage Entrance Banner
                 VipEntranceOverlay(
                     user = vipEntrance,
                     onFinished = onClearVipEntrance,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 46.dp)
-                )
-
-                // Floating Animated Virtual Gift Burst Overlay
-                GiftBurstOverlay(
-                    event = giftBurst,
-                    onFinished = onClearGiftBurst,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 46.dp)
                 )
             }
+            // Gift animations are independent of the optional VIP effects toggle.
+            GiftBurstOverlay(event = giftBurst, onFinished = onClearGiftBurst, modifier = Modifier.fillMaxSize())
         }
     }
 

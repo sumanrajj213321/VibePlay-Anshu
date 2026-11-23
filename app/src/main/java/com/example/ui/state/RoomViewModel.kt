@@ -134,7 +134,8 @@ class RoomViewModel(
                         recipientName = latestGift.recipientName,
                         giftName = latestGift.giftName,
                         giftEmoji = catalogMatch?.emoji ?: "\uD83C\uDF81",
-                        coinCost = latestGift.giftCoins
+                        coinCost = latestGift.giftCoins,
+                        giftId = latestGift.giftId
                     )
                 }
             }

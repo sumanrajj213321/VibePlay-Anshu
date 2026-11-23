@@ -102,12 +102,17 @@ export default {
       const canPublishAudio = seatIndex >= 0 && !muted && !locked;
       const rtcUid = await numericAgoraUid(uid);
       const channelName = "vp_" + roomId;
-      const token = RtcTokenBuilder.buildTokenWithUidAndPrivilege(
-        env.AGORA_APP_ID, env.AGORA_APP_CERTIFICATE, channelName, rtcUid,
-        JOIN_TOKEN_TTL, JOIN_TOKEN_TTL,
-        canPublishAudio ? AUDIO_PUBLISH_TTL : 0,
-        0, 0
-      );
+      // Use an explicit subscriber-role token for listeners. This omits publish
+      // privileges entirely instead of relying on a zero-duration privilege entry.
+      const token = canPublishAudio
+        ? RtcTokenBuilder.buildTokenWithUidAndPrivilege(
+            env.AGORA_APP_ID, env.AGORA_APP_CERTIFICATE, channelName, rtcUid,
+            JOIN_TOKEN_TTL, JOIN_TOKEN_TTL, AUDIO_PUBLISH_TTL, 0, 0
+          )
+        : RtcTokenBuilder.buildTokenWithUid(
+            env.AGORA_APP_ID, env.AGORA_APP_CERTIFICATE, channelName, rtcUid,
+            2, JOIN_TOKEN_TTL, JOIN_TOKEN_TTL
+          );
       if (!token) return json({ error: "Agora token generation failed" }, 500);
       return json({
         appId: env.AGORA_APP_ID,

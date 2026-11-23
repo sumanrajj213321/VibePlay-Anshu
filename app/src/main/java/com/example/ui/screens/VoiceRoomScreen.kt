@@ -707,12 +707,7 @@ internal fun VoiceRoomStageContent(
 
                 RoomGiftRankingStrip(giftTransactions, onOpenUserProfile)
 
-                // 2. Honest LiveKit Connection Status Banner + Announcement
-                AgoraStatusPill(
-                    state = voiceConnection,
-                    hasAudioPermission = hasAudioPermission,
-                    onOpenGuide = { showSetupGuide = true }
-                )
+                // Voice connection status is intentionally kept out of the room chat layout.
 
                 if (currentRoom.announcement.isNotBlank() && !isImeVisible) {
                     Surface(
@@ -1203,16 +1198,14 @@ private fun HostSeatTile(
             .testTag("host_seat_0")
     ) {
         Box(contentAlignment = Alignment.BottomEnd) {
-            if (ownerOnline && isSpeaking) {
-                VoiceActivityRings(modifier = Modifier.align(Alignment.Center).size(92.dp))
-            }
+            // Keep the host avatar bounds fixed while voice activity changes.
             if (ownerOnline) {
                 VibeAvatar(
                     avatarUrl = seat.occupantAvatarUrl,
                     username = seat.occupantName,
                     size = 76.dp,
                     vipLevel = seat.occupantVipLevel,
-                    speaking = isSpeaking,
+                    speaking = false,
                     frameColorArgb = seat.occupantFrameColorArgb
                 )
             } else {
@@ -1304,15 +1297,13 @@ private fun SpeakerSeatTile(
     ) {
         if (seat.isOccupied) {
             Box(contentAlignment = Alignment.BottomEnd) {
-                if (isSpeaking) {
-                    VoiceActivityRings(modifier = Modifier.align(Alignment.Center).size(70.dp))
-                }
+                // A fixed avatar footprint prevents the 1–8 seat grid from resizing while speaking.
                 VibeAvatar(
                     avatarUrl = seat.occupantAvatarUrl,
                     username = seat.occupantName,
                     size = 54.dp,
                     vipLevel = seat.occupantVipLevel,
-                    speaking = isSpeaking,
+                    speaking = false,
                     frameColorArgb = seat.occupantFrameColorArgb
                 )
                 Surface(

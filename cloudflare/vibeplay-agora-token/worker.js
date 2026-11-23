@@ -7,7 +7,7 @@ const FIREBASE_JWKS = createRemoteJWKSet(
   new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com")
 );
 const JOIN_TOKEN_TTL = 3600;
-const AUDIO_PUBLISH_TTL = 300;
+const AUDIO_PUBLISH_TTL = JOIN_TOKEN_TTL;
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {

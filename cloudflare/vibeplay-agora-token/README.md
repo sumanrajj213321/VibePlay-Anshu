@@ -19,6 +19,9 @@ Set `AGORA_APP_CERTIFICATE` to the Agora Primary Certificate using Worker Settin
 
 If deploying to the already-created Worker, preserve the name `vibeplay-agora-token`. Ensure the secret is configured on that Worker.
 
+## Deployment health check
+Open `https://vibeplay-agora-token.sumanrajj213321.workers.dev/health`. A deployed Worker returns `{"ok":true,"service":"vibeplay-agora-token","version":1}`.
+
 ## Request
 POST `{"roomId":"<room-id>"}` with `Authorization: Bearer <Firebase-ID-token>`.
 

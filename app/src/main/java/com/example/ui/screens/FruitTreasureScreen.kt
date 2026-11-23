@@ -65,8 +65,8 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var reels by remember { mutableStateOf(List(9) { Fruit.entries.random() }) }
     var spinning by remember { mutableStateOf(false) }
-    var musicOn by remember { mutableStateOf(progressPrefs.getBoolean("music_on", false)) }
-    var soundOn by remember { mutableStateOf(progressPrefs.getBoolean("sound_on", true)) }
+    var musicOn by remember(signedInUid) { mutableStateOf(progressPrefs.getBoolean("music_on", false)) }
+    var soundOn by remember(signedInUid) { mutableStateOf(progressPrefs.getBoolean("sound_on", true)) }
     var score by remember(signedInUid) { mutableIntStateOf(progressPrefs.getInt("score", 0)) }
     var spins by remember(signedInUid) { mutableIntStateOf(progressPrefs.getInt("spins", 0)) }
     var dailyBonusClaimed by remember(signedInUid) { mutableStateOf(progressPrefs.getString("daily_bonus_date", "") == todayKey) }
@@ -201,26 +201,28 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
                             claimingBonus = true
                             scope.launch {
                                 try {
-                                    val awarded = FirebaseFirestore.getInstance(context.getString(R.string.firestore_database_id)).runTransaction { transaction ->
+                                    val result = FirebaseFirestore.getInstance(context.getString(R.string.firestore_database_id)).runTransaction { transaction ->
                                         val snapshot = transaction.get(ref)
                                         val savedDate = snapshot.getString("dailyBonusDate").orEmpty()
                                         val cloudScore = (snapshot.getLong("score") ?: 0L).coerceIn(0L, 1_000_000_000L).toInt()
                                         val cloudSpins = (snapshot.getLong("spins") ?: 0L).coerceIn(0L, 10_000_000L).toInt()
-                                        if (savedDate == todayKey) false else {
+                                        if (savedDate == todayKey) {
+                                            false to cloudScore
+                                        } else {
+                                            val nextScore = (maxOf(score, cloudScore) + 25).coerceAtMost(1_000_000_000)
                                             transaction.set(ref, mapOf(
-                                                "score" to (maxOf(score, cloudScore) + 25).coerceAtMost(1_000_000_000),
+                                                "score" to nextScore,
                                                 "spins" to maxOf(spins, cloudSpins),
                                                 "dailyBonusDate" to todayKey,
                                                 "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
                                             ), SetOptions.merge())
-                                            true
+                                            true to nextScore
                                         }
                                     }.await()
                                     dailyBonusClaimed = true
-                                    if (awarded) {
-                                        score = (score + 25).coerceAtMost(1_000_000_000)
-                                        message = "Daily bonus claimed: +25 points"
-                                    } else message = "Daily bonus already claimed on another device."
+                                    score = maxOf(score, result.second)
+                                    if (result.first) message = "Daily bonus claimed: +25 points"
+                                    else message = "Daily bonus already claimed on another device."
                                 } catch (_: Exception) {
                                     message = "Could not claim daily bonus. Please try again."
                                 } finally { claimingBonus = false }

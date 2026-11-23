@@ -2,6 +2,8 @@ name: Build VibePlay APK
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
   contents: read

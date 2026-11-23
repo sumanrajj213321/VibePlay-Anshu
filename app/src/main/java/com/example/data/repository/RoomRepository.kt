@@ -32,7 +32,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.sync.Mutex
@@ -59,26 +58,6 @@ class RoomRepository(
             ?: throw IllegalStateException("User must be signed in with Google before accessing Firestore.")
     }
 
-    private fun roomPresenceClock(): Flow<Long> = flow {
-        while (true) {
-            emit(System.currentTimeMillis())
-            delay(5_000L)
-        }
-    }
-
-    private fun isFreshRoomSession(document: DocumentSnapshot, nowMillis: Long = System.currentTimeMillis()): Boolean {
-        val lastSeenMillis = document.getTimestamp("lastSeenAt")?.toDate()?.time ?: return false
-        return (nowMillis - lastSeenMillis) in -10_000L..30_000L
-    }
-
-    suspend fun heartbeatRoomSession(roomId: String) {
-        val uid = requireUserId()
-        db.collection("rooms").document(roomId)
-            .collection("room_sessions").document(uid)
-            .update("lastSeenAt", FieldValue.serverTimestamp())
-            .await()
-    }
-
     fun hashPasscode(raw: String): String {
         if (raw.isBlank()) return ""
         val bytes = MessageDigest.getInstance("SHA-256").digest(raw.trim().toByteArray())
@@ -94,9 +73,7 @@ class RoomRepository(
                     val roomCountFlows = rooms.map { room ->
                         val roomRef = db.collection("rooms").document(room.id)
                         val sessionsFlow = roomRef.collection("room_sessions").snapshots()
-                            .combine(roomPresenceClock()) { snapshot, now ->
-                                snapshot.documents.filter { isFreshRoomSession(it, now) }.map { it.id }.toSet()
-                            }
+                            .map { it.documents.map { doc -> doc.id }.toSet() }
                             .onStart { emit(emptySet()) }
                         val seatsFlow = roomRef.collection("seats").snapshots()
                             .map { snap -> snap.documents.mapNotNull { it.getString("occupantId") }.filter { it.isNotBlank() }.toSet() }
@@ -119,22 +96,10 @@ class RoomRepository(
                 }
             }
 
-    fun observeRoom(roomId: String): Flow<VoiceRoom?> {
-        val roomRef = db.collection("rooms").document(roomId)
-        val roomFlow = roomRef.snapshots()
+    fun observeRoom(roomId: String): Flow<VoiceRoom?> =
+        db.collection("rooms").document(roomId)
+            .snapshots()
             .map { it.toObject(VoiceRoom::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE) }
-        val sessionsFlow = roomRef.collection("room_sessions").snapshots()
-            .combine(roomPresenceClock()) { snapshot, now ->
-                snapshot.documents.filter { isFreshRoomSession(it, now) }.map { it.id }.toSet()
-            }
-        return combine(roomFlow, sessionsFlow) { room, activeSessionIds ->
-            if (room == null) null
-            else room.copy(
-                ownerOnline = room.ownerOnline && room.effectiveOwnerId.isNotBlank() &&
-                    room.effectiveOwnerId in activeSessionIds
-            )
-        }
-    }
 
     fun observeNineSeats(roomId: String): Flow<List<VoiceSeat>> {
         val roomRef = db.collection("rooms").document(roomId)
@@ -146,9 +111,7 @@ class RoomRepository(
                 snapshot.toObjects(VoiceSeat::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
             }
         val sessionsFlow = roomRef.collection("room_sessions").snapshots()
-            .combine(roomPresenceClock()) { snapshot, now ->
-                snapshot.documents.filter { isFreshRoomSession(it, now) }.map { it.id }.toSet()
-            }
+            .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
         val onlineUsersFlow = db.collection("users")
             .whereEqualTo("accountStatus", "ACTIVE")
             .whereEqualTo("online", true)
@@ -173,8 +136,13 @@ class RoomRepository(
             // flag can lag behind room presence and must not erase a valid seat or mic controls.
             val activeSessionIds = sessionIds
             seats.map { seat ->
-                val hasStaleOccupant = seat.occupantId.isNotBlank() &&
-                    seat.occupantId !in activeSessionIds
+                val isOfflineOwnerSeat = room != null &&
+                    !room.effectiveOwnerOnline &&
+                    seat.occupantId == room.effectiveOwnerId
+                val hasStaleOccupant = !seat.isHostSeat &&
+                    seat.occupantId.isNotBlank() &&
+                    seat.occupantId !in activeSessionIds &&
+                    !isOfflineOwnerSeat
 
                 if (hasStaleOccupant) {
                     // Clear stale occupant details without dropping the seat document.
@@ -249,9 +217,7 @@ class RoomRepository(
         // Do not hide valid room members merely because their global users/{uid}.online flag is stale.
         val sessionsFlow = roomRef.collection("room_sessions")
             .snapshots()
-            .combine(roomPresenceClock()) { snapshot, now ->
-                snapshot.documents.filter { isFreshRoomSession(it, now) }.map { it.id }.toSet()
-            }
+            .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
         val onlineFrameColorsFlow = db.collection("users")
             .whereEqualTo("accountStatus", "ACTIVE")
             .whereEqualTo("online", true)
@@ -532,8 +498,7 @@ class RoomRepository(
                     roomRef.collection("room_sessions").document(uid),
                     mapOf(
                         "userId" to uid,
-                        "joinedAt" to FieldValue.serverTimestamp(),
-                        "lastSeenAt" to FieldValue.serverTimestamp()
+                        "joinedAt" to FieldValue.serverTimestamp()
                     )
                 )
 
@@ -604,8 +569,7 @@ class RoomRepository(
                     sessionRef,
                     mapOf(
                         "userId" to uid,
-                        "joinedAt" to FieldValue.serverTimestamp(),
-                        "lastSeenAt" to FieldValue.serverTimestamp()
+                        "joinedAt" to FieldValue.serverTimestamp()
                     )
                 )
 

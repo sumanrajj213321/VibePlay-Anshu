@@ -81,6 +81,7 @@ import com.example.ui.components.BiologicalGenderBadge
 import com.example.ui.components.LevelBadge
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.VipBadgePill
+import com.example.ui.components.VipShiningNameText
 import com.example.ui.theme.VibeCoral
 import com.example.ui.theme.VibeCyan
 import com.example.ui.theme.VibeGold
@@ -428,12 +429,11 @@ fun ProfileScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
+                    VipShiningNameText(
                         text = profile.username,
+                        vipLevel = if (profile.isVipActive) profile.vipLevel else 0L,
                         modifier = Modifier.weight(1f, fill = false),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold)
                     )
                     BiologicalGenderBadge(
                         gender = profile.gender,

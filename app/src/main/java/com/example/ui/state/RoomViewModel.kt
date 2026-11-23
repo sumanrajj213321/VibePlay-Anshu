@@ -24,6 +24,8 @@ import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -52,6 +54,7 @@ class RoomViewModel(
 
     private val _knownGifts = MutableStateFlow(VibeCatalogDefaults.defaultGifts)
     private val announcedVipIds = mutableSetOf<String>()
+    private var roomHeartbeatJob: Job? = null
 
     val voiceConnectionState: StateFlow<VoiceConnectionState> = voiceEngine.connectionState
     val activeSpeakerUids: StateFlow<Set<Int>> = voiceEngine.activeSpeakerUids
@@ -195,6 +198,14 @@ class RoomViewModel(
             roomRepository.joinAsListener(loadedRoom, currentUser)
                 .onSuccess {
                     joinedListenerDone = true
+                    roomHeartbeatJob?.cancel()
+                    roomHeartbeatJob = launch {
+                        while (isActive) {
+                            runCatching { roomRepository.heartbeatRoomSession(roomId) }
+                                .onFailure { error -> Log.w(TAG, "Room presence heartbeat failed", error) }
+                            delay(10_000L)
+                        }
+                    }
                     roomGiftTransactionsJob?.cancel()
                     roomGiftTransactionsJob = launch {
                         roomRepository.observeRoomGiftTransactions(roomId)
@@ -431,6 +442,8 @@ class RoomViewModel(
 
         // Stop the previous visit immediately, even if the presence cleanup later fails.
         joinedListenerDone = false
+        roomHeartbeatJob?.cancel()
+        roomHeartbeatJob = null
         roomJoinInProgress = false
         roomJoinJob?.cancel()
         roomJoinJob = null
@@ -459,6 +472,7 @@ class RoomViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        roomHeartbeatJob?.cancel()
         voiceEngine.disconnect()
     }
 

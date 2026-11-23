@@ -551,6 +551,890 @@ service cloud.firestore {
         allow delete: if isSignedIn() && request.auth.uid == userId;
       }
 
+      // Private, non-redeemable arcade progress. This document never changes coinBalance.
+      match /game_progress/{gameId} {
+        allow get: if isSignedIn() && request.auth.uid == userId && gameId == 'fruit_treasure';
+        allow list: if false;
+        allow create: if isSignedIn() && request.auth.uid == userId && gameId == 'fruit_treasure' &&
+                         incoming().keys().hasOnly(['score', 'spins', 'dailyBonusDate', 'updatedAt']) &&
+                         incoming().keys().hasAll(['score', 'spins', 'dailyBonusDate', 'updatedAt']) &&
+                         incoming().score is int && incoming().score >= 0 && incoming().score <= 1000000000 &&
+                         incoming().spins is int && incoming().spins >= 0 && incoming().spins <= 10000000 &&
+                         incoming().dailyBonusDate is string && incoming().dailyBonusDate.matches('^([0-9]{8})?
+        allow get, list: if isSignedIn();
+        allow create, update: if isSignedIn() && isValidId(userId) && isValidId(targetId) &&
+                                 request.auth.uid == userId &&
+                                 incoming().peerId == targetId &&
+                                 isValidFollowEdge(incoming()) &&
+                                 isValidTs(incoming().createdAt);
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+
+      match /followers/{followerId} {
+        allow get, list: if isSignedIn();
+        allow create, update: if isSignedIn() && isValidId(userId) && isValidId(followerId) &&
+                                 request.auth.uid == followerId &&
+                                 incoming().peerId == followerId &&
+                                 isValidFollowEdge(incoming()) &&
+                                 isValidTs(incoming().createdAt);
+        allow delete: if isSignedIn() && (request.auth.uid == followerId || request.auth.uid == userId);
+      }
+    }
+
+    match /room_creation_locks/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       isValidRoomCreationLock(incoming(), userId) &&
+                       isValidTs(incoming().createdAt) &&
+                       existsAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)) &&
+                       (getAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)).data.hostId == request.auth.uid ||
+                        effectiveRoomOwnerId(getAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)).data) == request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    match /room_public_ids/{publicRoomId} {
+      allow get: if isSignedIn() && publicRoomId.matches('^[0-9]{6}$');
+      allow list: if false;
+      allow create: if isSignedIn() &&
+                       publicRoomId.matches('^[0-9]{6}$') &&
+                       isValidId(incoming().roomId) &&
+                       isValidTs(incoming().createdAt) &&
+                       existsAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)) &&
+                       getAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)).data.publicRoomId == publicRoomId &&
+                       getAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)).data.hostId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /rooms/{roomId} {
+      allow get: if isSignedIn() && isValidId(roomId) && (existing().status == 'LIVE' || isRoomManager(existing()));
+      allow list: if isSignedIn() && (existing().status == 'LIVE' || isRoomManager(existing()));
+
+      allow create: if isSignedIn() && isValidId(roomId) &&
+                       isValidRoom(incoming()) &&
+                       incoming().hostId == request.auth.uid &&
+                       (!('ownerId' in incoming()) || incoming().ownerId == request.auth.uid) &&
+                       (!('creatorId' in incoming()) || incoming().creatorId == request.auth.uid) &&
+                       incoming().status == 'LIVE' &&
+                       incoming().featured == false &&
+                       isValidTs(incoming().createdAt) &&
+                       isValidTs(incoming().updatedAt) &&
+                       !exists(/databases/$(database)/documents/room_creation_locks/$(request.auth.uid)) &&
+                       (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+                        !('hasCreatedRoom' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) ||
+                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hasCreatedRoom == false) &&
+                       existsAfter(/databases/$(database)/documents/room_creation_locks/$(request.auth.uid)) &&
+                       getAfter(/databases/$(database)/documents/room_creation_locks/$(request.auth.uid)).data.roomId == roomId &&
+                       (!('publicRoomId' in incoming()) ||
+                        (existsAfter(/databases/$(database)/documents/room_public_ids/$(incoming().publicRoomId)) &&
+                         getAfter(/databases/$(database)/documents/room_public_ids/$(incoming().publicRoomId)).data.roomId == roomId));
+
+      allow update: if isSignedIn() && isValidId(roomId) &&
+                       isValidRoom(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       (!('creatorId' in existing()) || incoming().creatorId == existing().creatorId) &&
+                       isValidTs(incoming().updatedAt) && (
+        (isRoomOwner(existing()) && existing().status == 'LIVE' &&
+         incoming().featured == existing().featured &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'coverUrl', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'status', 'hostId', 'hostName', 'hostAvatarUrl', 'ownerId', 'ownerName', 'ownerOnline', 'adminIds', 'activeAdminIds', 'listenerCount', 'activeSpeakersCount', 'updatedAt'])) ||
+        (isRoomAdminUser(existing()) && existing().status == 'LIVE' &&
+         incoming().hostId == existing().hostId &&
+         (!('ownerId' in existing()) || incoming().ownerId == existing().ownerId) &&
+         (!('ownerOnline' in existing()) || incoming().ownerOnline == existing().ownerOnline) &&
+         (!('adminIds' in existing()) || incoming().adminIds == existing().adminIds) &&
+         incoming().featured == existing().featured &&
+         (incoming().status == existing().status || (incoming().status == 'ENDED' && (!('ownerOnline' in existing()) || existing().ownerOnline == false))) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'coverUrl', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'listenerCount', 'activeSpeakersCount', 'activeAdminIds', 'status', 'updatedAt'])) ||
+        (existing().status == 'LIVE' &&
+         isDirectSpeakerSeatJoin(roomId, incoming()) &&
+         incoming().status == existing().status &&
+         incoming().hostId == existing().hostId &&
+         incoming().featured == existing().featured &&
+         incoming().listenerCount == (exists(/databases/$(database)/documents/rooms/$(roomId)/listeners/$(request.auth.uid)) ? (existing().listenerCount > 0 ? existing().listenerCount - 1 : 0) : existing().listenerCount) &&
+         incoming().activeSpeakersCount == (existing().activeSpeakersCount < 9 ? existing().activeSpeakersCount + 1 : 9) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['listenerCount', 'activeSpeakersCount', 'lastSpeakerSeatJoinUserId', 'lastSpeakerSeatJoinSeatIndex', 'updatedAt'])) ||
+        (existing().status == 'LIVE' && incoming().hostId == existing().hostId &&
+         (!('ownerId' in existing()) || incoming().ownerId == existing().ownerId) &&
+         (!('ownerOnline' in existing()) || incoming().ownerOnline == existing().ownerOnline) &&
+         (!('adminIds' in existing()) || incoming().adminIds == existing().adminIds) &&
+         incoming().featured == existing().featured &&
+         (incoming().status == existing().status ||
+          (incoming().status == 'ENDED' &&
+           (!('ownerOnline' in existing()) || existing().ownerOnline == false) &&
+           (!('activeAdminIds' in incoming()) || incoming().activeAdminIds.size() == 0))) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['listenerCount', 'activeSpeakersCount', 'activeAdminIds', 'status', 'updatedAt']))
+      );
+
+      allow delete: if isSignedIn() && isValidId(roomId) && (
+        isRoomOwner(existing()) ||
+        (isRoomAdminUser(existing()) && (!('ownerOnline' in existing()) || existing().ownerOnline == false))
+      );
+
+      // Strict 9-Seat Stage: 0 = Host, 1..8 = 8 Regular Speaker Seats
+      match /seats/{seatIndex} {
+        allow get: if isSignedIn() && seatIndex in ['0', '1', '2', '3', '4', '5', '6', '7', '8'];
+        allow list: if isSignedIn() && existing().seatIndex >= 0 && existing().seatIndex <= 8;
+
+        allow create: if isSignedIn() &&
+                         seatIndex in ['0', '1', '2', '3', '4', '5', '6', '7', '8'] &&
+                         isValidSeat(incoming(), seatIndex) &&
+                         isValidTs(incoming().updatedAt) &&
+                         getAfter(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid &&
+                         (seatIndex != '0' || incoming().occupantId == request.auth.uid);
+
+        allow update: if isSignedIn() &&
+                         seatIndex in ['0', '1', '2', '3', '4', '5', '6', '7', '8'] &&
+                         isValidSeat(incoming(), seatIndex) &&
+                         isValidTs(incoming().updatedAt) &&
+                         (seatIndex != '0' ||
+                          incoming().occupantId == getAfter(/databases/$(database)/documents/rooms/$(roomId)).data.hostId ||
+                          incoming().occupantId == effectiveRoomOwnerId(getAfter(/databases/$(database)/documents/rooms/$(roomId)).data)) &&
+                         (seatIndex == '0' || existing().occupantId == '' || incoming().occupantId == '' || incoming().occupantId == existing().occupantId) && (
+          (isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
+           (seatIndex == '0' ||
+            incoming().occupantId == existing().occupantId ||
+            incoming().occupantId == '')) ||
+          (seatIndex != '0' && (
+            (existing().occupantId == request.auth.uid &&
+             (incoming().occupantId == request.auth.uid || incoming().occupantId == '') &&
+             incoming().seatLocked == existing().seatLocked &&
+             incoming().diff(existing()).affectedKeys().hasOnly(['occupantId', 'occupantName', 'occupantAvatarUrl', 'occupantVipLevel', 'occupantGender', 'muted', 'speaking', 'updatedAt'])) ||
+            (existing().occupantId == '' && existing().seatLocked == false &&
+             incoming().occupantId == request.auth.uid &&
+             incoming().seatLocked == false &&
+             exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
+             isNotAlreadyOnAnotherSpeakerSeat(roomId, seatIndex) &&
+             incoming().diff(existing()).affectedKeys().hasOnly(['occupantId', 'occupantName', 'occupantAvatarUrl', 'occupantVipLevel', 'occupantGender', 'muted', 'speaking', 'updatedAt']))
+          ))
+        );
+
+        allow delete: if false;
+      }
+
+      match /speaker_requests/{requestId} {
+        allow get: if isSignedIn() && isValidId(requestId) && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
+        allow list: if isSignedIn() && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
+        allow create: if isSignedIn() && isValidId(requestId) &&
+                         isValidSpeakerRequest(incoming()) &&
+                         incoming().hostId == get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId &&
+                         isValidTs(incoming().createdAt) &&
+                         isValidTs(incoming().updatedAt) &&
+                         requestId == incoming().userId &&
+                         incoming().status == 'INVITED' &&
+                         isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
+                         incoming().preferredSeatIndex >= 1 &&
+                         incoming().preferredSeatIndex <= 8;
+        allow update: if isSignedIn() && isValidId(requestId) &&
+                         isValidSpeakerRequest(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().hostId == existing().hostId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidTs(incoming().updatedAt) && (
+          (existing().status == 'INVITED' &&
+           isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
+           incoming().status == 'INVITED' &&
+           incoming().preferredSeatIndex >= 1 &&
+           incoming().preferredSeatIndex <= 8 &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'preferredSeatIndex', 'username', 'avatarUrl', 'vipLevel', 'updatedAt'])) ||
+          (existing().status == 'INVITED' &&
+           existing().userId == request.auth.uid &&
+           incoming().status in ['ACCEPTED', 'REJECTED'] &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+          (existing().status != 'PENDING' && existing().status != 'INVITED' &&
+           isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
+           incoming().status == 'INVITED' &&
+           incoming().preferredSeatIndex >= 1 &&
+           incoming().preferredSeatIndex <= 8 &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'preferredSeatIndex', 'username', 'avatarUrl', 'vipLevel', 'updatedAt']))
+        );
+        allow delete: if isSignedIn() && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
+      }
+
+      match /messages/{messageId} {
+        // A user can only read messages created at or after their latest room join.
+        allow get: if isSignedIn() && isValidId(messageId) &&
+                      exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
+                      existing().createdAt >= get(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)).data.joinedAt &&
+                      existing().type in ['TEXT', 'GIFT', 'SYSTEM'];
+        allow list: if isSignedIn() &&
+                       exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
+                       existing().createdAt >= get(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)).data.joinedAt &&
+                       existing().type in ['TEXT', 'GIFT', 'SYSTEM'];
+        allow create: if isSignedIn() && isValidId(messageId) &&
+                         incoming().senderId == request.auth.uid &&
+                         isValidRoomMessage(incoming()) &&
+                         isValidTs(incoming().createdAt) &&
+                         existsAfter(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid));
+        allow update, delete: if false;
+      }
+
+      match /room_sessions/{sessionUserId} {
+        allow get: if isSignedIn() && sessionUserId == request.auth.uid;
+        // Room UI observes active room sessions to keep seat/listener presence accurate.
+        // Only signed-in users may list sessions while the parent room is live.
+        allow list: if isSignedIn() && get(/databases/$(database)/documents/rooms/$(roomId)).data.status == 'LIVE';
+        allow create: if isSignedIn() && sessionUserId == request.auth.uid &&
+                                 incoming().userId == request.auth.uid &&
+                                 incoming().joinedAt is timestamp &&
+                                 incoming().joinedAt == request.time &&
+                                 incoming().keys().hasOnly(['userId', 'joinedAt', 'lastSeenAt']) &&
+                                 (!('lastSeenAt' in incoming()) ||
+                                  (incoming().lastSeenAt is timestamp && incoming().lastSeenAt == request.time));
+        allow update: if isSignedIn() && sessionUserId == request.auth.uid &&
+                                 incoming().userId == existing().userId &&
+                                 (
+                                   (incoming().joinedAt is timestamp &&
+                                    incoming().joinedAt == request.time &&
+                                    incoming().keys().hasOnly(['userId', 'joinedAt', 'lastSeenAt']) &&
+                                    (!('lastSeenAt' in incoming()) ||
+                                     (incoming().lastSeenAt is timestamp && incoming().lastSeenAt == request.time))) ||
+                                   (incoming().joinedAt == existing().joinedAt &&
+                                    incoming().lastSeenAt is timestamp &&
+                                    incoming().lastSeenAt == request.time &&
+                                    incoming().diff(existing()).affectedKeys().hasOnly(['lastSeenAt']))
+                                 );
+        allow delete: if isSignedIn() && sessionUserId == request.auth.uid;
+      }
+
+      match /listeners/{listenerId} {
+        allow get: if isSignedIn() && isValidId(listenerId);
+        allow list: if isSignedIn() && existing().role == 'LISTENER';
+        allow create, update: if isSignedIn() && isValidId(listenerId) &&
+                                 listenerId == request.auth.uid &&
+                                 incoming().userId == request.auth.uid &&
+                                 isValidRoomListener(incoming()) &&
+                                 isValidTs(incoming().joinedAt);
+        allow delete: if isSignedIn() && (listenerId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
+      }
+    }
+
+    match /conversations/{conversationId} {
+      // Signed-in users may check whether a deterministic conversation ID exists.
+      // Existing conversations remain readable only by their participants.
+      allow get: if isSignedIn() && isValidId(conversationId) &&
+                   (!exists(/databases/$(database)/documents/conversations/$(conversationId)) ||
+                    request.auth.uid in existing().participantIds);
+      allow list: if isSignedIn() && request.auth.uid in existing().participantIds;
+      allow create: if isSignedIn() && isValidId(conversationId) &&
+                       request.auth.uid in incoming().participantIds &&
+                       (!('conversationType' in incoming()) || incoming().conversationType == 'DIRECT' || incoming().ownerId == request.auth.uid) &&
+                       isValidConversation(incoming()) &&
+                       isValidTs(incoming().createdAt) &&
+                       isValidTs(incoming().updatedAt);
+      allow update: if isSignedIn() && isValidId(conversationId) &&
+                       request.auth.uid in existing().participantIds &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidConversation(incoming()) &&
+                       isValidTs(incoming().updatedAt) && (
+        (incoming().participantIds == existing().participantIds &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastSenderId', 'unreadBy', 'participantNames', 'participantAvatars', 'updatedAt'])) ||
+        (('conversationType' in existing() && existing().conversationType == 'GROUP') &&
+         (('ownerId' in existing() && existing().ownerId == request.auth.uid) ||
+          ('adminIds' in existing() && request.auth.uid in existing().adminIds)) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['groupName', 'groupAvatarUrl', 'participantIds', 'participantNames', 'participantAvatars', 'adminIds', 'ownerId', 'lastMessage', 'lastSenderId', 'unreadBy', 'updatedAt'])) ||
+        (('conversationType' in existing() && existing().conversationType == 'GROUP') &&
+         !(request.auth.uid in incoming().participantIds) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['participantIds', 'participantNames', 'participantAvatars', 'adminIds', 'ownerId', 'unreadBy', 'lastMessage', 'lastSenderId', 'updatedAt']))
+      );
+      allow delete: if isSignedIn() && isValidId(conversationId) && (('ownerId' in existing() && existing().ownerId == request.auth.uid) || (request.auth.uid in existing().participantIds && existing().participantIds.size() <= 1));
+
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(messageId) && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+        allow list: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+        allow create: if isSignedIn() && isValidId(messageId) &&
+                         isValidDirectMessage(incoming()) &&
+                         isValidTs(incoming().createdAt) && (
+                           (request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                            incoming().senderId == request.auth.uid) ||
+                           (incoming().senderId == 'VIBEPLAY_OFFICIAL_BOT' &&
+                            incoming().type == 'SYSTEM' &&
+                            messageId == 'welcome_10_lakh_bonus' &&
+                            incoming().recipientId is string &&
+                            incoming().text == '🎉 10 LAKH COINS WELCOME BONUS!\n\nCongratulations! 🥳 VibePlay ki taraf se aapke account mein 10,00,000 bonus coins add kiye gaye hain.\n\n❤️ Enjoy VibePlay, send gifts and have fun!\n\n— Team VibePlay' &&
+                            getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds.size() == 2 &&
+                            incoming().recipientId in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                            'VIBEPLAY_OFFICIAL_BOT' in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                            (request.auth.uid == incoming().recipientId) &&
+                            exists(/databases/$(database)/documents/users/$(incoming().recipientId)) &&
+                            get(/databases/$(database)/documents/users/$(incoming().recipientId)).data.welcomeBonusGranted == true)
+                         );
+        allow update: if isSignedIn() && isValidId(messageId) &&
+                         request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                         isValidDirectMessage(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      }
+    }
+
+    match /gift_transactions/{txId} {
+      allow get: if isSignedIn() && isValidId(txId) && (
+        request.auth.uid in existing().participantIds ||
+        (existing().roomId is string &&
+         exists(/databases/$(database)/documents/rooms/$(existing().roomId)/room_sessions/$(request.auth.uid)))
+      );
+      allow list: if isSignedIn() && (
+        request.auth.uid in existing().participantIds ||
+        (existing().roomId is string &&
+         exists(/databases/$(database)/documents/rooms/$(existing().roomId)/room_sessions/$(request.auth.uid)))
+      );
+      allow create: if isSignedIn() && isValidId(txId) &&
+                       incoming().senderId == request.auth.uid &&
+                       request.auth.uid in incoming().participantIds &&
+                       isValidGiftTransaction(incoming()) &&
+                       isTrustedGiftPrice(incoming()) &&
+                       giftMatchesCoinUpdates(incoming()) &&
+                       isValidTs(incoming().createdAt);
+      allow update, delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isSignedIn() && isValidId(notificationId) && (existing().recipientId == request.auth.uid);
+      allow list: if isSignedIn() && (existing().recipientId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(notificationId) &&
+                       incoming().senderId == request.auth.uid &&
+                       isValidNotification(incoming()) &&
+                       isValidTs(incoming().createdAt);
+      allow update: if isSignedIn() && isValidId(notificationId) &&
+                       existing().recipientId == request.auth.uid &&
+                       isValidNotification(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isSignedIn() && existing().recipientId == request.auth.uid;
+    }
+
+    match /reports/{reportId} {
+      allow get: if isSignedIn() && isValidId(reportId) && (existing().reporterId == request.auth.uid);
+      allow list: if isSignedIn() && (existing().reporterId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(reportId) &&
+                       incoming().reporterId == request.auth.uid &&
+                       incoming().status == 'OPEN' &&
+                       isValidReport(incoming()) &&
+                       isValidTs(incoming().createdAt) &&
+                       isValidTs(incoming().updatedAt);
+      allow update, delete: if false;
+    }
+
+
+    // Free-tier client invitation path. Pair familiarity and activation remain Admin-worker controlled.
+    match /relationship_invites/{pairId} {
+      allow get: if isSignedIn() &&
+        (existing().inviterId == request.auth.uid || existing().invitedTo == request.auth.uid);
+      allow list: if false;
+      allow create: if validRelationshipInvite(pairId);
+      allow update: if (
+        validRelationshipInvite(pairId) &&
+        canReplaceRelationshipInvite(pairId) &&
+        incoming().inviterId == request.auth.uid
+      ) || (
+        isSignedIn() &&
+        existing().invitedTo == request.auth.uid &&
+        existing().status == 'PENDING' &&
+        incoming().pairId == existing().pairId &&
+        incoming().inviterId == existing().inviterId &&
+        incoming().invitedTo == existing().invitedTo &&
+        incoming().tagType == existing().tagType &&
+        incoming().notificationId == existing().notificationId &&
+        incoming().status in ['ACCEPTED', 'REJECTED'] &&
+        incoming().respondedAt == request.time &&
+        existing().expiresAt is timestamp && existing().expiresAt > request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'respondedAt']));
+      allow delete: if false;
+    }
+
+    // Relationship familiarity is written only by the trusted gift trigger.
+    match /relationship_pairs/{pairId} {
+      allow get, list: if isSignedIn() &&
+        request.auth.uid in existing().userIds;
+      allow create, update, delete: if false;
+    }
+
+    // Public, minimal relationship card projection; only trusted Functions may write it.
+    match /relationship_links/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
+    // Public tag cards contain only profile-safe names, avatars and tag type.
+    match /relationship_public_tags/{pairId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if false;
+    }
+
+    match /relationship_profile_selection/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow list: if false;
+      // Users may feature only an existing ACTIVE pair they belong to.
+      // Pair familiarity and relationship status remain server-worker controlled.
+      allow create, update: if isSignedIn() &&
+        request.auth.uid == userId &&
+        incoming().userId == userId &&
+        incoming().partnerId is string &&
+        incoming().partnerId != userId &&
+        incoming().pairId is string &&
+        incoming().keys().hasOnly(['userId', 'partnerId', 'pairId', 'updatedAt']) &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/relationship_pairs/$(incoming().pairId)) &&
+        get(/databases/$(database)/documents/relationship_pairs/$(incoming().pairId)).data.tagStatus == 'ACTIVE' &&
+        userId in get(/databases/$(database)/documents/relationship_pairs/$(incoming().pairId)).data.userIds &&
+        incoming().partnerId in get(/databases/$(database)/documents/relationship_pairs/$(incoming().pairId)).data.userIds;
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /relationship_gift_events/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /gifts_catalog/{giftId} {
+      allow get: if isSignedIn() && isValidId(giftId) && (existing().active == true);
+      allow list: if isSignedIn() && (existing().active == true);
+      allow create, update, delete: if false;
+    }
+  }
+}
+) &&
+                         isValidTs(incoming().updatedAt);
+        allow update: if isSignedIn() && request.auth.uid == userId && gameId == 'fruit_treasure' &&
+                         incoming().keys().hasOnly(['score', 'spins', 'dailyBonusDate', 'updatedAt']) &&
+                         incoming().score is int && incoming().score >= existing().score &&
+                         incoming().score <= 1000000000 &&
+                         incoming().spins is int && incoming().spins >= existing().spins &&
+                         incoming().spins <= 10000000 &&
+                         incoming().dailyBonusDate is string && incoming().dailyBonusDate.matches('^([0-9]{8})?
+        allow get, list: if isSignedIn();
+        allow create, update: if isSignedIn() && isValidId(userId) && isValidId(targetId) &&
+                                 request.auth.uid == userId &&
+                                 incoming().peerId == targetId &&
+                                 isValidFollowEdge(incoming()) &&
+                                 isValidTs(incoming().createdAt);
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+
+      match /followers/{followerId} {
+        allow get, list: if isSignedIn();
+        allow create, update: if isSignedIn() && isValidId(userId) && isValidId(followerId) &&
+                                 request.auth.uid == followerId &&
+                                 incoming().peerId == followerId &&
+                                 isValidFollowEdge(incoming()) &&
+                                 isValidTs(incoming().createdAt);
+        allow delete: if isSignedIn() && (request.auth.uid == followerId || request.auth.uid == userId);
+      }
+    }
+
+    match /room_creation_locks/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       isValidRoomCreationLock(incoming(), userId) &&
+                       isValidTs(incoming().createdAt) &&
+                       existsAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)) &&
+                       (getAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)).data.hostId == request.auth.uid ||
+                        effectiveRoomOwnerId(getAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)).data) == request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    match /room_public_ids/{publicRoomId} {
+      allow get: if isSignedIn() && publicRoomId.matches('^[0-9]{6}$');
+      allow list: if false;
+      allow create: if isSignedIn() &&
+                       publicRoomId.matches('^[0-9]{6}$') &&
+                       isValidId(incoming().roomId) &&
+                       isValidTs(incoming().createdAt) &&
+                       existsAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)) &&
+                       getAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)).data.publicRoomId == publicRoomId &&
+                       getAfter(/databases/$(database)/documents/rooms/$(incoming().roomId)).data.hostId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /rooms/{roomId} {
+      allow get: if isSignedIn() && isValidId(roomId) && (existing().status == 'LIVE' || isRoomManager(existing()));
+      allow list: if isSignedIn() && (existing().status == 'LIVE' || isRoomManager(existing()));
+
+      allow create: if isSignedIn() && isValidId(roomId) &&
+                       isValidRoom(incoming()) &&
+                       incoming().hostId == request.auth.uid &&
+                       (!('ownerId' in incoming()) || incoming().ownerId == request.auth.uid) &&
+                       (!('creatorId' in incoming()) || incoming().creatorId == request.auth.uid) &&
+                       incoming().status == 'LIVE' &&
+                       incoming().featured == false &&
+                       isValidTs(incoming().createdAt) &&
+                       isValidTs(incoming().updatedAt) &&
+                       !exists(/databases/$(database)/documents/room_creation_locks/$(request.auth.uid)) &&
+                       (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+                        !('hasCreatedRoom' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) ||
+                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hasCreatedRoom == false) &&
+                       existsAfter(/databases/$(database)/documents/room_creation_locks/$(request.auth.uid)) &&
+                       getAfter(/databases/$(database)/documents/room_creation_locks/$(request.auth.uid)).data.roomId == roomId &&
+                       (!('publicRoomId' in incoming()) ||
+                        (existsAfter(/databases/$(database)/documents/room_public_ids/$(incoming().publicRoomId)) &&
+                         getAfter(/databases/$(database)/documents/room_public_ids/$(incoming().publicRoomId)).data.roomId == roomId));
+
+      allow update: if isSignedIn() && isValidId(roomId) &&
+                       isValidRoom(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       (!('creatorId' in existing()) || incoming().creatorId == existing().creatorId) &&
+                       isValidTs(incoming().updatedAt) && (
+        (isRoomOwner(existing()) && existing().status == 'LIVE' &&
+         incoming().featured == existing().featured &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'coverUrl', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'status', 'hostId', 'hostName', 'hostAvatarUrl', 'ownerId', 'ownerName', 'ownerOnline', 'adminIds', 'activeAdminIds', 'listenerCount', 'activeSpeakersCount', 'updatedAt'])) ||
+        (isRoomAdminUser(existing()) && existing().status == 'LIVE' &&
+         incoming().hostId == existing().hostId &&
+         (!('ownerId' in existing()) || incoming().ownerId == existing().ownerId) &&
+         (!('ownerOnline' in existing()) || incoming().ownerOnline == existing().ownerOnline) &&
+         (!('adminIds' in existing()) || incoming().adminIds == existing().adminIds) &&
+         incoming().featured == existing().featured &&
+         (incoming().status == existing().status || (incoming().status == 'ENDED' && (!('ownerOnline' in existing()) || existing().ownerOnline == false))) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'coverUrl', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'listenerCount', 'activeSpeakersCount', 'activeAdminIds', 'status', 'updatedAt'])) ||
+        (existing().status == 'LIVE' &&
+         isDirectSpeakerSeatJoin(roomId, incoming()) &&
+         incoming().status == existing().status &&
+         incoming().hostId == existing().hostId &&
+         incoming().featured == existing().featured &&
+         incoming().listenerCount == (exists(/databases/$(database)/documents/rooms/$(roomId)/listeners/$(request.auth.uid)) ? (existing().listenerCount > 0 ? existing().listenerCount - 1 : 0) : existing().listenerCount) &&
+         incoming().activeSpeakersCount == (existing().activeSpeakersCount < 9 ? existing().activeSpeakersCount + 1 : 9) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['listenerCount', 'activeSpeakersCount', 'lastSpeakerSeatJoinUserId', 'lastSpeakerSeatJoinSeatIndex', 'updatedAt'])) ||
+        (existing().status == 'LIVE' && incoming().hostId == existing().hostId &&
+         (!('ownerId' in existing()) || incoming().ownerId == existing().ownerId) &&
+         (!('ownerOnline' in existing()) || incoming().ownerOnline == existing().ownerOnline) &&
+         (!('adminIds' in existing()) || incoming().adminIds == existing().adminIds) &&
+         incoming().featured == existing().featured &&
+         (incoming().status == existing().status ||
+          (incoming().status == 'ENDED' &&
+           (!('ownerOnline' in existing()) || existing().ownerOnline == false) &&
+           (!('activeAdminIds' in incoming()) || incoming().activeAdminIds.size() == 0))) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['listenerCount', 'activeSpeakersCount', 'activeAdminIds', 'status', 'updatedAt']))
+      );
+
+      allow delete: if isSignedIn() && isValidId(roomId) && (
+        isRoomOwner(existing()) ||
+        (isRoomAdminUser(existing()) && (!('ownerOnline' in existing()) || existing().ownerOnline == false))
+      );
+
+      // Strict 9-Seat Stage: 0 = Host, 1..8 = 8 Regular Speaker Seats
+      match /seats/{seatIndex} {
+        allow get: if isSignedIn() && seatIndex in ['0', '1', '2', '3', '4', '5', '6', '7', '8'];
+        allow list: if isSignedIn() && existing().seatIndex >= 0 && existing().seatIndex <= 8;
+
+        allow create: if isSignedIn() &&
+                         seatIndex in ['0', '1', '2', '3', '4', '5', '6', '7', '8'] &&
+                         isValidSeat(incoming(), seatIndex) &&
+                         isValidTs(incoming().updatedAt) &&
+                         getAfter(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid &&
+                         (seatIndex != '0' || incoming().occupantId == request.auth.uid);
+
+        allow update: if isSignedIn() &&
+                         seatIndex in ['0', '1', '2', '3', '4', '5', '6', '7', '8'] &&
+                         isValidSeat(incoming(), seatIndex) &&
+                         isValidTs(incoming().updatedAt) &&
+                         (seatIndex != '0' ||
+                          incoming().occupantId == getAfter(/databases/$(database)/documents/rooms/$(roomId)).data.hostId ||
+                          incoming().occupantId == effectiveRoomOwnerId(getAfter(/databases/$(database)/documents/rooms/$(roomId)).data)) &&
+                         (seatIndex == '0' || existing().occupantId == '' || incoming().occupantId == '' || incoming().occupantId == existing().occupantId) && (
+          (isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
+           (seatIndex == '0' ||
+            incoming().occupantId == existing().occupantId ||
+            incoming().occupantId == '')) ||
+          (seatIndex != '0' && (
+            (existing().occupantId == request.auth.uid &&
+             (incoming().occupantId == request.auth.uid || incoming().occupantId == '') &&
+             incoming().seatLocked == existing().seatLocked &&
+             incoming().diff(existing()).affectedKeys().hasOnly(['occupantId', 'occupantName', 'occupantAvatarUrl', 'occupantVipLevel', 'occupantGender', 'muted', 'speaking', 'updatedAt'])) ||
+            (existing().occupantId == '' && existing().seatLocked == false &&
+             incoming().occupantId == request.auth.uid &&
+             incoming().seatLocked == false &&
+             exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
+             isNotAlreadyOnAnotherSpeakerSeat(roomId, seatIndex) &&
+             incoming().diff(existing()).affectedKeys().hasOnly(['occupantId', 'occupantName', 'occupantAvatarUrl', 'occupantVipLevel', 'occupantGender', 'muted', 'speaking', 'updatedAt']))
+          ))
+        );
+
+        allow delete: if false;
+      }
+
+      match /speaker_requests/{requestId} {
+        allow get: if isSignedIn() && isValidId(requestId) && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
+        allow list: if isSignedIn() && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
+        allow create: if isSignedIn() && isValidId(requestId) &&
+                         isValidSpeakerRequest(incoming()) &&
+                         incoming().hostId == get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId &&
+                         isValidTs(incoming().createdAt) &&
+                         isValidTs(incoming().updatedAt) &&
+                         requestId == incoming().userId &&
+                         incoming().status == 'INVITED' &&
+                         isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
+                         incoming().preferredSeatIndex >= 1 &&
+                         incoming().preferredSeatIndex <= 8;
+        allow update: if isSignedIn() && isValidId(requestId) &&
+                         isValidSpeakerRequest(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().hostId == existing().hostId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidTs(incoming().updatedAt) && (
+          (existing().status == 'INVITED' &&
+           isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
+           incoming().status == 'INVITED' &&
+           incoming().preferredSeatIndex >= 1 &&
+           incoming().preferredSeatIndex <= 8 &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'preferredSeatIndex', 'username', 'avatarUrl', 'vipLevel', 'updatedAt'])) ||
+          (existing().status == 'INVITED' &&
+           existing().userId == request.auth.uid &&
+           incoming().status in ['ACCEPTED', 'REJECTED'] &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+          (existing().status != 'PENDING' && existing().status != 'INVITED' &&
+           isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
+           incoming().status == 'INVITED' &&
+           incoming().preferredSeatIndex >= 1 &&
+           incoming().preferredSeatIndex <= 8 &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'preferredSeatIndex', 'username', 'avatarUrl', 'vipLevel', 'updatedAt']))
+        );
+        allow delete: if isSignedIn() && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
+      }
+
+      match /messages/{messageId} {
+        // A user can only read messages created at or after their latest room join.
+        allow get: if isSignedIn() && isValidId(messageId) &&
+                      exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
+                      existing().createdAt >= get(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)).data.joinedAt &&
+                      existing().type in ['TEXT', 'GIFT', 'SYSTEM'];
+        allow list: if isSignedIn() &&
+                       exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
+                       existing().createdAt >= get(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)).data.joinedAt &&
+                       existing().type in ['TEXT', 'GIFT', 'SYSTEM'];
+        allow create: if isSignedIn() && isValidId(messageId) &&
+                         incoming().senderId == request.auth.uid &&
+                         isValidRoomMessage(incoming()) &&
+                         isValidTs(incoming().createdAt) &&
+                         existsAfter(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid));
+        allow update, delete: if false;
+      }
+
+      match /room_sessions/{sessionUserId} {
+        allow get: if isSignedIn() && sessionUserId == request.auth.uid;
+        // Room UI observes active room sessions to keep seat/listener presence accurate.
+        // Only signed-in users may list sessions while the parent room is live.
+        allow list: if isSignedIn() && get(/databases/$(database)/documents/rooms/$(roomId)).data.status == 'LIVE';
+        allow create: if isSignedIn() && sessionUserId == request.auth.uid &&
+                                 incoming().userId == request.auth.uid &&
+                                 incoming().joinedAt is timestamp &&
+                                 incoming().joinedAt == request.time &&
+                                 incoming().keys().hasOnly(['userId', 'joinedAt', 'lastSeenAt']) &&
+                                 (!('lastSeenAt' in incoming()) ||
+                                  (incoming().lastSeenAt is timestamp && incoming().lastSeenAt == request.time));
+        allow update: if isSignedIn() && sessionUserId == request.auth.uid &&
+                                 incoming().userId == existing().userId &&
+                                 (
+                                   (incoming().joinedAt is timestamp &&
+                                    incoming().joinedAt == request.time &&
+                                    incoming().keys().hasOnly(['userId', 'joinedAt', 'lastSeenAt']) &&
+                                    (!('lastSeenAt' in incoming()) ||
+                                     (incoming().lastSeenAt is timestamp && incoming().lastSeenAt == request.time))) ||
+                                   (incoming().joinedAt == existing().joinedAt &&
+                                    incoming().lastSeenAt is timestamp &&
+                                    incoming().lastSeenAt == request.time &&
+                                    incoming().diff(existing()).affectedKeys().hasOnly(['lastSeenAt']))
+                                 );
+        allow delete: if isSignedIn() && sessionUserId == request.auth.uid;
+      }
+
+      match /listeners/{listenerId} {
+        allow get: if isSignedIn() && isValidId(listenerId);
+        allow list: if isSignedIn() && existing().role == 'LISTENER';
+        allow create, update: if isSignedIn() && isValidId(listenerId) &&
+                                 listenerId == request.auth.uid &&
+                                 incoming().userId == request.auth.uid &&
+                                 isValidRoomListener(incoming()) &&
+                                 isValidTs(incoming().joinedAt);
+        allow delete: if isSignedIn() && (listenerId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
+      }
+    }
+
+    match /conversations/{conversationId} {
+      // Signed-in users may check whether a deterministic conversation ID exists.
+      // Existing conversations remain readable only by their participants.
+      allow get: if isSignedIn() && isValidId(conversationId) &&
+                   (!exists(/databases/$(database)/documents/conversations/$(conversationId)) ||
+                    request.auth.uid in existing().participantIds);
+      allow list: if isSignedIn() && request.auth.uid in existing().participantIds;
+      allow create: if isSignedIn() && isValidId(conversationId) &&
+                       request.auth.uid in incoming().participantIds &&
+                       (!('conversationType' in incoming()) || incoming().conversationType == 'DIRECT' || incoming().ownerId == request.auth.uid) &&
+                       isValidConversation(incoming()) &&
+                       isValidTs(incoming().createdAt) &&
+                       isValidTs(incoming().updatedAt);
+      allow update: if isSignedIn() && isValidId(conversationId) &&
+                       request.auth.uid in existing().participantIds &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidConversation(incoming()) &&
+                       isValidTs(incoming().updatedAt) && (
+        (incoming().participantIds == existing().participantIds &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastSenderId', 'unreadBy', 'participantNames', 'participantAvatars', 'updatedAt'])) ||
+        (('conversationType' in existing() && existing().conversationType == 'GROUP') &&
+         (('ownerId' in existing() && existing().ownerId == request.auth.uid) ||
+          ('adminIds' in existing() && request.auth.uid in existing().adminIds)) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['groupName', 'groupAvatarUrl', 'participantIds', 'participantNames', 'participantAvatars', 'adminIds', 'ownerId', 'lastMessage', 'lastSenderId', 'unreadBy', 'updatedAt'])) ||
+        (('conversationType' in existing() && existing().conversationType == 'GROUP') &&
+         !(request.auth.uid in incoming().participantIds) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['participantIds', 'participantNames', 'participantAvatars', 'adminIds', 'ownerId', 'unreadBy', 'lastMessage', 'lastSenderId', 'updatedAt']))
+      );
+      allow delete: if isSignedIn() && isValidId(conversationId) && (('ownerId' in existing() && existing().ownerId == request.auth.uid) || (request.auth.uid in existing().participantIds && existing().participantIds.size() <= 1));
+
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(messageId) && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+        allow list: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+        allow create: if isSignedIn() && isValidId(messageId) &&
+                         isValidDirectMessage(incoming()) &&
+                         isValidTs(incoming().createdAt) && (
+                           (request.auth.uid in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                            incoming().senderId == request.auth.uid) ||
+                           (incoming().senderId == 'VIBEPLAY_OFFICIAL_BOT' &&
+                            incoming().type == 'SYSTEM' &&
+                            messageId == 'welcome_10_lakh_bonus' &&
+                            incoming().recipientId is string &&
+                            incoming().text == '🎉 10 LAKH COINS WELCOME BONUS!\n\nCongratulations! 🥳 VibePlay ki taraf se aapke account mein 10,00,000 bonus coins add kiye gaye hain.\n\n❤️ Enjoy VibePlay, send gifts and have fun!\n\n— Team VibePlay' &&
+                            getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds.size() == 2 &&
+                            incoming().recipientId in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                            'VIBEPLAY_OFFICIAL_BOT' in getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                            (request.auth.uid == incoming().recipientId) &&
+                            exists(/databases/$(database)/documents/users/$(incoming().recipientId)) &&
+                            get(/databases/$(database)/documents/users/$(incoming().recipientId)).data.welcomeBonusGranted == true)
+                         );
+        allow update: if isSignedIn() && isValidId(messageId) &&
+                         request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds &&
+                         isValidDirectMessage(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      }
+    }
+
+    match /gift_transactions/{txId} {
+      allow get: if isSignedIn() && isValidId(txId) && (
+        request.auth.uid in existing().participantIds ||
+        (existing().roomId is string &&
+         exists(/databases/$(database)/documents/rooms/$(existing().roomId)/room_sessions/$(request.auth.uid)))
+      );
+      allow list: if isSignedIn() && (
+        request.auth.uid in existing().participantIds ||
+        (existing().roomId is string &&
+         exists(/databases/$(database)/documents/rooms/$(existing().roomId)/room_sessions/$(request.auth.uid)))
+      );
+      allow create: if isSignedIn() && isValidId(txId) &&
+                       incoming().senderId == request.auth.uid &&
+                       request.auth.uid in incoming().participantIds &&
+                       isValidGiftTransaction(incoming()) &&
+                       isTrustedGiftPrice(incoming()) &&
+                       giftMatchesCoinUpdates(incoming()) &&
+                       isValidTs(incoming().createdAt);
+      allow update, delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isSignedIn() && isValidId(notificationId) && (existing().recipientId == request.auth.uid);
+      allow list: if isSignedIn() && (existing().recipientId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(notificationId) &&
+                       incoming().senderId == request.auth.uid &&
+                       isValidNotification(incoming()) &&
+                       isValidTs(incoming().createdAt);
+      allow update: if isSignedIn() && isValidId(notificationId) &&
+                       existing().recipientId == request.auth.uid &&
+                       isValidNotification(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isSignedIn() && existing().recipientId == request.auth.uid;
+    }
+
+    match /reports/{reportId} {
+      allow get: if isSignedIn() && isValidId(reportId) && (existing().reporterId == request.auth.uid);
+      allow list: if isSignedIn() && (existing().reporterId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(reportId) &&
+                       incoming().reporterId == request.auth.uid &&
+                       incoming().status == 'OPEN' &&
+                       isValidReport(incoming()) &&
+                       isValidTs(incoming().createdAt) &&
+                       isValidTs(incoming().updatedAt);
+      allow update, delete: if false;
+    }
+
+
+    // Free-tier client invitation path. Pair familiarity and activation remain Admin-worker controlled.
+    match /relationship_invites/{pairId} {
+      allow get: if isSignedIn() &&
+        (existing().inviterId == request.auth.uid || existing().invitedTo == request.auth.uid);
+      allow list: if false;
+      allow create: if validRelationshipInvite(pairId);
+      allow update: if (
+        validRelationshipInvite(pairId) &&
+        canReplaceRelationshipInvite(pairId) &&
+        incoming().inviterId == request.auth.uid
+      ) || (
+        isSignedIn() &&
+        existing().invitedTo == request.auth.uid &&
+        existing().status == 'PENDING' &&
+        incoming().pairId == existing().pairId &&
+        incoming().inviterId == existing().inviterId &&
+        incoming().invitedTo == existing().invitedTo &&
+        incoming().tagType == existing().tagType &&
+        incoming().notificationId == existing().notificationId &&
+        incoming().status in ['ACCEPTED', 'REJECTED'] &&
+        incoming().respondedAt == request.time &&
+        existing().expiresAt is timestamp && existing().expiresAt > request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'respondedAt']));
+      allow delete: if false;
+    }
+
+    // Relationship familiarity is written only by the trusted gift trigger.
+    match /relationship_pairs/{pairId} {
+      allow get, list: if isSignedIn() &&
+        request.auth.uid in existing().userIds;
+      allow create, update, delete: if false;
+    }
+
+    // Public, minimal relationship card projection; only trusted Functions may write it.
+    match /relationship_links/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
+    // Public tag cards contain only profile-safe names, avatars and tag type.
+    match /relationship_public_tags/{pairId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if false;
+    }
+
+    match /relationship_profile_selection/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow list: if false;
+      // Users may feature only an existing ACTIVE pair they belong to.
+      // Pair familiarity and relationship status remain server-worker controlled.
+      allow create, update: if isSignedIn() &&
+        request.auth.uid == userId &&
+        incoming().userId == userId &&
+        incoming().partnerId is string &&
+        incoming().partnerId != userId &&
+        incoming().pairId is string &&
+        incoming().keys().hasOnly(['userId', 'partnerId', 'pairId', 'updatedAt']) &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/relationship_pairs/$(incoming().pairId)) &&
+        get(/databases/$(database)/documents/relationship_pairs/$(incoming().pairId)).data.tagStatus == 'ACTIVE' &&
+        userId in get(/databases/$(database)/documents/relationship_pairs/$(incoming().pairId)).data.userIds &&
+        incoming().partnerId in get(/databases/$(database)/documents/relationship_pairs/$(incoming().pairId)).data.userIds;
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /relationship_gift_events/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /gifts_catalog/{giftId} {
+      allow get: if isSignedIn() && isValidId(giftId) && (existing().active == true);
+      allow list: if isSignedIn() && (existing().active == true);
+      allow create, update, delete: if false;
+    }
+  }
+}
+) &&
+                         isValidTs(incoming().updatedAt);
+        allow delete: if false;
+      }
+
       match /following/{targetId} {
         allow get, list: if isSignedIn();
         allow create, update: if isSignedIn() && isValidId(userId) && isValidId(targetId) &&

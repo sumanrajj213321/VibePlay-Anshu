@@ -473,11 +473,22 @@ fun ImageCropDialog(
                                         original, src, Rect(0, 0, outputWidth, outputHeight),
                                         Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
                                     )
-                                    val file = File(context.cacheDir, (if (aspectRatio == 1f) "profile_avatar_" else "profile_cover_") + System.currentTimeMillis() + ".jpg")
-                                    FileOutputStream(file).use { it ->
-                                        result.compress(Bitmap.CompressFormat.JPEG, 88, it)
+                                    // Keep the cropped image in app-private persistent storage while the
+                                    // asynchronous Firebase upload is running. Cache files may be evicted.
+                                    val prefix = if (aspectRatio == 1f) "profile_avatar_" else "profile_cover_"
+                                    val file = File(context.filesDir, prefix + System.currentTimeMillis() + ".jpg")
+                                    val compressed = try {
+                                        FileOutputStream(file).use { output ->
+                                            result.compress(Bitmap.CompressFormat.JPEG, 88, output).also {
+                                                output.flush()
+                                            }
+                                        }
+                                    } finally {
+                                        result.recycle()
                                     }
-                                    result.recycle()
+                                    check(compressed && file.exists() && file.length() > 0L) {
+                                        "Could not prepare the cropped photo. Please try another image."
+                                    }
                                     Uri.fromFile(file)
                                 }
                                 saving = false

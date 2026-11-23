@@ -531,6 +531,18 @@ service cloud.firestore {
         ))
       );
 
+      allow update: if isSignedIn() && request.auth.uid == userId &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().role == existing().role &&
+                       incoming().accountStatus == existing().accountStatus &&
+                       incoming().online == true &&
+                       incoming().lastSeenAt is timestamp &&
+                       incoming().lastSeenAt == request.time &&
+                       incoming().updatedAt is timestamp &&
+                       incoming().updatedAt == request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['online', 'lastSeenAt', 'updatedAt']);
+
       allow delete: if false;
 
       match /avatar/{avatarDocId} {

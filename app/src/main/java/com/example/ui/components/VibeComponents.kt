@@ -549,48 +549,34 @@ fun VipBadgePill(vipLevel: Long, modifier: Modifier = Modifier, compact: Boolean
     if (displayVipLevel <= 0L) return
     val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == displayVipLevel.toInt() }
     val accent = tier?.let { Color(it.badgeColorHex) } ?: VibeGold
-    // Each VIP tier uses its own strong, clearly visible badge background.
-    val luxuryBrush = Brush.linearGradient(
-        listOf(
-            accent,
-            accent.copy(alpha = 0.82f)
-        )
-    )
+
+    // Restore the original VIP 1-12 translucent, rounded star-pill design.
+    // The tier accent stays unique, so VIP 1-8 remain visually distinguishable.
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(10.dp),
-        color = accent,
-        shadowElevation = 3.dp,
-        border = BorderStroke(
-            1.5.dp,
-            Brush.linearGradient(listOf(Color.White.copy(alpha = 0.88f), accent, Color.White.copy(alpha = 0.72f)))
-        )
+        shape = RoundedCornerShape(50),
+        color = accent.copy(alpha = 0.20f),
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.75f))
     ) {
         Row(
-            modifier = Modifier
-                .background(luxuryBrush)
-                .padding(horizontal = if (compact) 6.dp else 11.dp, vertical = if (compact) 2.dp else 6.dp),
+            modifier = Modifier.padding(
+                horizontal = if (compact) 7.dp else 9.dp,
+                vertical = if (compact) 2.dp else 4.dp
+            ),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 5.dp)
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 4.dp)
         ) {
             Icon(
                 imageVector = Icons.Filled.Star,
                 contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(if (compact) 10.dp else 14.dp)
+                tint = accent,
+                modifier = Modifier.size(if (compact) 11.dp else 13.dp)
             )
             Text(
-                text = "VIP",
+                text = "VIP $displayVipLevel",
                 style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
-                color = Color.White,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 0.8.sp
-            )
-            Text(
-                text = displayVipLevel.toString(),
-                style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
-                color = Color.White,
-                fontWeight = FontWeight.ExtraBold
+                color = accent,
+                fontWeight = FontWeight.Bold
             )
         }
     }

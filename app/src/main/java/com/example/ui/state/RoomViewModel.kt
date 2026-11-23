@@ -114,6 +114,13 @@ class RoomViewModel(
 
     init {
         viewModelScope.launch {
+            rawSeats.collect { seats ->
+                val mySeat = seats.firstOrNull { it.occupantId == currentUserId }
+                val maySpeak = mySeat != null && !mySeat.muted && !mySeat.seatLocked
+                voiceEngine.setMicPublished(maySpeak)
+            }
+        }
+        viewModelScope.launch {
             messages.collect { msgs ->
                 val latestGift = msgs.lastOrNull { it.type == "GIFT" }
                 if (latestGift != null && latestGift.id != lastShownGiftMsgId && latestGift.id.isNotBlank()) {

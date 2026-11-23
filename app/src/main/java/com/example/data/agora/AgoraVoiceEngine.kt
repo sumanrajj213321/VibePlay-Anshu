@@ -83,6 +83,8 @@ class AgoraVoiceEngine {
     private var remoteSpeakingUids: Set<Int> = emptySet()
     private val renewalScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val renewalMutex = Mutex()
+    // Serialize seat/mic changes so duplicate Firestore and UI callbacks cannot race channel joins.
+    private val voiceOperationMutex = Mutex()
 
     private val eventHandler = object : IRtcEngineEventHandler() {
         override fun onJoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
@@ -161,12 +163,12 @@ class AgoraVoiceEngine {
         userId: String,
         username: String,
         canPublish: Boolean
-    ): Result<Unit> {
-        if (roomId.isBlank()) return Result.failure(IllegalArgumentException("Invalid room ID"))
-        if (activeRoomId == roomId && joined) return Result.success(Unit)
+    ): Result<Unit> = voiceOperationMutex.withLock {
+        if (roomId.isBlank()) return@withLock Result.failure(IllegalArgumentException("Invalid room ID"))
+        if (activeRoomId == roomId && joined) return@withLock Result.success(Unit)
         _connectionState.value = VoiceConnectionState.Connecting(roomId)
         activeRoomId = roomId
-        return try {
+        try {
             joinWithFreshServerAuthorization(roomId)
             Result.success(Unit)
         } catch (error: CancellationException) {
@@ -281,7 +283,7 @@ class AgoraVoiceEngine {
     }
 
     /** Called from the Firestore seat stream. False always mutes immediately; true requires a fresh server authorization. */
-    suspend fun setMicPublished(published: Boolean) {
+    suspend fun setMicPublished(published: Boolean) = voiceOperationMutex.withLock {
         if (!published) {
             micShouldPublish = false
             engine?.muteLocalAudioStream(true)
@@ -299,20 +301,20 @@ class AgoraVoiceEngine {
             if (current is VoiceConnectionState.Connected) {
                 _connectionState.value = current.copy(micPublished = false)
             }
-            return
+            return@withLock
         }
 
         if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.RECORD_AUDIO) !=
             PackageManager.PERMISSION_GRANTED) {
             micShouldPublish = false
             engine?.muteLocalAudioStream(true)
-            return
+            return@withLock
         }
 
         if (!tokenAllowsPublish) {
-            val roomId = activeRoomId ?: return
+            val roomId = activeRoomId ?: return@withLock
             joinWithFreshServerAuthorization(roomId)
-            return
+            return@withLock
         }
 
         micShouldPublish = true

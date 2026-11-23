@@ -201,7 +201,7 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
                             claimingBonus = true
                             scope.launch {
                                 try {
-                                    val result = FirebaseFirestore.getInstance(context.getString(R.string.firestore_database_id)).runTransaction { transaction ->
+                                    val result = FirebaseFirestore.getInstance(context.getString(R.string.firestore_database_id)).runTransaction<Pair<Boolean, Int>> { transaction ->
                                         val snapshot = transaction.get(ref)
                                         val savedDate = snapshot.getString("dailyBonusDate").orEmpty()
                                         val cloudScore = (snapshot.getLong("score") ?: 0L).coerceIn(0L, 1_000_000_000L).toInt()

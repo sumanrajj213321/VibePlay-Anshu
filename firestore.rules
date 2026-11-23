@@ -438,6 +438,21 @@ service cloud.firestore {
                        isValidTs(incoming().createdAt) &&
                        isValidTs(incoming().updatedAt);
 
+      // Legacy profiles may predate the userId/createdAt schema fields.
+      // Permit only the atomic, authenticated one-time room claim for that account.
+      allow update: if isSignedIn() && isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       (!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false) &&
+                       incoming().hasCreatedRoom == true &&
+                       isValidId(incoming().createdRoomId) &&
+                       incoming().coinBalance == existing().coinBalance &&
+                       incoming().vipLevel == existing().vipLevel &&
+                       isValidTs(incoming().updatedAt) &&
+                       existsAfter(/databases/$(database)/documents/room_creation_locks/$(userId)) &&
+                       getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.userId == userId &&
+                       getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt']);
+
       allow update: if isSignedIn() && isValidId(userId) &&
                        request.auth.uid == userId &&
                        incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&

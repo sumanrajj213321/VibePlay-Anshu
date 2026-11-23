@@ -90,6 +90,8 @@ import coil.compose.AsyncImage
 import coil.decode.GifDecoder
 import com.google.firebase.firestore.FirebaseFirestore
 import android.content.Context
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.util.Base64
 import com.example.BuildConfig
 import com.example.R
@@ -940,7 +942,14 @@ fun GiftBurstOverlay(
 ) {
     LaunchedEffect(event?.id) {
         if (event != null) {
-            delay(2800L)
+            val toneIndex = Math.floorMod(event.giftId.hashCode(), 16)
+            val toneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 75)
+            try {
+                toneGenerator.startTone(ToneGenerator.TONE_DTMF_0 + toneIndex, 420)
+                delay(3200L)
+            } finally {
+                toneGenerator.release()
+            }
             onFinished()
         }
     }
@@ -963,42 +972,23 @@ fun GiftBurstOverlay(
                 label = "gift_float_y"
             )
             Surface(
-                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier.fillMaxWidth(0.94f),
+                shape = RoundedCornerShape(30.dp),
                 color = Color.Transparent,
-                border = BorderStroke(1.5.dp, Brush.horizontalGradient(listOf(VibeGold, VibePink, VibeCyan)))
+                border = BorderStroke(2.dp, Brush.horizontalGradient(listOf(VibeGold, VibePink, VibeCyan, VibeGold)))
             ) {
-                Row(
+                Column(
                     modifier = Modifier
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    VibeViolet.copy(alpha = 0.94f),
-                                    VibePink.copy(alpha = 0.9f)
-                                )
-                            )
-                        )
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        .background(Brush.verticalGradient(listOf(Color(0xF51B1245), Color(0xF52B145D), Color(0xF5143157))))
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = burst.giftEmoji,
-                        fontSize = 32.sp,
-                        modifier = Modifier.offset(y = floatY.dp)
-                    )
-                    Column {
-                        Text(
-                            text = "${burst.senderName} sent ${burst.giftName}",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "To ${burst.recipientName} · ${burst.coinCost} Coins",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = VibeGold
-                        )
-                    }
+                    Text("✨  SPECIAL GIFT  ✨", style = MaterialTheme.typography.labelLarge, color = VibeGold, fontWeight = FontWeight.ExtraBold)
+                    Text(text = burst.giftEmoji, fontSize = 86.sp, modifier = Modifier.offset(y = floatY.dp))
+                    Text(text = burst.giftName, style = MaterialTheme.typography.headlineSmall, color = Color.White, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
+                    Text(text = "${burst.senderName} sent a gift!", style = MaterialTheme.typography.titleMedium, color = VibeGold, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    Text(text = "To ${burst.recipientName}  •  ${burst.coinCost} Coins", style = MaterialTheme.typography.bodyMedium, color = Color.White, textAlign = TextAlign.Center)
                 }
             }
         }

@@ -445,8 +445,8 @@ service cloud.firestore {
                        (!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false) &&
                        incoming().hasCreatedRoom == true &&
                        isValidId(incoming().createdRoomId) &&
-                       incoming().coinBalance == existing().coinBalance &&
-                       incoming().vipLevel == existing().vipLevel &&
+                       (!('coinBalance' in existing()) || (('coinBalance' in incoming()) && incoming().coinBalance == existing().coinBalance)) &&
+                       (!('vipLevel' in existing()) || (('vipLevel' in incoming()) && incoming().vipLevel == existing().vipLevel)) &&
                        isValidTs(incoming().updatedAt) &&
                        existsAfter(/databases/$(database)/documents/room_creation_locks/$(userId)) &&
                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.userId == userId &&

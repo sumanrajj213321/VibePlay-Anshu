@@ -119,6 +119,7 @@ import com.example.ui.components.GiftBurstOverlay
 import com.example.ui.components.ReportUserOrRoomDialog
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.VipBadgePill
+import com.example.ui.components.VipShiningNameText
 import com.example.ui.components.VipEntranceOverlay
 import com.example.ui.components.coverDrawableRes
 import com.example.ui.state.RoomViewModel
@@ -852,12 +853,11 @@ internal fun VoiceRoomStageContent(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            Text(
+                                            VipShiningNameText(
                                                 text = msg.senderName.ifBlank { "User" },
+                                                vipLevel = msg.senderVipLevel,
                                                 modifier = Modifier.weight(1f),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface,
+                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
@@ -881,11 +881,10 @@ internal fun VoiceRoomStageContent(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
-                                                Text(
+                                                VipShiningNameText(
                                                     text = msg.senderName,
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    vipLevel = msg.senderVipLevel,
+                                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
@@ -1261,11 +1260,10 @@ private fun HostSeatTile(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = VibeGold, modifier = Modifier.size(12.dp))
-                Text(
+                VipShiningNameText(
                     text = "HOST · ${seat.occupantName}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = VibeGold,
-                    fontWeight = FontWeight.Bold,
+                    vipLevel = seat.occupantVipLevel,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1318,8 +1316,9 @@ private fun SpeakerSeatTile(
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
+            VipShiningNameText(
                 text = seat.occupantName,
+                vipLevel = seat.occupantVipLevel,
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

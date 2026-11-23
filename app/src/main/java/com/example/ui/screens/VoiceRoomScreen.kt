@@ -1469,3 +1469,49 @@ private fun RoomGiftRankingStrip(
         }
     }
 }
+
+@Composable
+private fun AgoraStatusPill(
+    state: VoiceConnectionState,
+    hasAudioPermission: Boolean,
+    onOpenGuide: () -> Unit
+) {
+    val (statusText, statusColor) = when (state) {
+        VoiceConnectionState.Disconnected -> "Voice disconnected" to VibeCoral
+        is VoiceConnectionState.Unconfigured -> "Voice service needs configuration" to VibeGold
+        is VoiceConnectionState.Connecting -> "Connecting to voice…" to VibeGold
+        is VoiceConnectionState.Connected -> {
+            if (state.micPublished) "Voice connected · Microphone live" to VibeEmerald
+            else "Voice connected · Listening" to VibeEmerald
+        }
+        is VoiceConnectionState.Error -> "Voice error: ${state.message}" to VibeCoral
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth().testTag("agora_connection_status"),
+        shape = RoundedCornerShape(12.dp),
+        color = statusColor.copy(alpha = 0.10f),
+        border = BorderStroke(1.dp, statusColor.copy(alpha = 0.35f))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier.size(8.dp).clip(CircleShape).background(statusColor)
+            )
+            Text(
+                text = if (!hasAudioPermission) "Microphone permission needed · $statusText" else statusText,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            TextButton(onClick = onOpenGuide) {
+                Text("Details", color = statusColor, style = MaterialTheme.typography.labelSmall)
+            }
+        }
+    }
+}

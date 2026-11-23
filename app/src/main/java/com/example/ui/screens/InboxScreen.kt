@@ -89,6 +89,7 @@ import com.example.data.model.UserProfile
 import com.example.data.model.VibeShopCatalog
 import com.example.ui.components.ReportUserOrRoomDialog
 import com.example.ui.components.VibeAvatar
+import com.example.ui.components.VipShiningNameText
 import com.example.ui.theme.VibeCoral
 import com.example.ui.theme.VibeCyan
 import com.example.ui.theme.VibeEmerald
@@ -382,10 +383,10 @@ fun InboxScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Text(
+                                    VipShiningNameText(
                                         text = displayName,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
+                                        vipLevel = if (conv.isGroupChat) 0L else (peerProfile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L),
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f, fill = false)
@@ -678,10 +679,10 @@ private fun ChatDetailScreen(
                         online = if (isGroup) false else (peerProfile?.let { it.online && it.showOnlineStatus } ?: false)
                     )
                     Column {
-                        Text(
+                        VipShiningNameText(
                             text = headerTitle,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
+                            vipLevel = if (isGroup) 0L else (peerProfile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -878,15 +879,11 @@ private fun ChatDetailScreen(
                                         .then(if (isOfficialBotMessage) Modifier else Modifier.clickable { onInspectPeer(msg.senderId) })
                                         .testTag("dm_sender_name_${msg.id}")
                                 ) {
-                                    Text(
+                                    VipShiningNameText(
                                         text = senderName,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = when {
-                                            isMine -> Color.White.copy(alpha = 0.9f)
-                                            isOfficialBotMessage -> VibeGold
-                                            else -> VibeCyan
-                                        }
+                                        vipLevel = senderProfile?.let { if (it.isVipActive) it.vipLevel else 0L }
+                                            ?: if (isMine && currentUser.isVipActive) currentUser.vipLevel else 0L,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
                                     )
                                 }
                             }
@@ -1521,7 +1518,11 @@ private fun GroupInfoSheet(
                     ) {
                         VibeAvatar(memberAvatar, memberName, size = 38.dp, vipLevel = profile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L)
                         Column {
-                            Text(memberName, fontWeight = FontWeight.SemiBold)
+                            VipShiningNameText(
+                                text = memberName,
+                                vipLevel = profile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                            )
                             if (isGroupOwner || isAdmin) {
                                 Text(
                                     text = if (isGroupOwner) "Group Owner" else "Group Admin",

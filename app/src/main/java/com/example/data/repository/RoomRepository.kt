@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.sync.Mutex
@@ -57,6 +58,13 @@ class RoomRepository(
     private fun requireUserId(): String {
         return auth.currentUser?.uid
             ?: throw IllegalStateException("User must be signed in with Google before accessing Firestore.")
+    }
+
+    private fun roomPresenceClock(): Flow<Long> = flow {
+        while (true) {
+            emit(System.currentTimeMillis())
+            delay(5_000L)
+        }
     }
 
     private fun isFreshRoomSession(document: DocumentSnapshot, nowMillis: Long = System.currentTimeMillis()): Boolean {
@@ -87,7 +95,9 @@ class RoomRepository(
                     val roomCountFlows = rooms.map { room ->
                         val roomRef = db.collection("rooms").document(room.id)
                         val sessionsFlow = roomRef.collection("room_sessions").snapshots()
-                            .map { snapshot -> snapshot.documents.filter { isFreshRoomSession(it) }.map { it.id }.toSet() }
+                            .combine(roomPresenceClock()) { snapshot, now ->
+                                snapshot.documents.filter { isFreshRoomSession(it, now) }.map { it.id }.toSet()
+                            }
                             .onStart { emit(emptySet()) }
                         val seatsFlow = roomRef.collection("seats").snapshots()
                             .map { snap -> snap.documents.mapNotNull { it.getString("occupantId") }.filter { it.isNotBlank() }.toSet() }
@@ -125,7 +135,9 @@ class RoomRepository(
                 snapshot.toObjects(VoiceSeat::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
             }
         val sessionsFlow = roomRef.collection("room_sessions").snapshots()
-            .map { snapshot -> snapshot.documents.filter { isFreshRoomSession(it) }.map { it.id }.toSet() }
+            .combine(roomPresenceClock()) { snapshot, now ->
+                snapshot.documents.filter { isFreshRoomSession(it, now) }.map { it.id }.toSet()
+            }
         val onlineUsersFlow = db.collection("users")
             .whereEqualTo("accountStatus", "ACTIVE")
             .whereEqualTo("online", true)
@@ -226,7 +238,9 @@ class RoomRepository(
         // Do not hide valid room members merely because their global users/{uid}.online flag is stale.
         val sessionsFlow = roomRef.collection("room_sessions")
             .snapshots()
-            .map { snapshot -> snapshot.documents.filter { isFreshRoomSession(it) }.map { it.id }.toSet() }
+            .combine(roomPresenceClock()) { snapshot, now ->
+                snapshot.documents.filter { isFreshRoomSession(it, now) }.map { it.id }.toSet()
+            }
         val onlineFrameColorsFlow = db.collection("users")
             .whereEqualTo("accountStatus", "ACTIVE")
             .whereEqualTo("online", true)

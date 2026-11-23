@@ -51,6 +51,7 @@ import com.example.data.model.VoiceRoom
 import com.example.ui.components.LevelBadge
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.VipBadgePill
+import com.example.ui.components.VipShiningNameText
 import com.example.ui.components.VoiceRoomCard
 import com.example.ui.state.UiState
 import com.example.ui.theme.VibeCyan
@@ -206,10 +207,10 @@ fun ExploreScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Text(
+                                VipShiningNameText(
                                     text = user.username,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    vipLevel = if (user.isVipActive) user.vipLevel else 0L,
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f, fill = false)

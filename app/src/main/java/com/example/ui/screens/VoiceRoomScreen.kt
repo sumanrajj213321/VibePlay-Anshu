@@ -1198,7 +1198,7 @@ private fun HostSeatTile(
                     username = seat.occupantName,
                     size = 76.dp,
                     vipLevel = seat.occupantVipLevel,
-                    speaking = false,
+                    speaking = isSpeaking,
                     frameColorArgb = seat.occupantFrameColorArgb
                 )
             } else {
@@ -1296,7 +1296,7 @@ private fun SpeakerSeatTile(
                     username = seat.occupantName,
                     size = 54.dp,
                     vipLevel = seat.occupantVipLevel,
-                    speaking = false,
+                    speaking = isSpeaking,
                     frameColorArgb = seat.occupantFrameColorArgb
                 )
                 Surface(

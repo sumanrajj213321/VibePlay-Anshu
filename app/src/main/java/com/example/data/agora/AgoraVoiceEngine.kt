@@ -125,8 +125,17 @@ class AgoraVoiceEngine {
             renewChannelToken()
         }
 
+        override fun onUserOffline(uid: Int, reason: Int) {
+            remoteSpeakingUids = remoteSpeakingUids - uid
+            _activeSpeakerUids.value = remoteSpeakingUids +
+                if (localIsSpeaking && localAgoraUid > 0) setOf(localAgoraUid) else emptySet()
+        }
+
         override fun onConnectionLost() {
             joined = false
+            localIsSpeaking = false
+            remoteSpeakingUids = emptySet()
+            _activeSpeakerUids.value = emptySet()
             _connectionState.value = VoiceConnectionState.Error("Voice connection lost. Re-enter the room to reconnect.")
         }
     }
@@ -246,8 +255,12 @@ class AgoraVoiceEngine {
             engine?.enableAudioVolumeIndication(VOLUME_INDICATION_INTERVAL_MS, VOLUME_INDICATION_SMOOTHING, true)
             engine?.setEnableSpeakerphone(true)
         } else if (joined) {
+            // A room-role change starts a fresh channel session; discard old speaking indicators.
             engine?.leaveChannel()
             joined = false
+            localIsSpeaking = false
+            remoteSpeakingUids = emptySet()
+            _activeSpeakerUids.value = emptySet()
         }
 
         val options = ChannelMediaOptions().apply {

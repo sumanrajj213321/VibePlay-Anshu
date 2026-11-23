@@ -112,9 +112,10 @@ class RoomRepository(
             }
         val sessionsFlow = roomRef.collection("room_sessions").snapshots()
             .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
+        // Seat presence comes from room_sessions; load frame cosmetics for all active
+        // profiles so a delayed global online heartbeat cannot hide an equipped frame.
         val onlineUsersFlow = db.collection("users")
             .whereEqualTo("accountStatus", "ACTIVE")
-            .whereEqualTo("online", true)
             .snapshots()
             .map { snapshot ->
                 snapshot.documents.mapNotNull { document ->
@@ -218,9 +219,10 @@ class RoomRepository(
         val sessionsFlow = roomRef.collection("room_sessions")
             .snapshots()
             .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
+        // Listener membership is validated against room_sessions below. Do not gate
+        // equipped frame cosmetics on the separate global online heartbeat.
         val onlineFrameColorsFlow = db.collection("users")
             .whereEqualTo("accountStatus", "ACTIVE")
-            .whereEqualTo("online", true)
             .snapshots()
             .map { snapshot ->
                 snapshot.documents.mapNotNull { document ->

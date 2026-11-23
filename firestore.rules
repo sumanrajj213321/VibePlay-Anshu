@@ -654,7 +654,9 @@ service cloud.firestore {
     }
 
     match /rooms/{roomId} {
-      allow get: if isSignedIn() && isValidId(roomId) && (existing().status == 'LIVE' || isRoomManager(existing()));
+      allow get: if isSignedIn() && isValidId(roomId) &&
+                    (!exists(/databases/$(database)/documents/rooms/$(roomId)) ||
+                     existing().status == 'LIVE' || isRoomManager(existing()));
       allow list: if isSignedIn() && (existing().status == 'LIVE' || isRoomManager(existing()));
 
       allow create: if isSignedIn() && isValidId(roomId) &&

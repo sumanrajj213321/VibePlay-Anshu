@@ -94,7 +94,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.example.data.livekit.VoiceConnectionState
+import com.example.data.agora.VoiceConnectionState
 import com.example.data.model.GiftBurstEvent
 import com.example.data.model.GiftCatalogItem
 import com.example.data.model.GiftTransaction
@@ -680,7 +680,7 @@ internal fun VoiceRoomStageContent(
                 RoomGiftRankingStrip(giftTransactions, onOpenUserProfile)
 
                 // 2. Honest LiveKit Connection Status Banner + Announcement
-                LiveKitStatusPill(
+                AgoraStatusPill(
                     state = voiceConnection,
                     hasAudioPermission = hasAudioPermission,
                     onOpenGuide = { showSetupGuide = true }

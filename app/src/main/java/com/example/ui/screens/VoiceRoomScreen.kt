@@ -1076,15 +1076,15 @@ private fun LiveKitStatusPill(
 ) {
     val (label, tint) = when (state) {
         is VoiceConnectionState.Connected ->
-            "LiveKit Voice Connected · ${if (hasAudioPermission) "Mic Ready" else "Mic Permission Needed"}" to VibeEmerald
+            "Agora Voice Connected · ${if (hasAudioPermission) "Mic Ready" else "Mic Permission Needed"}" to VibeEmerald
         is VoiceConnectionState.Connecting ->
-            "Connecting LiveKit Audio..." to VibeCyan
+            "Connecting Agora Audio..." to VibeCyan
         is VoiceConnectionState.Unconfigured ->
             "Voice service not configured yet" to VibeGold
         is VoiceConnectionState.Error ->
-            "LiveKit Audio: ${state.message}" to VibeCoral
+            "Agora Audio: ${state.message}" to VibeCoral
         VoiceConnectionState.Disconnected ->
-            "LiveKit Ready" to VibeCyan
+            "Agora Ready" to VibeCyan
     }
 
     Surface(

@@ -1,6 +1,9 @@
 package com.example.ui.screens
 
+import android.media.AudioAttributes
+import android.media.AudioFormat
 import android.media.AudioManager
+import android.media.AudioTrack
 import android.media.ToneGenerator
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -34,6 +37,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 
 private enum class Fruit(val color: Color) { CHERRY(Color(0xFFFF397D)), GRAPE(Color(0xFFB34CFF)), LEMON(Color(0xFFFFD83D)), ORANGE(Color(0xFFFF9B28)), MELON(Color(0xFFFF5365)), KIWI(Color(0xFF9AE34B)) }
 
@@ -107,11 +114,47 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
     }
     val tone = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 55) }
     DisposableEffect(Unit) { onDispose { tone.release() } }
-    LaunchedEffect(musicOn, spinning) {
+    LaunchedEffect(musicOn) {
         if (musicOn) {
-            val notes = intArrayOf(ToneGenerator.TONE_DTMF_1, ToneGenerator.TONE_DTMF_3, ToneGenerator.TONE_DTMF_5, ToneGenerator.TONE_DTMF_3)
-            var i = 0
-            while (true) { if (!spinning) tone.startTone(notes[i++ % notes.size], 120); delay(900) }
+            val sampleRate = 22050
+            val noteFrames = sampleRate / 3
+            val bufferBytes = noteFrames * 2
+            val audioTrack = AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_GAME)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build()
+                )
+                .setBufferSizeInBytes(bufferBytes * 2)
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .build()
+            try {
+                withContext(Dispatchers.IO) {
+                    audioTrack.play()
+                    val melody = doubleArrayOf(523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 783.99, 698.46)
+                    var noteIndex = 0
+                    while (currentCoroutineContext().isActive) {
+                        val frequency = melody[noteIndex++ % melody.size]
+                        val samples = ShortArray(noteFrames) { index ->
+                            val fade = minOf(1.0, index / 500.0, (noteFrames - index) / 900.0).coerceAtLeast(0.0)
+                            (kotlin.math.sin(2.0 * Math.PI * frequency * index / sampleRate) * 2300.0 * fade).toInt().toShort()
+                        }
+                        audioTrack.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
+                    }
+                }
+            } finally {
+                audioTrack.pause()
+                audioTrack.flush()
+                audioTrack.release()
+            }
         }
     }
     Column(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF080B46), Color(0xFF17045B), Color(0xFF080B46)))).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {

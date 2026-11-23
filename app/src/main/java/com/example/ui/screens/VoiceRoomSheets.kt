@@ -80,6 +80,7 @@ import com.example.data.model.UserProfile
 import com.example.data.model.VoiceRoom
 import com.example.data.model.VoiceSeat
 import com.example.data.model.VoiceStage
+import com.example.ui.components.GiftCatalogArtwork
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.coverDrawableRes
 import com.example.ui.components.VipBadgePill
@@ -109,7 +110,7 @@ fun RoomGiftStoreSheet(
                 ?: stageRecipients.firstOrNull()
         )
     }
-    val giftCategories = remember { listOf("All", "Popular", "Romantic", "Party", "Luxury") }
+    val giftCategories = remember { listOf("All", "Daily", "Love", "Premium") }
     var selectedCategory by remember { mutableStateOf("All") }
     val visibleGifts = remember(gifts, selectedCategory) {
         if (selectedCategory == "All") gifts
@@ -200,7 +201,7 @@ fun RoomGiftStoreSheet(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Text(gift.emoji, fontSize = 26.sp)
+                            GiftCatalogArtwork(gift = gift, modifier = Modifier.size(48.dp))
                             Text(
                                 text = gift.name,
                                 style = MaterialTheme.typography.labelSmall,
@@ -260,7 +261,7 @@ fun RoomGiftStoreSheet(
                     text = when {
                         giftToSend == null || recipientToSend == null -> "Select Gift & Recipient"
                         !canAfford -> "Insufficient Coins ($totalCost needed)"
-                        else -> "Send $qtyPrefix${giftToSend.emoji} ${giftToSend.name} ($totalCost Coins)"
+                        else -> "Send $qtyPrefix${giftToSend.name} ($totalCost Coins)"
                     },
                     fontWeight = FontWeight.Bold
                 )

@@ -99,6 +99,7 @@ import com.example.data.model.VibeCatalogDefaults
 import com.example.data.model.UserProfile
 import com.example.data.model.VibeShopCatalog
 import com.example.ui.components.GiftBurstOverlay
+import com.example.ui.components.GiftCatalogArtwork
 import com.example.ui.components.ReportUserOrRoomDialog
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.VipShiningNameText
@@ -1122,7 +1123,7 @@ private fun ChatDetailScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(VibePink, VibeViolet, VibeCyan))), contentAlignment = Alignment.Center) { Text(gift.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleLarge) }
+                                GiftCatalogArtwork(gift = gift, modifier = Modifier.size(48.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(gift.name, fontWeight = FontWeight.SemiBold)
                                     val comboCost = gift.coinCost.toLong() * selectedGiftQuantity

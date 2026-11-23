@@ -79,6 +79,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import android.net.Uri
+import android.widget.VideoView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -92,6 +95,7 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.GifDecoder
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import android.content.Context
 import android.media.AudioManager
 import android.media.ToneGenerator
@@ -99,6 +103,7 @@ import android.util.Base64
 import com.example.BuildConfig
 import com.example.R
 import com.example.data.model.GiftBurstEvent
+import com.example.data.model.GiftCatalogItem
 import com.example.data.model.UserProfile
 import com.example.data.model.VibeCatalogDefaults
 import com.example.data.model.VoiceRoom
@@ -938,79 +943,164 @@ fun VoiceRoomCard(
 }
 
 @Composable
-fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: Modifier = Modifier) {
-    val progress by animateFloatAsState(
-        targetValue = if (event == null) 0f else 1f,
-        animationSpec = tween(5000, easing = LinearEasing),
-        label = "full_screen_gift_progress"
-    )
-    LaunchedEffect(event?.id) {
-        if (event != null) {
-            val tone = ToneGenerator(AudioManager.STREAM_MUSIC, 70)
-            try {
-                tone.startTone(ToneGenerator.TONE_DTMF_0 + Math.floorMod(event.giftId.hashCode(), 16), 420)
-                delay(5000L)
-            } finally { tone.release() }
-            onFinished()
+fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
+    var thumbnailUrl by remember(gift.id) { mutableStateOf<String?>(null) }
+    LaunchedEffect(gift.id) {
+        if (gift.id == "gift_couple_kiss") {
+            thumbnailUrl = runCatching {
+                FirebaseStorage.getInstance().reference
+                    .child("gift-assets/couple_kiss_thumbnail.jpg")
+                    .downloadUrl.await().toString()
+            }.getOrNull()
         }
     }
+    if (gift.id == "gift_couple_kiss" && !thumbnailUrl.isNullOrBlank()) {
+        AsyncImage(
+            model = thumbnailUrl,
+            contentDescription = gift.name,
+            modifier = modifier.clip(RoundedCornerShape(12.dp)),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        val colors = when (gift.category.lowercase()) {
+            "love" -> listOf(Color(0xFFFF7BAE), Color(0xFF7D3C98))
+            "premium" -> listOf(Color(0xFFFFC857), Color(0xFF7C3AED))
+            else -> listOf(Color(0xFF39C6D8), Color(0xFF4F46E5))
+        }
+        Box(
+            modifier = modifier.clip(RoundedCornerShape(12.dp))
+                .background(Brush.linearGradient(colors)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = gift.name.take(1).uppercase(),
+                color = Color.White,
+                fontWeight = FontWeight.Black,
+                style = MaterialTheme.typography.titleLarge
+            )
+        }
+    }
+}
+
+@Composable
+fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val couple = event?.giftId == "gift_couple_kiss"
+    var videoUrl by remember(event?.id) { mutableStateOf<String?>(null) }
+    var videoReady by remember(event?.id) { mutableStateOf(false) }
+    var videoLoadFailed by remember(event?.id) { mutableStateOf(false) }
+    val progress by animateFloatAsState(
+        targetValue = if (event == null) 0f else 1f,
+        animationSpec = tween(if (couple) 5200 else 5000, easing = LinearEasing),
+        label = "full_screen_gift_progress"
+    )
+
+    LaunchedEffect(event?.id) {
+        val active = event
+        if (active != null) {
+            if (active.giftId == "gift_couple_kiss") {
+                videoUrl = runCatching {
+                    FirebaseStorage.getInstance().reference
+                        .child("gift-assets/couple_kiss_gift.mp4")
+                        .downloadUrl.await().toString()
+                }.getOrNull()
+                if (videoUrl == null) videoLoadFailed = true
+            } else {
+                val tone = ToneGenerator(AudioManager.STREAM_MUSIC, 70)
+                try {
+                    tone.startTone(ToneGenerator.TONE_DTMF_0 + Math.floorMod(active.giftId.hashCode(), 16), 420)
+                    delay(5000L)
+                } finally { tone.release() }
+                onFinished()
+            }
+        }
+    }
+
+    LaunchedEffect(event?.id, videoReady, videoLoadFailed) {
+        if (couple && event != null) {
+            when {
+                videoReady -> { delay(5200L); onFinished() }
+                videoLoadFailed -> { delay(5000L); onFinished() }
+            }
+        }
+    }
+
     if (event != null) {
-        val couple = event.giftId == "gift_couple_kiss"
-        val accent = when (event.giftId) {
-            "gift_couple_kiss", "gift_love_promise", "gift_moonlight_dance" -> Color(0xFFFF78B7)
+        val accent = if (couple) Color(0xFFFF8DBB) else when (event.giftId) {
+            "gift_love_promise", "gift_moonlight_dance" -> Color(0xFFFF78B7)
             "gift_royal_phoenix", "gift_galaxy_crown" -> Color(0xFFFFC857)
             "gift_crystal_wave", "gift_ocean_palace", "gift_diamond_rain" -> Color(0xFF55DDF5)
             "gift_dragon_flight", "gift_vibe_universe" -> Color(0xFFB58BFF)
             else -> Color(0xFF8B9CFF)
         }
-        Box(modifier.fillMaxSize().zIndex(100f).background(Brush.verticalGradient(listOf(Color(0xFF08091E), Color(0xFF171039), Color(0xFF260F36), Color(0xFF08091E))))) {
-            Canvas(Modifier.fillMaxSize()) {
-                val w=size.width; val h=size.height
-                drawRect(Brush.radialGradient(listOf(accent.copy(alpha=0.34f),Color.Transparent),Offset(w*0.5f,h*0.48f),w*0.78f))
-                for(i in 0..70) {
-                    val x=((i*73)%997)/997f*w; val y=((i*137)%991)/991f*h
-                    val drift=((progress*1.8f+i*0.11f)%1f)
-                    drawCircle(if(i%3==0) accent.copy(alpha=0.78f) else Color.White.copy(alpha=0.55f),(2f+(i%4)*1.2f)*density,Offset(x,(y-drift*h*0.18f+h)%h))
-                }
-                for(ring in 1..4) drawCircle(accent.copy(alpha=0.18f-ring*0.025f),w*(0.12f+ring*0.12f+progress*0.08f),Offset(w*0.5f,h*0.49f),style=Stroke(width=2.5f.dp.toPx()))
-                if(couple) {
-                    val approach=(progress*1.45f).coerceIn(0f,1f)
-                    val lx=w*(0.25f+0.19f*approach); val rx=w*(0.75f-0.19f*approach)
-                    val y=h*0.43f; val r=w*0.075f; val lean=if(progress>0.72f) r*0.16f else 0f
-                    // Anime girl: flowing hair, large eyes, blush and pink outfit.
-                    drawOval(Color(0xFF5A2D58),Offset(lx-r*1.05f,y-r*1.25f),androidx.compose.ui.geometry.Size(r*2.1f,r*2.55f))
-                    drawCircle(Color(0xFFFFD8C8),r*0.88f,Offset(lx+lean,y))
-                    drawOval(Color(0xFF3A234C),Offset(lx-r,y-r*1.12f),androidx.compose.ui.geometry.Size(r*2f,r*0.82f))
-                    drawCircle(Color(0xFF35213D),r*0.075f,Offset(lx-r*0.3f,y)); drawCircle(Color(0xFF35213D),r*0.075f,Offset(lx+r*0.3f,y))
-                    drawCircle(Color(0xFFFF91B6),r*0.13f,Offset(lx-r*0.48f,y+r*0.28f)); drawCircle(Color(0xFFFF91B6),r*0.13f,Offset(lx+r*0.48f,y+r*0.28f))
-                    drawRoundRect(Color(0xFFFF78B7),Offset(lx-r*1.12f,y+r*0.92f),androidx.compose.ui.geometry.Size(r*2.24f,h*0.28f),androidx.compose.ui.geometry.CornerRadius(r*0.55f))
-                    // Anime boy: swept dark hair, bright eyes and blue outfit.
-                    drawCircle(Color(0xFF20243D),r*1.05f,Offset(rx,y-r*0.12f)); drawCircle(Color(0xFFFFDCCB),r*0.86f,Offset(rx-lean,y))
-                    drawOval(Color(0xFF20243D),Offset(rx-r,y-r*1.08f),androidx.compose.ui.geometry.Size(r*2f,r*0.72f))
-                    drawCircle(Color(0xFF27304A),r*0.075f,Offset(rx-r*0.3f,y)); drawCircle(Color(0xFF27304A),r*0.075f,Offset(rx+r*0.3f,y))
-                    drawRoundRect(Color(0xFF5B8DDA),Offset(rx-r*1.12f,y+r*0.92f),androidx.compose.ui.geometry.Size(r*2.24f,h*0.28f),androidx.compose.ui.geometry.CornerRadius(r*0.55f))
-                    if(progress>0.72f) {
-                        val glow=(progress-0.72f)/0.28f
-                        drawCircle(Color(0xFFFFA7CF).copy(alpha=glow),r*0.25f,Offset(w*0.5f,y+r*0.2f))
-                        for(i in 0..8) { val angle=i*(Math.PI.toFloat()*2f/9f); val rad=r*(1.3f+glow*0.8f); drawCircle(Color(0xFFFFC4DF).copy(alpha=glow),r*0.055f,Offset(w*0.5f+kotlin.math.cos(angle)*rad,y+kotlin.math.sin(angle)*rad)) }
+        Box(
+            modifier.fillMaxSize().zIndex(100f)
+                .background(if (couple && videoUrl != null && !videoLoadFailed) Color.Black else Brush.verticalGradient(listOf(Color(0xFF08091E), Color(0xFF171039), Color(0xFF260F36), Color(0xFF08091E))))
+        ) {
+            if (couple && videoUrl != null && !videoLoadFailed) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { ctx ->
+                        VideoView(ctx).apply {
+                            setVideoURI(Uri.parse(videoUrl))
+                            setOnPreparedListener { player ->
+                                player.setVolume(1f, 1f)
+                                videoReady = true
+                                start()
+                            }
+                            setOnErrorListener { _, _, _ ->
+                                videoLoadFailed = true
+                                true
+                            }
+                        }
+                    },
+                    update = { view ->
+                        if (view.tag != videoUrl) {
+                            view.tag = videoUrl
+                            view.setVideoURI(Uri.parse(videoUrl))
+                        }
+                    },
+                    onRelease = { it.stopPlayback() }
+                )
+            } else if (!couple || videoLoadFailed) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val w=size.width; val h=size.height
+                    drawRect(Brush.radialGradient(listOf(accent.copy(alpha=0.34f),Color.Transparent),Offset(w*0.5f,h*0.48f),w*0.78f))
+                    for(i in 0..70) {
+                        val x=((i*73)%997)/997f*w; val y=((i*137)%991)/991f*h
+                        val drift=((progress*1.8f+i*0.11f)%1f)
+                        drawCircle(if(i%3==0) accent.copy(alpha=0.78f) else Color.White.copy(alpha=0.55f),(2f+(i%4)*1.2f)*density,Offset(x,(y-drift*h*0.18f+h)%h))
                     }
-                } else {
+                    for(ring in 1..4) drawCircle(accent.copy(alpha=0.18f-ring*0.025f),w*(0.12f+ring*0.12f+progress*0.08f),Offset(w*0.5f,h*0.49f),style=Stroke(width=2.5f.dp.toPx()))
                     val center=Offset(w*0.5f,h*0.48f); val g=w*(0.13f+0.035f*kotlin.math.sin(progress*Math.PI.toFloat()))
                     val shape=Path().apply { moveTo(center.x,center.y-g); lineTo(center.x+g*0.72f,center.y); lineTo(center.x,center.y+g); lineTo(center.x-g*0.72f,center.y); close() }
                     drawPath(shape,accent); drawPath(shape,Color.White.copy(alpha=0.85f),style=Stroke(width=3.dp.toPx()))
                     for(i in 0..11) { val angle=i*(Math.PI.toFloat()*2f/12f); val inner=g*1.35f; val outer=g*(1.8f+progress*0.45f); drawLine(accent,Offset(center.x+kotlin.math.cos(angle)*inner,center.y+kotlin.math.sin(angle)*inner),Offset(center.x+kotlin.math.cos(angle)*outer,center.y+kotlin.math.sin(angle)*outer),strokeWidth=3.dp.toPx()) }
                 }
             }
-            Column(Modifier.fillMaxSize().padding(horizontal=24.dp,vertical=44.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.SpaceBetween) {
-                Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                    Text("VIBEPLAY PRESENTS",color=accent,style=MaterialTheme.typography.labelLarge,fontWeight=FontWeight.ExtraBold,letterSpacing=3.sp)
-                    Text(event.giftName,color=Color.White,style=MaterialTheme.typography.headlineLarge,fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
-                    Text(if(couple) "A little moment, made for two" else "A gift made to light up the room",color=Color.White.copy(alpha=0.82f),style=MaterialTheme.typography.titleSmall,textAlign=TextAlign.Center)
+
+            Surface(
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 38.dp),
+                color = Color.Black.copy(alpha = 0.58f),
+                shape = RoundedCornerShape(30.dp),
+                border = BorderStroke(1.dp, accent.copy(alpha = 0.8f))
+            ) {
+                Column(Modifier.padding(horizontal = 22.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("GIFT SENT BY", color = accent, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)
+                    Text(event.senderName, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
                 }
-                Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                    Text(event.senderName+" sent this gift",color=Color.White,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
-                    Text("For "+event.recipientName+"  ·  "+event.coinCost+" coins",color=accent,style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.SemiBold,textAlign=TextAlign.Center)
-                    Box(Modifier.fillMaxWidth(0.58f).height(3.dp).clip(CircleShape).background(Color.White.copy(alpha=0.18f))) { Box(Modifier.fillMaxWidth(progress.coerceIn(0f,1f)).fillMaxSize().background(accent)) }
+            }
+            Column(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 34.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Bottom
+            ) {
+                Text(event.giftName, color = Color.White, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(6.dp))
+                Text("For ${event.recipientName}  ·  ${event.coinCost} coins", color = accent, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(14.dp))
+                Box(Modifier.fillMaxWidth(0.58f).height(3.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.25f))) {
+                    Box(Modifier.fillMaxWidth(progress.coerceIn(0f,1f)).fillMaxSize().background(accent))
                 }
             }
         }

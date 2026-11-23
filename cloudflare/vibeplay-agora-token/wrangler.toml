@@ -1,0 +1,7 @@
+name = "vibeplay-agora-token"
+main = "worker.js"
+compatibility_date = "2026-11-23"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+AGORA_APP_ID = "7c89234170414a1098e3a4143a6a0397"

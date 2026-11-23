@@ -985,18 +985,10 @@ class RoomRepository(
                     nextListenerCount = (nextListenerCount - 1L).coerceAtLeast(0L)
                 }
 
-                val hostCount = if (loadedRoom.effectiveOwnerOnline) 1L else 0L
-                val nextActiveSpeakers = (hostCount + stage.speakerSeats.count { it.isOccupied } + 1L).coerceIn(1L, 9L)
-                tx.update(
-                    roomRef,
-                    mapOf(
-                        "listenerCount" to nextListenerCount,
-                        "activeSpeakersCount" to nextActiveSpeakers,
-                        "lastSpeakerSeatJoinUserId" to uid,
-                        "lastSpeakerSeatJoinSeatIndex" to seatIndex.toLong(),
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    )
-                )
+                // Ordinary speakers are not allowed to write the parent room document by
+                // Firestore rules. Seat occupancy and listener removal are the authoritative
+                // writes; live speaker/listener counts are derived from room_sessions + seats.
+                // Avoid failing an otherwise valid seat join with PERMISSION_DENIED.
             }.await()
             Result.success(Unit)
         } catch (e: CancellationException) {

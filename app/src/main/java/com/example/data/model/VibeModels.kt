@@ -51,6 +51,7 @@ data class UserProfile(
     val showGender: Boolean = true,
     val showOnlineStatus: Boolean = true,
     val online: Boolean = true,
+    val lastSeenAt: Timestamp? = null,
     val level: Long = 1L,
     val xp: Long = 0L,
     val vipLevel: Long = 0L,

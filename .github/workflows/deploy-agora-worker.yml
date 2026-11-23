@@ -14,9 +14,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: cloudflare/vibeplay-agora-token
     steps:
       - name: Check required deployment secrets
         env:
@@ -35,9 +32,11 @@ jobs:
           node-version: 22
 
       - name: Install Worker dependencies
+        working-directory: cloudflare/vibeplay-agora-token
         run: npm install --no-audit --no-fund
 
       - name: Deploy Cloudflare Worker
+        working-directory: cloudflare/vibeplay-agora-token
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

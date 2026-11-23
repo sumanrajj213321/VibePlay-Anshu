@@ -25,6 +25,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import com.example.R
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -37,6 +42,15 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val progressPrefs = remember { context.getSharedPreferences("fruit_treasure_progress", android.content.Context.MODE_PRIVATE) }
     val todayKey = remember { SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) }
+    val signedInUid = FirebaseAuth.getInstance().currentUser?.uid
+    val cloudProgressRef = remember(signedInUid) {
+        signedInUid?.let { uid ->
+            FirebaseFirestore.getInstance(context.getString(R.string.firestore_database_id))
+                .collection("users").document(uid)
+                .collection("game_progress").document("fruit_treasure")
+        }
+    }
+    var cloudProgressLoaded by remember(signedInUid) { mutableStateOf(false) }
     var reels by remember { mutableStateOf(List(9) { Fruit.entries.random() }) }
     var spinning by remember { mutableStateOf(false) }
     var musicOn by remember { mutableStateOf(progressPrefs.getBoolean("music_on", false)) }
@@ -47,6 +61,43 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
     var message by remember { mutableStateOf("Match 3 custom fruits in a line to earn points") }
     LaunchedEffect(score, spins) {
         progressPrefs.edit().putInt("score", score).putInt("spins", spins).apply()
+    }
+    LaunchedEffect(cloudProgressRef) {
+        val ref = cloudProgressRef
+        if (ref == null) {
+            cloudProgressLoaded = true
+        } else {
+            try {
+                val snapshot = ref.get().await()
+                if (snapshot.exists()) {
+                    score = maxOf(score, (snapshot.getLong("score") ?: 0L).coerceIn(0L, 1_000_000_000L).toInt())
+                    spins = maxOf(spins, (snapshot.getLong("spins") ?: 0L).coerceIn(0L, 10_000_000L).toInt())
+                    if (snapshot.getString("dailyBonusDate") == todayKey) dailyBonusClaimed = true
+                }
+            } catch (_: Exception) {
+                message = "Cloud sync unavailable. Your progress is saved on this device."
+            } finally {
+                cloudProgressLoaded = true
+            }
+        }
+    }
+    LaunchedEffect(score, spins, dailyBonusClaimed, cloudProgressLoaded, cloudProgressRef) {
+        val ref = cloudProgressRef
+        if (cloudProgressLoaded && ref != null) {
+            try {
+                ref.set(
+                    mapOf(
+                        "score" to score.coerceAtLeast(0),
+                        "spins" to spins.coerceAtLeast(0),
+                        "dailyBonusDate" to if (dailyBonusClaimed) todayKey else "",
+                        "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                    ),
+                    SetOptions.merge()
+                ).await()
+            } catch (_: Exception) {
+                message = "Cloud sync pending. Your device copy is safe."
+            }
+        }
     }
     LaunchedEffect(musicOn, soundOn) {
         progressPrefs.edit().putBoolean("music_on", musicOn).putBoolean("sound_on", soundOn).apply()

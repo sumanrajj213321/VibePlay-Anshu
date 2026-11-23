@@ -172,7 +172,9 @@ class AgoraVoiceEngine {
                 Constants.CLIENT_ROLE_AUDIENCE
             }
             publishMicrophoneTrack = micShouldPublish
+            publishCameraTrack = false
             autoSubscribeAudio = true
+            autoSubscribeVideo = false
         }
         val result = engine?.joinChannel(response.token, response.channelName, response.uid, options)
             ?: error("Agora engine could not be initialized.")

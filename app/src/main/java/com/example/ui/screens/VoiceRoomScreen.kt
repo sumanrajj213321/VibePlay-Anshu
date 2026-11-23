@@ -17,7 +17,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -708,7 +707,12 @@ internal fun VoiceRoomStageContent(
 
                 RoomGiftRankingStrip(giftTransactions, onOpenUserProfile)
 
-                // Voice connection status is intentionally kept out of the room chat layout.
+                // 2. Honest LiveKit Connection Status Banner + Announcement
+                AgoraStatusPill(
+                    state = voiceConnection,
+                    hasAudioPermission = hasAudioPermission,
+                    onOpenGuide = { showSetupGuide = true }
+                )
 
                 if (currentRoom.announcement.isNotBlank() && !isImeVisible) {
                     Surface(
@@ -1199,32 +1203,46 @@ private fun HostSeatTile(
             .testTag("host_seat_0")
     ) {
         Box(contentAlignment = Alignment.BottomEnd) {
-            // Keep the host avatar bounds fixed while voice activity changes.
+            if (ownerOnline && isSpeaking) {
+                VoiceActivityRings(modifier = Modifier.align(Alignment.Center).size(92.dp))
+            }
             if (ownerOnline) {
                 VibeAvatar(
                     avatarUrl = seat.occupantAvatarUrl,
                     username = seat.occupantName,
                     size = 76.dp,
                     vipLevel = seat.occupantVipLevel,
-                    speaking = false,
+                    speaking = isSpeaking,
                     frameColorArgb = seat.occupantFrameColorArgb
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .size(76.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
                         .testTag("host_seat_offline_placeholder"),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "HOST",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold
+                    VibeAvatar(
+                        avatarUrl = seat.occupantAvatarUrl,
+                        username = seat.occupantName,
+                        size = 76.dp,
+                        vipLevel = seat.occupantVipLevel,
+                        modifier = Modifier.alpha(0.38f),
+                        frameColorArgb = seat.occupantFrameColorArgb
                     )
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Color.Black.copy(alpha = 0.62f),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.55f))
+                    ) {
+                        Text(
+                            text = "OFFLINE",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                        )
+                    }
                 }
             }
             if (ownerOnline) {
@@ -1257,7 +1275,7 @@ private fun HostSeatTile(
             ) {
                 Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = VibeGold, modifier = Modifier.size(12.dp))
                 Text(
-                    text = if (ownerOnline) "HOST · ${seat.occupantName}" else "HOST SEAT",
+                    text = "HOST · ${seat.occupantName}",
                     style = MaterialTheme.typography.labelSmall,
                     color = VibeGold,
                     fontWeight = FontWeight.Bold,
@@ -1286,13 +1304,15 @@ private fun SpeakerSeatTile(
     ) {
         if (seat.isOccupied) {
             Box(contentAlignment = Alignment.BottomEnd) {
-                // A fixed avatar footprint prevents the 1–8 seat grid from resizing while speaking.
+                if (isSpeaking) {
+                    VoiceActivityRings(modifier = Modifier.align(Alignment.Center).size(70.dp))
+                }
                 VibeAvatar(
                     avatarUrl = seat.occupantAvatarUrl,
                     username = seat.occupantName,
                     size = 54.dp,
                     vipLevel = seat.occupantVipLevel,
-                    speaking = false,
+                    speaking = isSpeaking,
                     frameColorArgb = seat.occupantFrameColorArgb
                 )
                 Surface(

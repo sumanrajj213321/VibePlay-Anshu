@@ -990,11 +990,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
         val active = event
         if (active != null) {
             if (active.giftId == "gift_sunset_love") {
-                videoUrl = runCatching {
-                    FirebaseStorage.getInstance().reference
-                        .child("gift-assets/sunset_love_gift.mp4")
-                        .downloadUrl.await().toString()
-                }.getOrNull()
+                videoUrl = "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/sunset_love_gift.mp4"
                 if (videoUrl == null) videoLoadFailed = true
             } else {
                 val tone = ToneGenerator(AudioManager.STREAM_MUSIC, 70)

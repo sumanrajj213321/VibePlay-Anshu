@@ -113,7 +113,7 @@ fun RelationshipScreen(
                 // Older follow documents may rely on the document ID and omit peerId.
                 // The follow document ID is the followed user's UID.
                 val person = storedPerson.copy(
-                    peerId = storedPerson.peerId.ifBlank { storedPerson.id }
+                    peerId = storedPerson.id.ifBlank { storedPerson.peerId }
                 )
                 RelationshipFollowingCard(
                     person = person,

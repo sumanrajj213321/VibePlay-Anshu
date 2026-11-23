@@ -388,7 +388,8 @@ service cloud.firestore {
         incoming().createdAt == request.time &&
         incoming().expiresAt is timestamp &&
         incoming().expiresAt > request.time &&
-        incoming().expiresAt <= request.time + duration.value(48, 'h') &&
+        // Allow a small client/server clock-skew margin while the app still sets a 48-hour expiry.
+        incoming().expiresAt <= request.time + duration.value(48, 'h') + duration.value(2, 'm') &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(incoming().invitedTo)) &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountStatus == 'ACTIVE' &&

@@ -1610,6 +1610,7 @@ class RoomRepository(
 
             val senderRef = db.collection("users").document(uid)
             val recipientRef = db.collection("users").document(recipientId)
+            val giftTransactionRef = db.collection("gift_transactions").document()
 
             db.runTransaction { tx ->
                 val senderSnap = tx.get(senderRef)
@@ -1630,6 +1631,7 @@ class RoomRepository(
                             "coinBalance" to (liveCoins - totalCost),
                             "totalGiftsSent" to (liveSent + safeQty),
                             "totalGiftCoinsSent" to ((senderSnap.getLong("totalGiftCoinsSent") ?: 0L) + totalCost),
+                            "lastGiftTransactionId" to giftTransactionRef.id,
                             "totalGiftsReceived" to ((senderSnap.getLong("totalGiftsReceived") ?: 0L) + safeQty),
                             "totalGiftCoinsReceived" to ((senderSnap.getLong("totalGiftCoinsReceived") ?: 0L) + totalCost),
                             "xp" to newSenderXp,
@@ -1644,6 +1646,7 @@ class RoomRepository(
                             "coinBalance" to (liveCoins - totalCost),
                             "totalGiftsSent" to (liveSent + safeQty),
                             "totalGiftCoinsSent" to ((senderSnap.getLong("totalGiftCoinsSent") ?: 0L) + totalCost),
+                            "lastGiftTransactionId" to giftTransactionRef.id,
                             "xp" to newSenderXp,
                             "level" to LevelProgression.levelForXp(newSenderXp),
                             "updatedAt" to FieldValue.serverTimestamp()
@@ -1660,6 +1663,7 @@ class RoomRepository(
                         mapOf(
                             "totalGiftsReceived" to (recReceived + safeQty),
                             "totalGiftCoinsReceived" to ((recipientSnap.getLong("totalGiftCoinsReceived") ?: 0L) + totalCost),
+                            "lastGiftTransactionId" to giftTransactionRef.id,
                             "xp" to updatedRecXp,
                             "level" to LevelProgression.levelForXp(updatedRecXp),
                             "updatedAt" to FieldValue.serverTimestamp()
@@ -1668,7 +1672,7 @@ class RoomRepository(
                 }
 
                 tx.set(
-                    db.collection("gift_transactions").document(),
+                    giftTransactionRef,
                     mapOf(
                         "senderId" to uid,
                         "senderName" to sender.username,

@@ -545,6 +545,9 @@ test("Room chat, speaker requests, virtual gift batch, and filtered repository q
     const admin = ctx.firestore();
     await admin.collection("users").doc(ALICE_UID).set(makeUserPayload(ALICE_UID, "Alice", "VP-100001"));
     await admin.collection("users").doc(BOB_UID).set(makeUserPayload(BOB_UID, "Bob", "VP-200002"));
+    await admin.collection("gifts_catalog").doc("gift_fire").set({
+      name: "Vibe Fire", category: "Party", coinCost: 50, emoji: "🔥", active: true,
+    });
     await admin.collection("rooms").doc("room_1").set({
       hostId: ALICE_UID,
       hostName: "Alice",
@@ -639,14 +642,16 @@ test("Room chat, speaker requests, virtual gift batch, and filtered repository q
     coinBalance: 1000450,
     totalGiftsSent: 1,
     totalGiftCoinsSent: 50,
-    xp: 25,
+    lastGiftTransactionId: "tx_1",
+    xp: 10,
     level: 1,
     updatedAt: pastDate(),
   });
   giftBatch.update(bobDb.collection("users").doc(ALICE_UID), {
     totalGiftsReceived: 1,
     totalGiftCoinsReceived: 50,
-    xp: 50,
+    lastGiftTransactionId: "tx_1",
+    xp: 10,
     level: 1,
     updatedAt: pastDate(),
   });
@@ -671,9 +676,10 @@ test("Room chat, speaker requests, virtual gift batch, and filtered repository q
     coinBalance: 1000400,
     totalGiftsSent: 2,
     totalGiftCoinsSent: 100,
+    lastGiftTransactionId: "tx_self_gift",
     totalGiftsReceived: 1,
     totalGiftCoinsReceived: 50,
-    xp: 50,
+    xp: 20,
     level: 1,
     updatedAt: pastDate(),
   });

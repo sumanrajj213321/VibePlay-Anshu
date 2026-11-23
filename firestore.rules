@@ -278,37 +278,42 @@ service cloud.firestore {
     }
 
     function isTrustedGiftPrice(data) {
-      return (
-        exists(/databases/$(database)/documents/gifts_catalog/$(data.giftId)) &&
-        get(/databases/$(database)/documents/gifts_catalog/$(data.giftId)).data.active == true &&
-        get(/databases/$(database)/documents/gifts_catalog/$(data.giftId)).data.coinCost is int &&
-        data.coinCost == get(/databases/$(database)/documents/gifts_catalog/$(data.giftId)).data.coinCost * data.quantity
-      ) || (
-        !exists(/databases/$(database)/documents/gifts_catalog/$(data.giftId)) &&
-        defaultGiftUnitPrice(data.giftId) > 0 &&
-        data.coinCost == defaultGiftUnitPrice(data.giftId) * data.quantity
-      );
+      let catalogPath = /databases/$(database)/documents/gifts_catalog/$(data.giftId);
+      return exists(catalogPath)
+        ? (get(catalogPath).data.active == true &&
+           get(catalogPath).data.coinCost is int &&
+           data.coinCost == get(catalogPath).data.coinCost * data.quantity)
+        : (defaultGiftUnitPrice(data.giftId) > 0 &&
+           data.coinCost == defaultGiftUnitPrice(data.giftId) * data.quantity);
     }
 
-    function giftMatchesCoinUpdates(data) {
-      let senderBefore = get(/databases/$(database)/documents/users/$(data.senderId)).data;
-      let senderAfter = getAfter(/databases/$(database)/documents/users/$(data.senderId)).data;
-      let senderSent = ('totalGiftsSent' in senderBefore) ? senderBefore.totalGiftsSent : 0;
-      let senderGiftCoins = ('totalGiftCoinsSent' in senderBefore) ? senderBefore.totalGiftCoinsSent : 0;
-      return senderAfter.coinBalance == senderBefore.coinBalance - data.coinCost &&
-             senderAfter.totalGiftsSent == senderSent + data.quantity &&
-             senderAfter.totalGiftCoinsSent == senderGiftCoins + data.coinCost &&
-             (
-               data.recipientId == data.senderId ||
-               (
-                 getAfter(/databases/$(database)/documents/users/$(data.recipientId)).data.totalGiftsReceived ==
-                   (('totalGiftsReceived' in get(/databases/$(database)/documents/users/$(data.recipientId)).data)
-                     ? get(/databases/$(database)/documents/users/$(data.recipientId)).data.totalGiftsReceived : 0) + data.quantity &&
-                 getAfter(/databases/$(database)/documents/users/$(data.recipientId)).data.totalGiftCoinsReceived ==
-                   (('totalGiftCoinsReceived' in get(/databases/$(database)/documents/users/$(data.recipientId)).data)
-                     ? get(/databases/$(database)/documents/users/$(data.recipientId)).data.totalGiftCoinsReceived : 0) + data.coinCost
-               )
-             );
+    function giftMatchesCoinUpdates(data, txId) {
+      let senderPath = /databases/$(database)/documents/users/$(data.senderId);
+      let before = get(senderPath).data;
+      let after = getAfter(senderPath).data;
+      let sent = ('totalGiftsSent' in before) ? before.totalGiftsSent : 0;
+      let sentCoins = ('totalGiftCoinsSent' in before) ? before.totalGiftCoinsSent : 0;
+      let received = ('totalGiftsReceived' in before) ? before.totalGiftsReceived : 0;
+      let receivedCoins = ('totalGiftCoinsReceived' in before) ? before.totalGiftCoinsReceived : 0;
+      return after.lastGiftTransactionId == txId &&
+        after.coinBalance == before.coinBalance - data.coinCost &&
+        after.totalGiftsSent == sent + data.quantity &&
+        after.totalGiftCoinsSent == sentCoins + data.coinCost &&
+        (data.recipientId == data.senderId
+          ? after.totalGiftsReceived == received + data.quantity &&
+            after.totalGiftCoinsReceived == receivedCoins + data.coinCost
+          : giftRecipientCountersMatch(data, txId));
+    }
+
+    function giftRecipientCountersMatch(data, txId) {
+      let path = /databases/$(database)/documents/users/$(data.recipientId);
+      let before = get(path).data;
+      let after = getAfter(path).data;
+      let received = ('totalGiftsReceived' in before) ? before.totalGiftsReceived : 0;
+      let receivedCoins = ('totalGiftCoinsReceived' in before) ? before.totalGiftCoinsReceived : 0;
+      return after.lastGiftTransactionId == txId &&
+        after.totalGiftsReceived == received + data.quantity &&
+        after.totalGiftCoinsReceived == receivedCoins + data.coinCost;
     }
 
     function isValidGiftTransaction(data) {
@@ -429,6 +434,47 @@ service cloud.firestore {
     // --- Collection Rules ---
 
 
+    function isGiftProfileUpdate(userId) {
+      let txId = incoming().lastGiftTransactionId;
+      let giftPath = /databases/$(database)/documents/gift_transactions/$(txId);
+      return txId is string && txId.size() > 0 && existsAfter(giftPath) &&
+        giftProfileUpdateMatches(userId, getAfter(giftPath).data);
+    }
+
+    function giftProfileUpdateMatches(userId, gift) {
+      let oldSent = ('totalGiftsSent' in existing()) ? existing().totalGiftsSent : 0;
+      let oldSentCoins = ('totalGiftCoinsSent' in existing()) ? existing().totalGiftCoinsSent : 0;
+      let oldReceived = ('totalGiftsReceived' in existing()) ? existing().totalGiftsReceived : 0;
+      let oldReceivedCoins = ('totalGiftCoinsReceived' in existing()) ? existing().totalGiftCoinsReceived : 0;
+      let oldXp = ('xp' in existing()) ? existing().xp : 0;
+      return request.auth.uid == gift.senderId &&
+        (userId == gift.senderId || userId == gift.recipientId) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().role == existing().role &&
+        incoming().accountStatus == existing().accountStatus &&
+        isValidTs(incoming().updatedAt) &&
+        incoming().xp is int && incoming().xp == oldXp + (gift.coinCost / 5) &&
+        incoming().level is int && incoming().level >= 1 && incoming().level <= 999 &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'coinBalance', 'totalGiftsSent', 'totalGiftCoinsSent',
+          'totalGiftsReceived', 'totalGiftCoinsReceived',
+          'lastGiftTransactionId', 'xp', 'level', 'updatedAt'
+        ]) &&
+        gift.coinCost is int && gift.coinCost > 0 &&
+        gift.quantity is int && gift.quantity > 0 &&
+        (
+          (userId == gift.senderId &&
+           incoming().coinBalance == existing().coinBalance - gift.coinCost &&
+           incoming().totalGiftsSent == oldSent + gift.quantity &&
+           incoming().totalGiftCoinsSent == oldSentCoins + gift.coinCost) ||
+          (userId == gift.recipientId &&
+           incoming().coinBalance == existing().coinBalance &&
+           incoming().totalGiftsReceived == oldReceived + gift.quantity &&
+           incoming().totalGiftCoinsReceived == oldReceivedCoins + gift.coinCost)
+        );
+    }
+
     match /users/{userId} {
       allow get: if isSignedIn() && isValidId(userId) && (
         request.auth.uid == userId || existing().accountStatus == 'ACTIVE'
@@ -463,6 +509,9 @@ service cloud.firestore {
                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.userId == userId &&
                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
                        incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt']);
+
+      // Transaction-bound gift updates are checked before the broad profile validator.
+      allow update: if isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId);
 
       allow update: if isSignedIn() && isValidId(userId) &&
                        request.auth.uid == userId &&
@@ -935,7 +984,7 @@ service cloud.firestore {
                        request.auth.uid in incoming().participantIds &&
                        isValidGiftTransaction(incoming()) &&
                        isTrustedGiftPrice(incoming()) &&
-                       giftMatchesCoinUpdates(incoming()) &&
+                       giftMatchesCoinUpdates(incoming(), txId) &&
                        isValidTs(incoming().createdAt);
       allow update, delete: if false;
     }

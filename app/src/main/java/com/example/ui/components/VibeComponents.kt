@@ -72,12 +72,15 @@ import androidx.compose.ui.graphics.Path
 import kotlin.math.cos
 import kotlin.math.sin
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -540,6 +543,59 @@ private fun RoseGoldFrameOverlay(modifier: Modifier, pulseAlpha: Float) {
         drawCircle(blush,r*.075f,androidx.compose.ui.geometry.Offset(cx,cy-r*1.28f))
         val drop=Path().apply { moveTo(cx,cy+r*1.10f); cubicTo(cx+r*.36f,cy+r*1.40f,cx+r*.12f,cy+r*1.65f,cx,cy+r*1.68f); cubicTo(cx-r*.12f,cy+r*1.65f,cx-r*.36f,cy+r*1.40f,cx,cy+r*1.10f) }
         drawPath(drop,rose,style=Stroke(2.6.dp.toPx())); drawCircle(blush,r*.045f,androidx.compose.ui.geometry.Offset(cx,cy+r*1.40f))
+    }
+}
+
+@Composable
+fun VipShiningNameText(
+    text: String,
+    vipLevel: Long,
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.bodyMedium,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip,
+    textAlign: TextAlign? = null
+) {
+    if (vipLevel > 0L) {
+        val shimmer = rememberInfiniteTransition(label = "vip_name_amethyst_shimmer")
+        val shimmerOffset by shimmer.animateFloat(
+            initialValue = -260f,
+            targetValue = 260f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1900, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "vip_name_shimmer_offset"
+        )
+        val royalAmethystBrush = Brush.linearGradient(
+            colors = listOf(
+                Color(0xFF6500A8),
+                Color(0xFFD500F9),
+                Color(0xFFFFD8FF),
+                Color(0xFFFFFFFF),
+                Color(0xFFD500F9),
+                Color(0xFF6500A8)
+            ),
+            start = Offset(shimmerOffset, 0f),
+            end = Offset(shimmerOffset + 260f, 90f)
+        )
+        Text(
+            text = text,
+            modifier = modifier,
+            style = style.copy(brush = royalAmethystBrush),
+            maxLines = maxLines,
+            overflow = overflow,
+            textAlign = textAlign
+        )
+    } else {
+        Text(
+            text = text,
+            modifier = modifier,
+            style = style,
+            maxLines = maxLines,
+            overflow = overflow,
+            textAlign = textAlign
+        )
     }
 }
 

@@ -25,7 +25,10 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.snapshots
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import java.io.ByteArrayOutputStream
@@ -209,14 +212,29 @@ class UserRepository(
                 snapshot.toObject(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
             }
 
+    private fun presenceClock(): Flow<Long> = flow {
+        while (true) {
+            emit(System.currentTimeMillis())
+            delay(5_000L)
+        }
+    }
+
     fun observeActiveUsers(): Flow<List<UserProfile>> =
-        db.collection("users")
-            .whereEqualTo("accountStatus", "ACTIVE")
-            .snapshots()
-            .map { snapshot ->
-                snapshot.toObjects(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
-                    .sortedByDescending { it.level * 1000L + it.totalGiftsReceived }
-            }
+        combine(
+            db.collection("users")
+                .whereEqualTo("accountStatus", "ACTIVE")
+                .snapshots(),
+            presenceClock()
+        ) { snapshot, nowMillis ->
+            snapshot.toObjects(UserProfile::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+                .map { profile ->
+                    val lastSeenMillis = profile.lastSeenAt?.toDate()?.time
+                    val fresh = lastSeenMillis != null &&
+                        (nowMillis - lastSeenMillis) in -10_000L..35_000L
+                    profile.copy(online = profile.online && fresh)
+                }
+                .sortedByDescending { it.level * 1000L + it.totalGiftsReceived }
+        }
 
     fun observePrivateAccount(userId: String): Flow<PrivateAccount?> =
         db.collection("users").document(userId).collection("private").document("account")
@@ -362,10 +380,11 @@ class UserRepository(
         val docPath = "users/$uid"
         return try {
             db.collection("users").document(uid).update(
-                mapOf(
-                    "online" to online,
-                    "updatedAt" to FieldValue.serverTimestamp()
-                )
+                buildMap {
+                    put("online", online)
+                    put("updatedAt", FieldValue.serverTimestamp())
+                    if (online) put("lastSeenAt", FieldValue.serverTimestamp())
+                }
             ).await()
             Result.success(Unit)
         } catch (e: CancellationException) {

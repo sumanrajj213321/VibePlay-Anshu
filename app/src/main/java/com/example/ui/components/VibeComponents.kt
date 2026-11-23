@@ -3,6 +3,8 @@ package com.example.ui.components
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -67,6 +69,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.zIndex
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Path
 import kotlin.math.cos
@@ -935,60 +938,79 @@ fun VoiceRoomCard(
 }
 
 @Composable
-fun GiftBurstOverlay(
-    event: GiftBurstEvent?,
-    onFinished: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: Modifier = Modifier) {
+    val progress by animateFloatAsState(
+        targetValue = if (event == null) 0f else 1f,
+        animationSpec = tween(5000, easing = LinearEasing),
+        label = "full_screen_gift_progress"
+    )
     LaunchedEffect(event?.id) {
         if (event != null) {
-            val toneIndex = Math.floorMod(event.giftId.hashCode(), 16)
-            val toneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 75)
+            val tone = ToneGenerator(AudioManager.STREAM_MUSIC, 70)
             try {
-                toneGenerator.startTone(ToneGenerator.TONE_DTMF_0 + toneIndex, 420)
-                delay(3200L)
-            } finally {
-                toneGenerator.release()
-            }
+                tone.startTone(ToneGenerator.TONE_DTMF_0 + Math.floorMod(event.giftId.hashCode(), 16), 420)
+                delay(5000L)
+            } finally { tone.release() }
             onFinished()
         }
     }
-
-    AnimatedVisibility(
-        visible = event != null,
-        enter = fadeIn() + slideInVertically { -it / 2 } + scaleIn(initialScale = 0.85f),
-        exit = fadeOut() + slideOutVertically { -it / 2 },
-        modifier = modifier
-    ) {
-        event?.let { burst ->
-            val infinite = rememberInfiniteTransition(label = "gift_float")
-            val floatY by infinite.animateFloat(
-                initialValue = 0f,
-                targetValue = -10f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(500),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "gift_float_y"
-            )
-            Surface(
-                modifier = Modifier.fillMaxWidth(0.94f),
-                shape = RoundedCornerShape(30.dp),
-                color = Color.Transparent,
-                border = BorderStroke(2.dp, Brush.horizontalGradient(listOf(VibeGold, VibePink, VibeCyan, VibeGold)))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .background(Brush.verticalGradient(listOf(Color(0xF51B1245), Color(0xF52B145D), Color(0xF5143157))))
-                        .padding(horizontal = 20.dp, vertical = 18.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("✨  SPECIAL GIFT  ✨", style = MaterialTheme.typography.labelLarge, color = VibeGold, fontWeight = FontWeight.ExtraBold)
-                    Text(text = burst.giftEmoji, fontSize = 86.sp, modifier = Modifier.offset(y = floatY.dp))
-                    Text(text = burst.giftName, style = MaterialTheme.typography.headlineSmall, color = Color.White, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
-                    Text(text = "${burst.senderName} sent a gift!", style = MaterialTheme.typography.titleMedium, color = VibeGold, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                    Text(text = "To ${burst.recipientName}  •  ${burst.coinCost} Coins", style = MaterialTheme.typography.bodyMedium, color = Color.White, textAlign = TextAlign.Center)
+    if (event != null) {
+        val couple = event.giftId == "gift_couple_kiss"
+        val accent = when (event.giftId) {
+            "gift_couple_kiss", "gift_love_promise", "gift_moonlight_dance" -> Color(0xFFFF78B7)
+            "gift_royal_phoenix", "gift_galaxy_crown" -> Color(0xFFFFC857)
+            "gift_crystal_wave", "gift_ocean_palace", "gift_diamond_rain" -> Color(0xFF55DDF5)
+            "gift_dragon_flight", "gift_vibe_universe" -> Color(0xFFB58BFF)
+            else -> Color(0xFF8B9CFF)
+        }
+        Box(modifier.fillMaxSize().zIndex(100f).background(Brush.verticalGradient(listOf(Color(0xFF08091E), Color(0xFF171039), Color(0xFF260F36), Color(0xFF08091E))))) {
+            Canvas(Modifier.fillMaxSize()) {
+                val w=size.width; val h=size.height
+                drawRect(Brush.radialGradient(listOf(accent.copy(alpha=0.34f),Color.Transparent),Offset(w*0.5f,h*0.48f),w*0.78f))
+                for(i in 0..70) {
+                    val x=((i*73)%997)/997f*w; val y=((i*137)%991)/991f*h
+                    val drift=((progress*1.8f+i*0.11f)%1f)
+                    drawCircle(if(i%3==0) accent.copy(alpha=0.78f) else Color.White.copy(alpha=0.55f),(2f+(i%4)*1.2f)*density,Offset(x,(y-drift*h*0.18f+h)%h))
+                }
+                for(ring in 1..4) drawCircle(accent.copy(alpha=0.18f-ring*0.025f),w*(0.12f+ring*0.12f+progress*0.08f),Offset(w*0.5f,h*0.49f),style=Stroke(width=2.5f.dp.toPx()))
+                if(couple) {
+                    val approach=(progress*1.45f).coerceIn(0f,1f)
+                    val lx=w*(0.25f+0.19f*approach); val rx=w*(0.75f-0.19f*approach)
+                    val y=h*0.43f; val r=w*0.075f; val lean=if(progress>0.72f) r*0.16f else 0f
+                    // Anime girl: flowing hair, large eyes, blush and pink outfit.
+                    drawOval(Color(0xFF5A2D58),Offset(lx-r*1.05f,y-r*1.25f),androidx.compose.ui.geometry.Size(r*2.1f,r*2.55f))
+                    drawCircle(Color(0xFFFFD8C8),r*0.88f,Offset(lx+lean,y))
+                    drawOval(Color(0xFF3A234C),Offset(lx-r,y-r*1.12f),androidx.compose.ui.geometry.Size(r*2f,r*0.82f))
+                    drawCircle(Color(0xFF35213D),r*0.075f,Offset(lx-r*0.3f,y)); drawCircle(Color(0xFF35213D),r*0.075f,Offset(lx+r*0.3f,y))
+                    drawCircle(Color(0xFFFF91B6),r*0.13f,Offset(lx-r*0.48f,y+r*0.28f)); drawCircle(Color(0xFFFF91B6),r*0.13f,Offset(lx+r*0.48f,y+r*0.28f))
+                    drawRoundRect(Color(0xFFFF78B7),Offset(lx-r*1.12f,y+r*0.92f),androidx.compose.ui.geometry.Size(r*2.24f,h*0.28f),androidx.compose.ui.geometry.CornerRadius(r*0.55f))
+                    // Anime boy: swept dark hair, bright eyes and blue outfit.
+                    drawCircle(Color(0xFF20243D),r*1.05f,Offset(rx,y-r*0.12f)); drawCircle(Color(0xFFFFDCCB),r*0.86f,Offset(rx-lean,y))
+                    drawOval(Color(0xFF20243D),Offset(rx-r,y-r*1.08f),androidx.compose.ui.geometry.Size(r*2f,r*0.72f))
+                    drawCircle(Color(0xFF27304A),r*0.075f,Offset(rx-r*0.3f,y)); drawCircle(Color(0xFF27304A),r*0.075f,Offset(rx+r*0.3f,y))
+                    drawRoundRect(Color(0xFF5B8DDA),Offset(rx-r*1.12f,y+r*0.92f),androidx.compose.ui.geometry.Size(r*2.24f,h*0.28f),androidx.compose.ui.geometry.CornerRadius(r*0.55f))
+                    if(progress>0.72f) {
+                        val glow=(progress-0.72f)/0.28f
+                        drawCircle(Color(0xFFFFA7CF).copy(alpha=glow),r*0.25f,Offset(w*0.5f,y+r*0.2f))
+                        for(i in 0..8) { val angle=i*(Math.PI.toFloat()*2f/9f); val rad=r*(1.3f+glow*0.8f); drawCircle(Color(0xFFFFC4DF).copy(alpha=glow),r*0.055f,Offset(w*0.5f+kotlin.math.cos(angle)*rad,y+kotlin.math.sin(angle)*rad)) }
+                    }
+                } else {
+                    val center=Offset(w*0.5f,h*0.48f); val g=w*(0.13f+0.035f*kotlin.math.sin(progress*Math.PI.toFloat()))
+                    val shape=Path().apply { moveTo(center.x,center.y-g); lineTo(center.x+g*0.72f,center.y); lineTo(center.x,center.y+g); lineTo(center.x-g*0.72f,center.y); close() }
+                    drawPath(shape,accent); drawPath(shape,Color.White.copy(alpha=0.85f),style=Stroke(width=3.dp.toPx()))
+                    for(i in 0..11) { val angle=i*(Math.PI.toFloat()*2f/12f); val inner=g*1.35f; val outer=g*(1.8f+progress*0.45f); drawLine(accent,Offset(center.x+kotlin.math.cos(angle)*inner,center.y+kotlin.math.sin(angle)*inner),Offset(center.x+kotlin.math.cos(angle)*outer,center.y+kotlin.math.sin(angle)*outer),strokeWidth=3.dp.toPx()) }
+                }
+            }
+            Column(Modifier.fillMaxSize().padding(horizontal=24.dp,vertical=44.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.SpaceBetween) {
+                Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                    Text("VIBEPLAY PRESENTS",color=accent,style=MaterialTheme.typography.labelLarge,fontWeight=FontWeight.ExtraBold,letterSpacing=3.sp)
+                    Text(event.giftName,color=Color.White,style=MaterialTheme.typography.headlineLarge,fontWeight=FontWeight.Black,textAlign=TextAlign.Center)
+                    Text(if(couple) "A little moment, made for two" else "A gift made to light up the room",color=Color.White.copy(alpha=0.82f),style=MaterialTheme.typography.titleSmall,textAlign=TextAlign.Center)
+                }
+                Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                    Text(event.senderName+" sent this gift",color=Color.White,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
+                    Text("For "+event.recipientName+"  ·  "+event.coinCost+" coins",color=accent,style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.SemiBold,textAlign=TextAlign.Center)
+                    Box(Modifier.fillMaxWidth(0.58f).height(3.dp).clip(CircleShape).background(Color.White.copy(alpha=0.18f))) { Box(Modifier.fillMaxWidth(progress.coerceIn(0f,1f)).fillMaxSize().background(accent)) }
                 }
             }
         }

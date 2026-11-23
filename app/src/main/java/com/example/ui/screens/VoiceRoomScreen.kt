@@ -920,9 +920,7 @@ internal fun VoiceRoomStageContent(
                 GiftBurstOverlay(
                     event = giftBurst,
                     onFinished = onClearGiftBurst,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 84.dp)
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }

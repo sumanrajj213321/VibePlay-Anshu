@@ -126,14 +126,11 @@ class RoomViewModel(
                 val latestGift = msgs.lastOrNull { it.type == "GIFT" }
                 if (latestGift != null && latestGift.id != lastShownGiftMsgId && latestGift.id.isNotBlank()) {
                     lastShownGiftMsgId = latestGift.id
-                    val catalogMatch = _knownGifts.value.firstOrNull { it.id == latestGift.giftId }
-                        ?: VibeCatalogDefaults.defaultGifts.firstOrNull { it.id == latestGift.giftId }
                     _giftBurst.value = GiftBurstEvent(
                         id = latestGift.id,
                         senderName = latestGift.senderName,
                         recipientName = latestGift.recipientName,
                         giftName = latestGift.giftName,
-                        giftEmoji = catalogMatch?.emoji ?: "\uD83C\uDF81",
                         coinCost = latestGift.giftCoins,
                         giftId = latestGift.giftId
                     )

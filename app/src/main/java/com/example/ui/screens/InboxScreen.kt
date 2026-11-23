@@ -94,9 +94,11 @@ import com.example.data.model.Conversation
 import com.example.data.model.DirectMessage
 import com.example.data.model.FollowEdge
 import com.example.data.model.GiftCatalogItem
+import com.example.data.model.GiftBurstEvent
 import com.example.data.model.VibeCatalogDefaults
 import com.example.data.model.UserProfile
 import com.example.data.model.VibeShopCatalog
+import com.example.ui.components.GiftBurstOverlay
 import com.example.ui.components.ReportUserOrRoomDialog
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.VipShiningNameText
@@ -631,6 +633,7 @@ private fun ChatDetailScreen(
     var showGroupInfoSheet by remember { mutableStateOf(false) }
     var showGiftPicker by remember { mutableStateOf(false) }
     var selectedGiftQuantity by remember { mutableStateOf(1L) }
+    var inboxGiftBurst by remember(conversation.id) { mutableStateOf<GiftBurstEvent?>(null) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -651,13 +654,14 @@ private fun ChatDetailScreen(
                 latestMessage.id != lastGiftSoundMessageId
             ) {
                 lastGiftSoundMessageId = latestMessage.id
-                val toneIndex = Math.floorMod(latestMessage.giftId.hashCode(), 16)
-                val toneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 75)
-                try {
-                    toneGenerator.startTone(ToneGenerator.TONE_DTMF_0 + toneIndex, 420)
-                } finally {
-                    toneGenerator.release()
-                }
+                inboxGiftBurst = GiftBurstEvent(
+                    id = latestMessage.id,
+                    senderName = latestMessage.senderName,
+                    recipientName = latestMessage.recipientName.ifBlank { headerTitle },
+                    giftName = latestMessage.giftName.ifBlank { "Virtual Gift" },
+                    coinCost = latestMessage.giftCoins,
+                    giftId = latestMessage.giftId
+                )
             }
         }
     }
@@ -933,7 +937,7 @@ private fun ChatDetailScreen(
                                         verticalArrangement = Arrangement.spacedBy(5.dp)
                                     ) {
                                         Text("✨ SPECIAL GIFT ✨", color = VibeGold, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelMedium)
-                                        Text(msg.giftEmoji.ifBlank { "🎁" }, fontSize = 58.sp, modifier = Modifier.offset(y = giftFloat.dp))
+                                        Box(Modifier.size(76.dp).clip(CircleShape).background(Brush.radialGradient(listOf(VibePink, VibeViolet, Color(0xFF171039)))), contentAlignment = Alignment.Center) { Text(msg.giftName.take(1).uppercase(), color = Color.White, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black) }
                                         Text(msg.giftName.ifBlank { "Virtual Gift" }, color = Color.White, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
                                         Text("${senderName} sent a gift!", color = VibeGold, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                                         Text("To ${msg.recipientName.ifBlank { headerTitle }}  •  ${msg.giftCoins} Coins", color = Color.White, style = MaterialTheme.typography.labelSmall)
@@ -1118,7 +1122,7 @@ private fun ChatDetailScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Text(gift.emoji, style = MaterialTheme.typography.headlineMedium)
+                                Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(VibePink, VibeViolet, VibeCyan))), contentAlignment = Alignment.Center) { Text(gift.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleLarge) }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(gift.name, fontWeight = FontWeight.SemiBold)
                                     val comboCost = gift.coinCost.toLong() * selectedGiftQuantity
@@ -1147,6 +1151,8 @@ private fun ChatDetailScreen(
             }
         }
     }
+
+    GiftBurstOverlay(event = inboxGiftBurst, onFinished = { inboxGiftBurst = null }, modifier = Modifier.fillMaxSize())
 
     if (showReportDialog) {
         ReportUserOrRoomDialog(

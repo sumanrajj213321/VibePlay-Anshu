@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -110,10 +111,10 @@ private fun FruitArtwork(fruit: Fruit, modifier: Modifier = Modifier) {
         drawCircle(fruit.color.copy(alpha = .22f), r * 1.45f, Offset(x, y))
         when (fruit) {
             Fruit.CHERRY -> { drawCircle(fruit.color, r*.72f, Offset(x-r*.55f,y+r*.25f)); drawCircle(fruit.color, r*.72f, Offset(x+r*.55f,y+r*.25f)); drawLine(Color(0xFF65E65A),Offset(x,y-r*.25f),Offset(x-r*.18f,y-r*1.55f),r*.12f); drawLine(Color(0xFF65E65A),Offset(x,y-r*.25f),Offset(x+r*.65f,y-r*1.4f),r*.12f) }
-            Fruit.GRAPE -> { listOf(-.65f to -.3f,0f to -.55f,.65f to -.3f,-.85f to .4f,-.15f to .4f,.55f to .4f,-.5f to 1.05f,.2f to 1.05f).forEach { (a,b) -> drawCircle(fruit.color,r*.45f,Offset(x+r*a,y+r*b)) }; drawOval(Color(0xFF68E95B),androidx.compose.ui.geometry.Rect(x-r*.1f,y-r*1.75f,x+r*.8f,y-r*1.05f)) }
-            Fruit.LEMON, Fruit.KIWI -> { drawOval(fruit.color,androidx.compose.ui.geometry.Rect(x-r*1.1f,y-r*.8f,x+r*1.1f,y+r*.8f)); drawOval(Color.White.copy(alpha=.3f),androidx.compose.ui.geometry.Rect(x-r*.62f,y-r*.55f,x-r*.2f,y-r*.08f)); drawOval(Color(0xFF65E65A),androidx.compose.ui.geometry.Rect(x+r*.05f,y-r*1.4f,x+r*.9f,y-r*.75f)) }
+            Fruit.GRAPE -> { listOf(-.65f to -.3f,0f to -.55f,.65f to -.3f,-.85f to .4f,-.15f to .4f,.55f to .4f,-.5f to 1.05f,.2f to 1.05f).forEach { (a,b) -> drawCircle(fruit.color,r*.45f,Offset(x+r*a,y+r*b)) }; drawOval(Color(0xFF68E95B), topLeft = Offset(x-r*.1f,y-r*1.75f), size = Size(r*.9f,r*.7f)) }
+            Fruit.LEMON, Fruit.KIWI -> { drawOval(fruit.color, topLeft = Offset(x-r*1.1f,y-r*.8f), size = Size(r*2.2f,r*1.6f)); drawOval(Color.White.copy(alpha=.3f), topLeft = Offset(x-r*.62f,y-r*.55f), size = Size(r*.42f,r*.47f)); drawOval(Color(0xFF65E65A), topLeft = Offset(x+r*.05f,y-r*1.4f), size = Size(r*.85f,r*.65f)) }
             Fruit.ORANGE -> { drawCircle(fruit.color,r,Offset(x,y)); drawCircle(Color.White.copy(alpha=.35f),r*.2f,Offset(x-r*.35f,y-r*.35f)); drawLine(Color(0xFF65E65A),Offset(x,y-r*.9f),Offset(x+r*.08f,y-r*1.35f),r*.12f) }
-            Fruit.MELON -> { val p=Path().apply { moveTo(x-r*1.15f,y-r*.4f); quadraticTo(x,y+r*1.5f,x+r*1.15f,y-r*.4f); close() }; drawPath(p,fruit.color); drawPath(p,Color(0xFF54D94B),style=Stroke(width=r*.24f)); for (i in -1..1) drawOval(Color(0xFF4A173C),androidx.compose.ui.geometry.Rect(x+r*i*.42f-r*.05f,y+r*.1f,x+r*i*.42f+r*.05f,y+r*.35f)) }
+            Fruit.MELON -> { val p=Path().apply { moveTo(x-r*1.15f,y-r*.4f); quadraticTo(x,y+r*1.5f,x+r*1.15f,y-r*.4f); close() }; drawPath(p,fruit.color); drawPath(p,Color(0xFF54D94B),style=Stroke(width=r*.24f)); for (i in -1..1) drawOval(Color(0xFF4A173C), topLeft = Offset(x+r*i*.42f-r*.05f,y+r*.1f), size = Size(r*.1f,r*.25f)) }
         }
         drawCircle(Color.White.copy(alpha=.55f),r*.12f,Offset(x-r*.38f,y-r*.4f))
     }

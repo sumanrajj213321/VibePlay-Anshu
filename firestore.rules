@@ -249,9 +249,15 @@ service cloud.firestore {
              (!('senderName' in data) || (data.senderName is string && data.senderName.size() <= 60)) &&
              (!('senderAvatarUrl' in data) || (data.senderAvatarUrl is string && data.senderAvatarUrl.size() <= 500)) &&
              (!('senderGender' in data) || data.senderGender in ['UNSPECIFIED', 'FEMALE', 'MALE', 'NON_BINARY']) &&
-             data.type in ['TEXT', 'IMAGE', 'SYSTEM'] &&
+             data.type in ['TEXT', 'IMAGE', 'SYSTEM', 'GIFT'] &&
              data.text is string && data.text.size() <= 1000 &&
              (!('imageUri' in data) || (data.imageUri is string && data.imageUri.size() <= 600)) &&
+             (!('giftId' in data) || (data.giftId is string && data.giftId.size() <= 128)) &&
+             (!('giftName' in data) || (data.giftName is string && data.giftName.size() <= 80)) &&
+             (!('giftEmoji' in data) || (data.giftEmoji is string && data.giftEmoji.size() <= 16)) &&
+             (!('giftCoins' in data) || (data.giftCoins is int && data.giftCoins >= 0)) &&
+             (!('recipientId' in data) || (data.recipientId is string && data.recipientId.size() <= 128)) &&
+             (!('recipientName' in data) || (data.recipientName is string && data.recipientName.size() <= 60)) &&
              data.read is bool;
     }
 

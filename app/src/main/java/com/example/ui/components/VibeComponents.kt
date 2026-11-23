@@ -69,7 +69,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.zIndex
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Path
 import kotlin.math.cos
@@ -944,19 +944,9 @@ fun VoiceRoomCard(
 
 @Composable
 fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
-    var thumbnailUrl by remember(gift.id) { mutableStateOf<String?>(null) }
-    LaunchedEffect(gift.id) {
-        if (gift.id == "gift_couple_kiss") {
-            thumbnailUrl = runCatching {
-                FirebaseStorage.getInstance().reference
-                    .child("gift-assets/couple_kiss_thumbnail.jpg")
-                    .downloadUrl.await().toString()
-            }.getOrNull()
-        }
-    }
-    if (gift.id == "gift_couple_kiss" && !thumbnailUrl.isNullOrBlank()) {
-        AsyncImage(
-            model = thumbnailUrl,
+    if (gift.id == "gift_couple_kiss") {
+        Image(
+            painter = painterResource(R.drawable.couple_kiss_thumbnail),
             contentDescription = gift.name,
             modifier = modifier.clip(RoundedCornerShape(12.dp)),
             contentScale = ContentScale.Crop
@@ -1035,13 +1025,14 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
         }
         Box(
             modifier.fillMaxSize().zIndex(100f)
-                .background(if (couple && videoUrl != null && !videoLoadFailed) Color.Black else Brush.verticalGradient(listOf(Color(0xFF08091E), Color(0xFF171039), Color(0xFF260F36), Color(0xFF08091E))))
+                .then(if (couple && videoUrl != null && !videoLoadFailed) Modifier.background(Color.Black) else Modifier.background(Brush.verticalGradient(listOf(Color(0xFF08091E), Color(0xFF171039), Color(0xFF260F36), Color(0xFF08091E)))))
         ) {
             if (couple && videoUrl != null && !videoLoadFailed) {
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->
                         VideoView(ctx).apply {
+                            tag = videoUrl
                             setVideoURI(Uri.parse(videoUrl))
                             setOnPreparedListener { player ->
                                 player.setVolume(1f, 1f)

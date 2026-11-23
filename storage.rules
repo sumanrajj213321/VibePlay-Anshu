@@ -1,6 +1,11 @@
 rules_version = '2';
 service firebase.storage {
-  match /b/{bucket}/o {\n    // Read-only curated virtual gift media. Uploads are managed by the project owner.\n    match /gift-assets/{fileName} {\n      allow read: if request.auth != null;\n      allow write: if false;\n    }
+  match /b/{bucket}/o {
+    // Curated gift media is readable by signed-in users; only project admins upload it.
+    match /gift-assets/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
     match /avatars/{userId}/{fileName} {
       allow read: if true;
       allow write: if request.auth != null

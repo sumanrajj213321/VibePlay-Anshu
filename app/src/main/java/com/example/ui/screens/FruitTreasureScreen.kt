@@ -24,20 +24,33 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.delay
 
 private enum class Fruit(val color: Color) { CHERRY(Color(0xFFFF397D)), GRAPE(Color(0xFFB34CFF)), LEMON(Color(0xFFFFD83D)), ORANGE(Color(0xFFFF9B28)), MELON(Color(0xFFFF5365)), KIWI(Color(0xFF9AE34B)) }
 
 @Composable
 fun FruitTreasureScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val progressPrefs = remember { context.getSharedPreferences("fruit_treasure_progress", android.content.Context.MODE_PRIVATE) }
+    val todayKey = remember { SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) }
     var reels by remember { mutableStateOf(List(9) { Fruit.entries.random() }) }
     var spinning by remember { mutableStateOf(false) }
     var musicOn by remember { mutableStateOf(false) }
     var soundOn by remember { mutableStateOf(true) }
-    var score by remember { mutableIntStateOf(0) }
-    var spins by remember { mutableIntStateOf(0) }
-    var dailyBonusClaimed by remember { mutableStateOf(false) }
+    var score by remember { mutableIntStateOf(progressPrefs.getInt("score", 0)) }
+    var spins by remember { mutableIntStateOf(progressPrefs.getInt("spins", 0)) }
+    var dailyBonusClaimed by remember { mutableStateOf(progressPrefs.getString("daily_bonus_date", "") == todayKey) }
     var message by remember { mutableStateOf("Match 3 custom fruits in a line to earn points") }
+    LaunchedEffect(score, spins) {
+        progressPrefs.edit().putInt("score", score).putInt("spins", spins).apply()
+    }
+    LaunchedEffect(dailyBonusClaimed) {
+        if (dailyBonusClaimed) progressPrefs.edit().putString("daily_bonus_date", todayKey).apply()
+    }
     val tone = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 55) }
     DisposableEffect(Unit) { onDispose { tone.release() } }
     LaunchedEffect(musicOn, spinning) {

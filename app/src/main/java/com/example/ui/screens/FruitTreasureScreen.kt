@@ -47,9 +47,11 @@ private enum class Fruit(val color: Color) { CHERRY(Color(0xFFFF397D)), GRAPE(Co
 @Composable
 fun FruitTreasureScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val progressPrefs = remember { context.getSharedPreferences("fruit_treasure_progress", android.content.Context.MODE_PRIVATE) }
-    val todayKey = remember { SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) }
     val signedInUid = FirebaseAuth.getInstance().currentUser?.uid
+    val progressPrefs = remember(signedInUid) {
+        context.getSharedPreferences("fruit_treasure_progress_" + (signedInUid ?: "guest"), android.content.Context.MODE_PRIVATE)
+    }
+    val todayKey = remember { SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) }
     val cloudProgressRef = remember(signedInUid) {
         signedInUid?.let { uid ->
             FirebaseFirestore.getInstance(context.getString(R.string.firestore_database_id))
@@ -62,9 +64,9 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
     var spinning by remember { mutableStateOf(false) }
     var musicOn by remember { mutableStateOf(progressPrefs.getBoolean("music_on", false)) }
     var soundOn by remember { mutableStateOf(progressPrefs.getBoolean("sound_on", true)) }
-    var score by remember { mutableIntStateOf(progressPrefs.getInt("score", 0)) }
-    var spins by remember { mutableIntStateOf(progressPrefs.getInt("spins", 0)) }
-    var dailyBonusClaimed by remember { mutableStateOf(progressPrefs.getString("daily_bonus_date", "") == todayKey) }
+    var score by remember(signedInUid) { mutableIntStateOf(progressPrefs.getInt("score", 0)) }
+    var spins by remember(signedInUid) { mutableIntStateOf(progressPrefs.getInt("spins", 0)) }
+    var dailyBonusClaimed by remember(signedInUid) { mutableStateOf(progressPrefs.getString("daily_bonus_date", "") == todayKey) }
     var message by remember { mutableStateOf("Match 3 custom fruits in a line to earn points") }
     LaunchedEffect(score, spins) {
         progressPrefs.edit().putInt("score", score).putInt("spins", spins).apply()
@@ -112,6 +114,7 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
     LaunchedEffect(dailyBonusClaimed) {
         if (dailyBonusClaimed) progressPrefs.edit().putString("daily_bonus_date", todayKey).apply()
     }
+    val latestSoundOn by rememberUpdatedState(soundOn)
     val tone = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 55) }
     DisposableEffect(Unit) { onDispose { tone.release() } }
     LaunchedEffect(musicOn) {
@@ -201,12 +204,12 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
         LaunchedEffect(spinning) {
             if (spinning) {
                 message = "Fruit reels are spinning..."
-                repeat(12) { reels = List(9) { Fruit.entries.random() }; if (soundOn) tone.startTone(ToneGenerator.TONE_PROP_BEEP, 55); delay(115) }
+                repeat(12) { reels = List(9) { Fruit.entries.random() }; if (latestSoundOn) tone.startTone(ToneGenerator.TONE_PROP_BEEP, 55); delay(115) }
                 spins += 1
                 spinning = false
                 val lines = listOf(listOf(0,1,2), listOf(3,4,5), listOf(6,7,8), listOf(0,4,8), listOf(2,4,6))
                 val wins = lines.count { reels[it[0]] == reels[it[1]] && reels[it[1]] == reels[it[2]] }
-                if (wins > 0) { score += wins * 10; message = "Fruit match! +${wins * 10} points"; if (soundOn) tone.startTone(ToneGenerator.TONE_PROP_ACK, 240) } else message = "Try again! Free play — no coins deducted."
+                if (wins > 0) { score += wins * 10; message = "Fruit match! +${wins * 10} points"; if (latestSoundOn) tone.startTone(ToneGenerator.TONE_PROP_ACK, 240) } else message = "Try again! Free play — no coins deducted."
             }
         }
         Text("FREE ARCADE MODE • No coins are used", color = Color(0xFFB7D9FF), modifier = Modifier.align(Alignment.CenterHorizontally))

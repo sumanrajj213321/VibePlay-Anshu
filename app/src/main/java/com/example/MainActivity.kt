@@ -172,6 +172,24 @@ private fun AuthenticatedVibePlayApp(
     val scope = rememberCoroutineScope()
     val credentialManager = remember(context) { CredentialManager.create(context) }
 
+
+    val viewModel: VibePlayViewModel = viewModel(
+        key = "vibe_$uid",
+        factory = viewModelFactory {
+            initializer {
+                VibePlayViewModel(
+                    currentUserId = uid,
+                    firebaseUser = firebaseUser,
+                    userRepository = UserRepository(appContext),
+                    roomRepository = RoomRepository(appContext),
+                    inboxRepository = InboxRepository(appContext),
+                    notificationRepository = NotificationRepository(appContext),
+                    preferencesRepository = PreferencesRepository(appContext)
+                )
+            }
+        }
+    )
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
@@ -190,23 +208,6 @@ private fun AuthenticatedVibePlayApp(
             viewModel.stopOnlineHeartbeat()
         }
     }
-
-    val viewModel: VibePlayViewModel = viewModel(
-        key = "vibe_$uid",
-        factory = viewModelFactory {
-            initializer {
-                VibePlayViewModel(
-                    currentUserId = uid,
-                    firebaseUser = firebaseUser,
-                    userRepository = UserRepository(appContext),
-                    roomRepository = RoomRepository(appContext),
-                    inboxRepository = InboxRepository(appContext),
-                    notificationRepository = NotificationRepository(appContext),
-                    preferencesRepository = PreferencesRepository(appContext)
-                )
-            }
-        }
-    )
 
     val profileState by viewModel.currentUserProfile.collectAsStateWithLifecycle()
     val roomsState by viewModel.liveRooms.collectAsStateWithLifecycle()

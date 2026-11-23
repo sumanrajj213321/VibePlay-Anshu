@@ -8,7 +8,13 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -91,6 +97,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.drawscope.Stroke
+import java.nio.ByteBuffer
+import java.security.MessageDigest
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
@@ -147,6 +156,7 @@ fun VoiceRoomScreen(
     val onlineUsers by roomViewModel.onlineUsers.collectAsStateWithLifecycle()
     val mySeatInvitation by roomViewModel.mySeatInvitation.collectAsStateWithLifecycle()
     val voiceConnection by roomViewModel.voiceConnectionState.collectAsStateWithLifecycle()
+    val activeSpeakerUids by roomViewModel.activeSpeakerUids.collectAsStateWithLifecycle()
     val giftBurst by roomViewModel.giftBurst.collectAsStateWithLifecycle()
     val vipEntrance by roomViewModel.vipEntrance.collectAsStateWithLifecycle()
     val roomError by roomViewModel.roomError.collectAsStateWithLifecycle()
@@ -739,6 +749,8 @@ internal fun VoiceRoomStageContent(
                         HostSeatTile(
                             seat = currentStage.hostSeat,
                             ownerOnline = currentRoom.effectiveOwnerOnline,
+                            isSpeaking = currentRoom.effectiveOwnerOnline && !currentStage.hostSeat.muted &&
+                                agoraUidForUser(currentStage.hostSeat.occupantId) in activeSpeakerUids,
                             onClick = { activeSeatDialog = currentStage.hostSeat }
                         )
 
@@ -756,6 +768,8 @@ internal fun VoiceRoomStageContent(
                                         SpeakerSeatTile(
                                             seat = seat,
                                             isRoomAdmin = seat.isOccupied && currentRoom.isRoomAdmin(seat.occupantId),
+                                            isSpeaking = seat.isOccupied && !seat.muted &&
+                                                agoraUidForUser(seat.occupantId) in activeSpeakerUids,
                                             modifier = Modifier.weight(1f),
                                             onClick = {
                                                 when {
@@ -1136,10 +1150,48 @@ private fun LiveKitStatusPill(
     }
 }
 
+
+@Composable
+private fun VoiceActivityRings(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "voice_activity_rings")
+    val firstProgress by transition.animateFloat(
+        initialValue = 0.72f,
+        targetValue = 1.28f,
+        animationSpec = infiniteRepeatable(tween(900), repeatMode = RepeatMode.Restart),
+        label = "voice_ring_one"
+    )
+    val secondProgress by transition.animateFloat(
+        initialValue = 0.72f,
+        targetValue = 1.28f,
+        animationSpec = infiniteRepeatable(tween(900, delayMillis = 450), repeatMode = RepeatMode.Restart),
+        label = "voice_ring_two"
+    )
+    Canvas(modifier = modifier) {
+        val baseRadius = size.minDimension * 0.34f
+        drawCircle(
+            color = VibeCyan.copy(alpha = (1f - (firstProgress - 0.72f) / 0.56f) * 0.72f),
+            radius = baseRadius * firstProgress,
+            style = Stroke(width = 2.dp.toPx())
+        )
+        drawCircle(
+            color = VibeViolet.copy(alpha = (1f - (secondProgress - 0.72f) / 0.56f) * 0.72f),
+            radius = baseRadius * secondProgress,
+            style = Stroke(width = 2.dp.toPx())
+        )
+    }
+}
+
+private fun agoraUidForUser(userId: String): Int {
+    if (userId.isBlank()) return -1
+    val digest = MessageDigest.getInstance("SHA-256").digest(userId.toByteArray(Charsets.UTF_8))
+    return (ByteBuffer.wrap(digest, 0, 4).int and 0x7fffffff).takeIf { it != 0 } ?: 1
+}
+
 @Composable
 private fun HostSeatTile(
     seat: VoiceSeat,
     ownerOnline: Boolean,
+    isSpeaking: Boolean,
     onClick: () -> Unit
 ) {
     Column(
@@ -1149,13 +1201,16 @@ private fun HostSeatTile(
             .testTag("host_seat_0")
     ) {
         Box(contentAlignment = Alignment.BottomEnd) {
+            if (ownerOnline && isSpeaking) {
+                VoiceActivityRings(modifier = Modifier.align(Alignment.Center).size(92.dp))
+            }
             if (ownerOnline) {
                 VibeAvatar(
                     avatarUrl = seat.occupantAvatarUrl,
                     username = seat.occupantName,
                     size = 76.dp,
                     vipLevel = seat.occupantVipLevel,
-                    speaking = !seat.muted,
+                    speaking = isSpeaking,
                     frameColorArgb = seat.occupantFrameColorArgb
                 )
             } else {
@@ -1234,6 +1289,7 @@ private fun HostSeatTile(
 private fun SpeakerSeatTile(
     seat: VoiceSeat,
     isRoomAdmin: Boolean = false,
+    isSpeaking: Boolean = false,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -1246,6 +1302,9 @@ private fun SpeakerSeatTile(
     ) {
         if (seat.isOccupied) {
             Box(contentAlignment = Alignment.BottomEnd) {
+                if (isSpeaking) {
+                    VoiceActivityRings(modifier = Modifier.align(Alignment.Center).size(70.dp))
+                }
                 VibeAvatar(
                     avatarUrl = seat.occupantAvatarUrl,
                     username = seat.occupantName,

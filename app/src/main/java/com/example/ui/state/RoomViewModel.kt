@@ -247,6 +247,12 @@ class RoomViewModel(
         }
     }
 
+    fun enableMicrophone() {
+        viewModelScope.launch {
+            voiceEngine.setMicPublished(true)
+        }
+    }
+
     fun vacateSpeakerSeat(seatIndex: Int, user: UserProfile) {
         viewModelScope.launch {
             roomRepository.vacateSpeakerSeat(roomId, seatIndex, user)

@@ -1203,16 +1203,14 @@ private fun HostSeatTile(
             .testTag("host_seat_0")
     ) {
         Box(contentAlignment = Alignment.BottomEnd) {
-            if (ownerOnline && isSpeaking) {
-                VoiceActivityRings(modifier = Modifier.align(Alignment.Center).size(92.dp))
-            }
+            // Keep host avatar bounds fixed so speaking never shifts the room layout.
             if (ownerOnline) {
                 VibeAvatar(
                     avatarUrl = seat.occupantAvatarUrl,
                     username = seat.occupantName,
                     size = 76.dp,
                     vipLevel = seat.occupantVipLevel,
-                    speaking = isSpeaking,
+                    speaking = false,
                     frameColorArgb = seat.occupantFrameColorArgb
                 )
             } else {
@@ -1304,15 +1302,13 @@ private fun SpeakerSeatTile(
     ) {
         if (seat.isOccupied) {
             Box(contentAlignment = Alignment.BottomEnd) {
-                if (isSpeaking) {
-                    VoiceActivityRings(modifier = Modifier.align(Alignment.Center).size(70.dp))
-                }
+                // Keep speaker avatar bounds fixed while voice activity changes.
                 VibeAvatar(
                     avatarUrl = seat.occupantAvatarUrl,
                     username = seat.occupantName,
                     size = 54.dp,
                     vipLevel = seat.occupantVipLevel,
-                    speaking = isSpeaking,
+                    speaking = false,
                     frameColorArgb = seat.occupantFrameColorArgb
                 )
                 Surface(

@@ -109,6 +109,7 @@ dependencies {
   // implementation(libs.androidx.room.runtime)
   implementation(libs.coil.compose)
   implementation("io.coil-kt:coil-gif:2.7.0")
+  implementation("io.agora.rtc:voice-sdk:4.6.4")
   implementation(libs.converter.moshi)
   // implementation(libs.firebase.ai)
   implementation(libs.firebase.firestore)

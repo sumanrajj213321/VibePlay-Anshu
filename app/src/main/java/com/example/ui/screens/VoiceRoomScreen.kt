@@ -1190,61 +1190,61 @@ private fun HostSeatTile(
             .clickable(onClick = onClick)
             .testTag("host_seat_0")
     ) {
-        Box(contentAlignment = Alignment.BottomEnd) {
-            // Keep host avatar bounds fixed so speaking never shifts the room layout.
-            if (ownerOnline) {
-                VibeAvatar(
-                    avatarUrl = seat.occupantAvatarUrl,
-                    username = seat.occupantName,
-                    size = 76.dp,
-                    vipLevel = seat.occupantVipLevel,
-                    speaking = isSpeaking,
-                    frameColorArgb = seat.occupantFrameColorArgb
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(76.dp)
-                        .testTag("host_seat_offline_placeholder"),
-                    contentAlignment = Alignment.Center
-                ) {
+        Box(modifier = Modifier.size(92.dp), contentAlignment = Alignment.Center) {
+            if (ownerOnline && isSpeaking) {
+                VoiceActivityRings(modifier = Modifier.size(92.dp))
+            }
+            Box(contentAlignment = Alignment.BottomEnd) {
+                if (ownerOnline) {
                     VibeAvatar(
                         avatarUrl = seat.occupantAvatarUrl,
                         username = seat.occupantName,
                         size = 76.dp,
                         vipLevel = seat.occupantVipLevel,
-                        modifier = Modifier.alpha(0.38f),
+                        speaking = isSpeaking,
                         frameColorArgb = seat.occupantFrameColorArgb
                     )
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = Color.Black.copy(alpha = 0.62f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.55f))
+                } else {
+                    Box(
+                        modifier = Modifier.size(76.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "OFFLINE",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                        VibeAvatar(
+                            avatarUrl = seat.occupantAvatarUrl,
+                            username = seat.occupantName,
+                            size = 76.dp,
+                            vipLevel = seat.occupantVipLevel,
+                            modifier = Modifier.alpha(0.38f),
+                            frameColorArgb = seat.occupantFrameColorArgb
                         )
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = Color.Black.copy(alpha = 0.62f),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.55f))
+                        ) {
+                            Text(
+                                text = "OFFLINE",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                            )
+                        }
                     }
                 }
-            }
-            if (ownerOnline) {
-                Surface(
-                    shape = CircleShape,
-                    color = if (seat.muted) VibeCoral else VibeEmerald,
-                    border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.surface)
-                ) {
-                    Icon(
-                        imageVector = if (seat.muted) Icons.Filled.MicOff else Icons.Filled.Mic,
-                        contentDescription = if (seat.muted) "Host muted" else "Host mic active",
-                        tint = Color.White,
-                        modifier = Modifier
-                            .padding(4.dp)
-                            .size(14.dp)
-                    )
+                if (ownerOnline) {
+                    Surface(
+                        shape = CircleShape,
+                        color = if (seat.muted) VibeCoral else VibeEmerald,
+                        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.surface)
+                    ) {
+                        Icon(
+                            imageVector = if (seat.muted) Icons.Filled.MicOff else Icons.Filled.Mic,
+                            contentDescription = if (seat.muted) "Host muted" else "Host mic active",
+                            tint = Color.White,
+                            modifier = Modifier.padding(4.dp).size(14.dp)
+                        )
+                    }
                 }
             }
         }
@@ -1289,29 +1289,31 @@ private fun SpeakerSeatTile(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         if (seat.isOccupied) {
-            Box(contentAlignment = Alignment.BottomEnd) {
-                // Keep speaker avatar bounds fixed while voice activity changes.
-                VibeAvatar(
-                    avatarUrl = seat.occupantAvatarUrl,
-                    username = seat.occupantName,
-                    size = 54.dp,
-                    vipLevel = seat.occupantVipLevel,
-                    speaking = isSpeaking,
-                    frameColorArgb = seat.occupantFrameColorArgb
-                )
-                Surface(
-                    shape = CircleShape,
-                    color = if (seat.muted) VibeCoral else VibeEmerald,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface)
-                ) {
-                    Icon(
-                        imageVector = if (seat.muted) Icons.Filled.MicOff else Icons.Filled.Mic,
-                        contentDescription = if (seat.muted) "Muted" else "Unmuted",
-                        tint = Color.White,
-                        modifier = Modifier
-                            .padding(3.dp)
-                            .size(11.dp)
+            Box(modifier = Modifier.size(70.dp), contentAlignment = Alignment.Center) {
+                if (isSpeaking) {
+                    VoiceActivityRings(modifier = Modifier.size(70.dp))
+                }
+                Box(contentAlignment = Alignment.BottomEnd) {
+                    VibeAvatar(
+                        avatarUrl = seat.occupantAvatarUrl,
+                        username = seat.occupantName,
+                        size = 54.dp,
+                        vipLevel = seat.occupantVipLevel,
+                        speaking = isSpeaking,
+                        frameColorArgb = seat.occupantFrameColorArgb
                     )
+                    Surface(
+                        shape = CircleShape,
+                        color = if (seat.muted) VibeCoral else VibeEmerald,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface)
+                    ) {
+                        Icon(
+                            imageVector = if (seat.muted) Icons.Filled.MicOff else Icons.Filled.Mic,
+                            contentDescription = if (seat.muted) "Muted" else "Unmuted",
+                            tint = Color.White,
+                            modifier = Modifier.padding(3.dp).size(11.dp)
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))

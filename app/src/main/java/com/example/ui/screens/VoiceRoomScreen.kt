@@ -1310,7 +1310,7 @@ private fun SpeakerSeatTile(
                     username = seat.occupantName,
                     size = 54.dp,
                     vipLevel = seat.occupantVipLevel,
-                    speaking = !seat.muted,
+                    speaking = isSpeaking,
                     frameColorArgb = seat.occupantFrameColorArgb
                 )
                 Surface(

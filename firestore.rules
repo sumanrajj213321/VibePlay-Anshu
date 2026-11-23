@@ -267,7 +267,7 @@ service cloud.firestore {
              giftId == 'gift_crystal_wave' ? 90 :
              giftId == 'gift_love_promise' ? 180 :
              giftId == 'gift_couple_kiss' ? 360 :
-             giftId == 'gift_sunset_love' ? 480 :
+             giftId == 'gift_sunset_love' ? 19999 :
              giftId == 'gift_moonlight_dance' ? 520 :
              giftId == 'gift_royal_phoenix' ? 850 :
              giftId == 'gift_galaxy_crown' ? 1200 :
@@ -279,12 +279,14 @@ service cloud.firestore {
 
     function isTrustedGiftPrice(data) {
       let catalogPath = /databases/$(database)/documents/gifts_catalog/$(data.giftId);
-      return exists(catalogPath)
-        ? (get(catalogPath).data.active == true &&
-           get(catalogPath).data.coinCost is int &&
-           data.coinCost == get(catalogPath).data.coinCost * data.quantity)
-        : (defaultGiftUnitPrice(data.giftId) > 0 &&
-           data.coinCost == defaultGiftUnitPrice(data.giftId) * data.quantity);
+      return data.giftId == 'gift_sunset_love'
+        ? data.coinCost == 19999 * data.quantity
+        : (exists(catalogPath)
+          ? (get(catalogPath).data.active == true &&
+             get(catalogPath).data.coinCost is int &&
+             data.coinCost == get(catalogPath).data.coinCost * data.quantity)
+          : (defaultGiftUnitPrice(data.giftId) > 0 &&
+             data.coinCost == defaultGiftUnitPrice(data.giftId) * data.quantity));
     }
 
     function giftMatchesCoinUpdates(data, txId) {

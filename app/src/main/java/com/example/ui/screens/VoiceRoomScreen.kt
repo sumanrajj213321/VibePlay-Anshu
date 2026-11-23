@@ -870,6 +870,13 @@ internal fun VoiceRoomStageContent(
                                             style = MaterialTheme.typography.bodySmall,
                                             color = if (msg.type == "GIFT") VibeGold else MaterialTheme.colorScheme.onSurface
                                         )
+                                        if (msg.type == "GIFT") {
+                                            Text(
+                                                text = "Get 9999 Gifts",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
+                                                color = VibeGold
+                                            )
+                                        }
                                     }
                                 } else {
                                     Column(

@@ -206,7 +206,14 @@ class VibePlayViewModel(
         roomRepository.observeActiveGifts()
             .map { remote ->
                 val curatedById = remote.filter { gift -> VibeCatalogDefaults.defaultGifts.any { it.id == gift.id } }.associateBy { it.id }
-                VibeCatalogDefaults.defaultGifts.map { defaultGift -> curatedById[defaultGift.id] ?: defaultGift }
+                VibeCatalogDefaults.defaultGifts.map { defaultGift ->
+                    val remoteGift = curatedById[defaultGift.id]
+                    if (defaultGift.id == "gift_sunset_love") {
+                        (remoteGift ?: defaultGift).copy(coinCost = 19999L)
+                    } else {
+                        remoteGift ?: defaultGift
+                    }
+                }
             }
             .catch { error ->
                 unwrapFirestoreError(error)

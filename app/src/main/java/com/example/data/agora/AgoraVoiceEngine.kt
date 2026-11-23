@@ -7,7 +7,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
-import com.google.firebase.tasks.await
+import kotlinx.coroutines.tasks.await
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory

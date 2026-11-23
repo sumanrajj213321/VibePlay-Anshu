@@ -86,10 +86,6 @@ class AgoraVoiceEngine {
             _connectionState.value = VoiceConnectionState.Error("Agora connection error ($err)")
         }
 
-        override fun onLeaveChannel(stats: IRtcEngineEventHandler.RtcStats?) {
-            joined = false
-        }
-
         override fun onConnectionLost() {
             joined = false
             _connectionState.value = VoiceConnectionState.Error("Voice connection lost. Re-enter the room to reconnect.")
@@ -161,6 +157,7 @@ class AgoraVoiceEngine {
                 mEventHandler = eventHandler
             }
             engine = RtcEngine.create(config)
+            check(engine?.enableAudio() == 0) { "Agora audio could not be enabled." }
             engine?.setEnableSpeakerphone(true)
         } else if (joined) {
             engine?.leaveChannel()

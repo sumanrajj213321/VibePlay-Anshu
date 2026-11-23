@@ -120,6 +120,7 @@ fun ProfileScreen(
     var showSocialSheet by remember { mutableStateOf(false) }
     var socialInitialTab by remember { mutableStateOf(0) }
     var showSetupGuide by remember { mutableStateOf(false) }
+    var coverLoadFailed by remember(profile.coverUrl) { mutableStateOf(false) }
 
     val (xpInLevel, xpNeededForNextLevel) = LevelProgression.progressInLevel(profile.xp)
     val giftCoinsIn = giftHistory.filter { it.recipientId == profile.userId }.sumOf { it.coinCost }
@@ -356,14 +357,15 @@ fun ProfileScreen(
                     .fillMaxWidth()
                     .height(215.dp)
             ) {
-                if (profile.coverUrl.isNotBlank()) {
+                if (profile.coverUrl.isNotBlank() && !coverLoadFailed) {
                     AsyncImage(
                         model = profile.coverUrl,
                         contentDescription = "Profile cover image",
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(165.dp),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
+                        onError = { coverLoadFailed = true }
                     )
                 } else {
                     Image(

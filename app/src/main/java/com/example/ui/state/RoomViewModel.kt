@@ -5,8 +5,8 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.firebase.unwrapFirestoreError
-import com.example.data.livekit.LiveKitVoiceEngine
-import com.example.data.livekit.VoiceConnectionState
+import com.example.data.agora.AgoraVoiceEngine
+import com.example.data.agora.VoiceConnectionState
 import com.example.data.model.GiftBurstEvent
 import com.example.data.model.GiftCatalogItem
 import com.example.data.model.GiftTransaction
@@ -38,7 +38,7 @@ class RoomViewModel(
     private val roomId: String,
     private val currentUserId: String,
     private val roomRepository: RoomRepository,
-    private val voiceEngine: LiveKitVoiceEngine = LiveKitVoiceEngine()
+    private val voiceEngine: AgoraVoiceEngine = AgoraVoiceEngine()
 ) : ViewModel() {
 
     private val _roomError = MutableStateFlow<String?>(null)

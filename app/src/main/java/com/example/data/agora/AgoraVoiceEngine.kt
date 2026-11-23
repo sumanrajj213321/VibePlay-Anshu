@@ -17,6 +17,10 @@ import io.agora.rtc2.IRtcEngineEventHandler
 import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -70,6 +74,7 @@ class AgoraVoiceEngine {
     private var tokenAllowsPublish = false
     private var micShouldPublish = false
     private var joined = false
+    private val renewalScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val eventHandler = object : IRtcEngineEventHandler() {
         override fun onJoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
@@ -84,6 +89,14 @@ class AgoraVoiceEngine {
         override fun onError(err: Int) {
             Log.e(TAG, "Agora RTC error: $err")
             _connectionState.value = VoiceConnectionState.Error("Agora connection error ($err)")
+        }
+
+        override fun onTokenPrivilegeWillExpire(token: String?) {
+            renewChannelToken()
+        }
+
+        override fun onRequestToken() {
+            renewChannelToken()
         }
 
         override fun onConnectionLost() {
@@ -129,6 +142,43 @@ class AgoraVoiceEngine {
                 error.localizedMessage ?: "Unable to connect to Agora voice."
             )
             Result.failure(error)
+        }
+    }
+
+    /** Refreshes the signed token before expiry without leaving the live audio channel. */
+    private fun renewChannelToken() {
+        val roomId = activeRoomId ?: return
+        renewalScope.launch {
+            try {
+                val idToken = Firebase.auth.currentUser?.getIdToken(false)?.await()?.token
+                    ?: error("Please sign in again to renew voice access.")
+                val response = tokenApi().fetchToken(
+                    authorization = "Bearer $idToken",
+                    request = AgoraTokenRequest(roomId)
+                )
+                require(response.token.isNotBlank() && response.channelName == "vp_$roomId" && response.uid > 0) {
+                    "Voice server returned an invalid renewal token."
+                }
+                // Seat/mute authorization is re-evaluated by the Worker for every renewal.
+                tokenAllowsPublish = response.role == "speaker"
+                if (!tokenAllowsPublish) {
+                    micShouldPublish = false
+                    engine?.muteLocalAudioStream(true)
+                } else if (ContextCompat.checkSelfPermission(
+                        appContext, Manifest.permission.RECORD_AUDIO
+                    ) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    micShouldPublish = true
+                }
+                val result = engine?.renewToken(response.token) ?: -1
+                check(result == 0) { "Agora token renewal failed ($result)." }
+                Log.i(TAG, "Agora channel token renewed")
+            } catch (error: Exception) {
+                Log.e(TAG, "Agora token renewal failed", error)
+                _connectionState.value = VoiceConnectionState.Error(
+                    error.localizedMessage ?: "Voice authorization expired. Re-enter the room."
+                )
+            }
         }
     }
 

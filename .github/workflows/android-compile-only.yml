@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   compile:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk

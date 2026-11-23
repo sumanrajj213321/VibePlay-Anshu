@@ -76,6 +76,9 @@ class AgoraVoiceEngine {
     private var tokenAllowsPublish = false
     private var micShouldPublish = false
     private var joined = false
+    private var localAgoraUid = 0
+    private val _activeSpeakerUids = MutableStateFlow<Set<Int>>(emptySet())
+    val activeSpeakerUids: StateFlow<Set<Int>> = _activeSpeakerUids.asStateFlow()
     private val renewalScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val renewalMutex = Mutex()
 
@@ -87,6 +90,15 @@ class AgoraVoiceEngine {
                 micPublished = micShouldPublish && tokenAllowsPublish
             )
             Log.i(TAG, "Joined Agora voice channel")
+        }
+
+        override fun onAudioVolumeIndication(speakers: Array<out AudioVolumeInfo>?, totalVolume: Int) {
+            val active = speakers.orEmpty()
+                .filter { it.volume >= SPEAKING_VOLUME_THRESHOLD }
+                .map { info -> if (info.uid == 0) localAgoraUid else info.uid }
+                .filter { it > 0 }
+                .toSet()
+            _activeSpeakerUids.value = active
         }
 
         override fun onError(err: Int) {
@@ -206,6 +218,7 @@ class AgoraVoiceEngine {
         }
 
         tokenAllowsPublish = response.role == "speaker"
+        localAgoraUid = response.uid
         val hasMicPermission = ContextCompat.checkSelfPermission(
             appContext, Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
@@ -219,6 +232,7 @@ class AgoraVoiceEngine {
             }
             engine = RtcEngine.create(config)
             check(engine?.enableAudio() == 0) { "Agora audio could not be enabled." }
+            engine?.enableAudioVolumeIndication(VOLUME_INDICATION_INTERVAL_MS, VOLUME_INDICATION_SMOOTHING, true)
             engine?.setEnableSpeakerphone(true)
         } else if (joined) {
             engine?.leaveChannel()
@@ -296,6 +310,8 @@ class AgoraVoiceEngine {
             joined = false
             tokenAllowsPublish = false
             micShouldPublish = false
+            localAgoraUid = 0
+            _activeSpeakerUids.value = emptySet()
             activeRoomId = null
             _connectionState.value = VoiceConnectionState.Disconnected
         }
@@ -303,6 +319,9 @@ class AgoraVoiceEngine {
 
     private companion object {
         const val TAG = "AgoraVoiceEngine"
+        const val VOLUME_INDICATION_INTERVAL_MS = 200
+        const val VOLUME_INDICATION_SMOOTHING = 3
+        const val SPEAKING_VOLUME_THRESHOLD = 12
         const val TOKEN_ENDPOINT = "https://vibeplay-agora-token.sumanrajj213321.workers.dev/"
     }
 }

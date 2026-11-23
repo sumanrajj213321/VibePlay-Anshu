@@ -1145,26 +1145,27 @@ private fun LiveKitStatusPill(
 private fun VoiceActivityRings(modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "voice_activity_rings")
     val firstProgress by transition.animateFloat(
-        initialValue = 0.72f,
-        targetValue = 1.28f,
+        initialValue = 0.88f,
+        targetValue = 1.55f,
         animationSpec = infiniteRepeatable(tween(900), repeatMode = RepeatMode.Restart),
         label = "voice_ring_one"
     )
     val secondProgress by transition.animateFloat(
-        initialValue = 0.72f,
-        targetValue = 1.28f,
+        initialValue = 0.88f,
+        targetValue = 1.55f,
         animationSpec = infiniteRepeatable(tween(900, delayMillis = 450), repeatMode = RepeatMode.Restart),
         label = "voice_ring_two"
     )
     Canvas(modifier = modifier) {
-        val baseRadius = size.minDimension * 0.34f
+        // Start near the avatar edge and expand well beyond it like the old seat wavefront.
+        val baseRadius = size.minDimension * 0.42f
         drawCircle(
-            color = VibeCyan.copy(alpha = (1f - (firstProgress - 0.72f) / 0.56f) * 0.72f),
+            color = VibeCyan.copy(alpha = (1f - (firstProgress - 0.88f) / 0.67f) * 0.82f),
             radius = baseRadius * firstProgress,
             style = Stroke(width = 2.dp.toPx())
         )
         drawCircle(
-            color = VibeViolet.copy(alpha = (1f - (secondProgress - 0.72f) / 0.56f) * 0.72f),
+            color = VibeViolet.copy(alpha = (1f - (secondProgress - 0.88f) / 0.67f) * 0.82f),
             radius = baseRadius * secondProgress,
             style = Stroke(width = 2.dp.toPx())
         )

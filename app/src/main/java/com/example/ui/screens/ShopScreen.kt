@@ -38,6 +38,7 @@ import com.example.data.model.VibeCatalogDefaults
 import com.example.data.model.VibeShopCatalog
 import com.example.data.model.ShopCosmeticItem
 import com.example.ui.components.VibeAvatar
+import com.example.ui.components.VipBadgePill
 import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibeViolet
 
@@ -100,7 +101,8 @@ fun ShopScreen(
                         status = if (owned) "Owned" else if (profile.coinBalance >= tier.coinPrice) "Purchase" else "Need ${tier.coinPrice - profile.coinBalance} more",
                         enabled = !owned && profile.coinBalance >= tier.coinPrice,
                         onClick = { onUpgradeVip(tier.level) },
-                        icon = "👑"
+                        icon = "",
+                        vipLevel = tier.level
                     )
                 }
                 1 -> items(VibeShopCatalog.frames, key = { it.id }) { item ->
@@ -141,6 +143,7 @@ private fun ShopCard(
     enabled: Boolean,
     onClick: () -> Unit,
     icon: String,
+    vipLevel: Int? = null,
     previewAvatarUrl: String = "",
     previewFrameColorArgb: Long? = null
 ) {
@@ -161,6 +164,8 @@ private fun ShopCard(
                     size = 58.dp,
                     frameColorArgb = previewFrameColorArgb
                 )
+            } else if (vipLevel != null) {
+                VipBadgePill(vipLevel = vipLevel.toLong())
             } else {
                 Text(icon, style = MaterialTheme.typography.headlineMedium)
             }

@@ -343,8 +343,14 @@ class InboxRepository(
                     "senderName" to sender.username,
                     "senderAvatarUrl" to sender.avatarUrl,
                     "senderGender" to sender.gender,
-                    "type" to "TEXT",
+                    "type" to "GIFT",
                     "text" to messageText,
+                    "giftId" to gift.id,
+                    "giftName" to "${giftLabel}${gift.name}",
+                    "giftEmoji" to gift.emoji,
+                    "giftCoins" to totalCost,
+                    "recipientId" to recipientId,
+                    "recipientName" to recipientName,
                     "read" to false,
                     "createdAt" to FieldValue.serverTimestamp()
                 ))

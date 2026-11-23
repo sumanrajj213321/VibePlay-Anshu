@@ -441,7 +441,7 @@ internal fun VoiceRoomStageContent(
                                 onClick = {
                                     when {
                                         mySeat != null -> {
-                                            if (!hasAudioPermission && mySeat.muted) {
+                                            if (!hasAudioPermission) {
                                                 micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                             } else {
                                                 onToggleSeatMute(mySeat)
@@ -755,7 +755,13 @@ internal fun VoiceRoomStageContent(
                                                             snackbarHostState.showSnackbar("Seat ${seat.seatIndex} is locked.")
                                                         }
                                                     }
-                                                    else -> onJoinSpeakerSeat(seat.seatIndex.toInt())
+                                                    else -> {
+                                                        if (!hasAudioPermission) {
+                                                            micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                                        } else {
+                                                            onJoinSpeakerSeat(seat.seatIndex.toInt())
+                                                        }
+                                                    }
                                                 }
                                             }
                                         )

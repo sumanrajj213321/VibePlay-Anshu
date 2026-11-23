@@ -1212,30 +1212,18 @@ private fun HostSeatTile(
                 Box(
                     modifier = Modifier
                         .size(76.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
                         .testTag("host_seat_offline_placeholder"),
                     contentAlignment = Alignment.Center
                 ) {
-                    VibeAvatar(
-                        avatarUrl = seat.occupantAvatarUrl,
-                        username = seat.occupantName,
-                        size = 76.dp,
-                        vipLevel = seat.occupantVipLevel,
-                        modifier = Modifier.alpha(0.38f),
-                        frameColorArgb = seat.occupantFrameColorArgb
+                    Text(
+                        text = "HOST",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold
                     )
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = Color.Black.copy(alpha = 0.62f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.55f))
-                    ) {
-                        Text(
-                            text = "OFFLINE",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                        )
-                    }
                 }
             }
             if (ownerOnline) {
@@ -1268,7 +1256,7 @@ private fun HostSeatTile(
             ) {
                 Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = VibeGold, modifier = Modifier.size(12.dp))
                 Text(
-                    text = "HOST · ${seat.occupantName}",
+                    text = if (ownerOnline) "HOST · ${seat.occupantName}" else "HOST SEAT",
                     style = MaterialTheme.typography.labelSmall,
                     color = VibeGold,
                     fontWeight = FontWeight.Bold,

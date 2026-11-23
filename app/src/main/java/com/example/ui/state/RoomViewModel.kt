@@ -54,6 +54,7 @@ class RoomViewModel(
     private val announcedVipIds = mutableSetOf<String>()
 
     val voiceConnectionState: StateFlow<VoiceConnectionState> = voiceEngine.connectionState
+    val activeSpeakerUids: StateFlow<Set<Int>> = voiceEngine.activeSpeakerUids
 
     val room: StateFlow<VoiceRoom?> = roomRepository.observeRoom(roomId)
         .catch { error ->

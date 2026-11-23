@@ -355,6 +355,7 @@ fun ImageCropDialog(
     var offsetY by remember(imageUri) { mutableStateOf(0f) }
     var previewSize by remember(imageUri) { mutableStateOf(IntSize.Zero) }
     var saving by remember(imageUri) { mutableStateOf(false) }
+    var saveError by remember(imageUri) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(imageUri) {
         val decoded = withContext(Dispatchers.IO) {
@@ -439,6 +440,9 @@ fun ImageCropDialog(
                         color = if (loadError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                saveError?.let { message ->
+                    Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(onClick = onCancel, enabled = !saving, modifier = Modifier.weight(1f)) {
                         Text("Cancel")
@@ -448,51 +452,57 @@ fun ImageCropDialog(
                             val original = sourceBitmap ?: return@Button
                             if (previewSize.width <= 0 || previewSize.height <= 0 || saving) return@Button
                             saving = true
+                            saveError = null
                             val z = zoom
                             val dx = offsetX
                             val dy = offsetY
                             val size = previewSize
                             scope.launch {
-                                val croppedUri = withContext(Dispatchers.IO) {
-                                    val base = max(size.width.toFloat() / original.width, size.height.toFloat() / original.height)
-                                    val cropWidth = (size.width / (base * z)).coerceAtMost(original.width.toFloat())
-                                    val cropHeight = (size.height / (base * z)).coerceAtMost(original.height.toFloat())
-                                    val centerX = original.width / 2f - dx / (base * z)
-                                    val centerY = original.height / 2f - dy / (base * z)
-                                    val left = (centerX - cropWidth / 2f).coerceIn(0f, original.width - cropWidth)
-                                    val top = (centerY - cropHeight / 2f).coerceIn(0f, original.height - cropHeight)
-                                    val src = Rect(
-                                        left.toInt(), top.toInt(),
-                                        (left + cropWidth).toInt().coerceAtMost(original.width),
-                                        (top + cropHeight).toInt().coerceAtMost(original.height)
-                                    )
-                                    val outputWidth = 1200
-                                    val outputHeight = (outputWidth / aspectRatio).toInt().coerceAtLeast(1)
-                                    val result = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
-                                    AndroidCanvas(result).drawBitmap(
-                                        original, src, Rect(0, 0, outputWidth, outputHeight),
-                                        Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-                                    )
-                                    // Keep the cropped image in app-private persistent storage while the
-                                    // asynchronous Firebase upload is running. Cache files may be evicted.
-                                    val prefix = if (aspectRatio == 1f) "profile_avatar_" else "profile_cover_"
-                                    val file = File(context.filesDir, prefix + System.currentTimeMillis() + ".jpg")
-                                    val compressed = try {
-                                        FileOutputStream(file).use { output ->
-                                            result.compress(Bitmap.CompressFormat.JPEG, 88, output).also {
-                                                output.flush()
+                                try {
+                                    val croppedUri = withContext(Dispatchers.IO) {
+                                        val base = max(size.width.toFloat() / original.width, size.height.toFloat() / original.height)
+                                        val cropWidth = (size.width / (base * z)).coerceAtMost(original.width.toFloat())
+                                        val cropHeight = (size.height / (base * z)).coerceAtMost(original.height.toFloat())
+                                        val centerX = original.width / 2f - dx / (base * z)
+                                        val centerY = original.height / 2f - dy / (base * z)
+                                        val left = (centerX - cropWidth / 2f).coerceIn(0f, original.width - cropWidth)
+                                        val top = (centerY - cropHeight / 2f).coerceIn(0f, original.height - cropHeight)
+                                        val src = Rect(
+                                            left.toInt(), top.toInt(),
+                                            (left + cropWidth).toInt().coerceAtMost(original.width),
+                                            (top + cropHeight).toInt().coerceAtMost(original.height)
+                                        )
+                                        val outputWidth = 1200
+                                        val outputHeight = (outputWidth / aspectRatio).toInt().coerceAtLeast(1)
+                                        val result = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
+                                        AndroidCanvas(result).drawBitmap(
+                                            original, src, Rect(0, 0, outputWidth, outputHeight),
+                                            Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+                                        )
+                                        // Keep the cropped image in app-private persistent storage while the
+                                        // asynchronous Firebase upload is running. Cache files may be evicted.
+                                        val prefix = if (aspectRatio == 1f) "profile_avatar_" else "profile_cover_"
+                                        val file = File(context.filesDir, prefix + System.currentTimeMillis() + ".jpg")
+                                        val compressed = try {
+                                            FileOutputStream(file).use { output ->
+                                                result.compress(Bitmap.CompressFormat.JPEG, 88, output).also {
+                                                    output.flush()
+                                                }
                                             }
+                                        } finally {
+                                            result.recycle()
                                         }
-                                    } finally {
-                                        result.recycle()
+                                        check(compressed && file.exists() && file.length() > 0L) {
+                                            "Could not prepare the cropped photo. Please try another image."
+                                        }
+                                        Uri.fromFile(file)
                                     }
-                                    check(compressed && file.exists() && file.length() > 0L) {
-                                        "Could not prepare the cropped photo. Please try another image."
-                                    }
-                                    Uri.fromFile(file)
+                                    onApply(croppedUri)
+                                } catch (error: Exception) {
+                                    saveError = error.localizedMessage ?: "Could not prepare this photo. Please try again."
+                                } finally {
+                                    saving = false
                                 }
-                                saving = false
-                                onApply(croppedUri)
                             }
                         },
                         enabled = sourceBitmap != null && loadError == null && !saving,

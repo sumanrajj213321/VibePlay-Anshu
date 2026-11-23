@@ -6,6 +6,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -31,6 +33,8 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
     var musicOn by remember { mutableStateOf(false) }
     var soundOn by remember { mutableStateOf(true) }
     var score by remember { mutableIntStateOf(0) }
+    var spins by remember { mutableIntStateOf(0) }
+    var dailyBonusClaimed by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("Match 3 custom fruits in a line to earn points") }
     val tone = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 55) }
     DisposableEffect(Unit) { onDispose { tone.release() } }
@@ -41,7 +45,7 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
             while (true) { if (!spinning) tone.startTone(notes[i++ % notes.size], 120); delay(900) }
         }
     }
-    Column(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF080B46), Color(0xFF17045B), Color(0xFF080B46)))).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF080B46), Color(0xFF17045B), Color(0xFF080B46)))).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White) }
             Text("VibePlay", color = Color.White, style = MaterialTheme.typography.titleLarge)
@@ -54,6 +58,20 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
             Text("FRUIT", color = Color(0xFFFF54B8), style = MaterialTheme.typography.displaySmall)
             Text("TREASURE", color = Color(0xFFFFC94A), style = MaterialTheme.typography.headlineLarge)
             Text("SCORE  $score", color = Color(0xFFFFD95A), style = MaterialTheme.typography.titleMedium)
+        }
+        Surface(color = Color(0xFF111B72), shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF28DFFF))) {
+            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("TREASURE CHEST", color = Color.White, style = MaterialTheme.typography.titleSmall)
+                    Text("$spins / 10 spins", color = Color(0xFF8DEBFF), style = MaterialTheme.typography.labelMedium)
+                }
+                LinearProgressIndicator(progress = { (spins.coerceAtMost(10) / 10f) }, modifier = Modifier.fillMaxWidth(), color = Color(0xFF42E7FF), trackColor = Color(0xFF29317F))
+                Text(if (spins >= 10) "Treasure milestone reached!" else "Complete 10 free spins to reach the treasure milestone", color = Color(0xFFB7D9FF), style = MaterialTheme.typography.labelSmall)
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column { Text("DAILY BONUS", color = Color.White, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold); Text(if (dailyBonusClaimed) "Claimed today" else "One free daily score bonus", color = Color(0xFFB7D9FF), style = MaterialTheme.typography.labelSmall) }
+            Button(onClick = { if (!dailyBonusClaimed) { score += 25; dailyBonusClaimed = true; message = "Daily bonus claimed: +25 points" } }, enabled = !dailyBonusClaimed, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF236BCE))) { Text(if (dailyBonusClaimed) "CLAIMED" else "+25 POINTS") }
         }
         Column(Modifier.fillMaxWidth().background(Color(0xFF10094C), RoundedCornerShape(22.dp)).border(3.dp, Color(0xFFB64DFF), RoundedCornerShape(22.dp)).padding(8.dp)) {
             for (row in 0..2) {
@@ -72,13 +90,14 @@ fun FruitTreasureScreen(onBack: () -> Unit) {
             if (spinning) {
                 message = "Fruit reels are spinning..."
                 repeat(12) { reels = List(9) { Fruit.entries.random() }; if (soundOn) tone.startTone(ToneGenerator.TONE_PROP_BEEP, 55); delay(115) }
+                spins += 1
                 spinning = false
                 val lines = listOf(listOf(0,1,2), listOf(3,4,5), listOf(6,7,8), listOf(0,4,8), listOf(2,4,6))
                 val wins = lines.count { reels[it[0]] == reels[it[1]] && reels[it[1]] == reels[it[2]] }
                 if (wins > 0) { score += wins * 10; message = "Fruit match! +${wins * 10} points"; if (soundOn) tone.startTone(ToneGenerator.TONE_PROP_ACK, 240) } else message = "Try again! Free play — no coins deducted."
             }
         }
-        Text("Free play • No coins are deducted", color = Color(0xFFB7D9FF), modifier = Modifier.align(Alignment.CenterHorizontally))
+        Text("FREE ARCADE MODE • No coins are used", color = Color(0xFFB7D9FF), modifier = Modifier.align(Alignment.CenterHorizontally))
         Spacer(Modifier.weight(1f))
     }
 }

@@ -97,21 +97,16 @@ class AgoraVoiceEngine {
         }
 
         override fun onAudioVolumeIndication(speakers: Array<out AudioVolumeInfo>?, totalVolume: Int) {
-            val current = speakers.orEmpty()
-            // Agora reports local and remote volume in separate callbacks.
-            // Update only the matching side so one callback cannot erase the other.
-            if (current.any { it.uid == 0 }) {
-                localIsSpeaking = current.any {
-                    it.uid == 0 && it.volume >= SPEAKING_VOLUME_THRESHOLD
-                }
-            } else {
-                remoteSpeakingUids = current
-                    .filter { it.uid > 0 && it.volume >= SPEAKING_VOLUME_THRESHOLD }
-                    .map { it.uid }
-                    .toSet()
-            }
-            _activeSpeakerUids.value = remoteSpeakingUids +
-                if (localIsSpeaking && localAgoraUid > 0) setOf(localAgoraUid) else emptySet()
+            // Agora reports the local user with uid 0 in volume indications.
+            // Map that entry to the server-assigned UID used by room seat rendering.
+            val active = speakers.orEmpty()
+                .filter { it.volume >= SPEAKING_VOLUME_THRESHOLD }
+                .map { info -> if (info.uid == 0) localAgoraUid else info.uid }
+                .filter { it > 0 }
+                .toSet()
+            remoteSpeakingUids = active - localAgoraUid
+            localIsSpeaking = localAgoraUid in active
+            _activeSpeakerUids.value = active
         }
 
         override fun onError(err: Int) {

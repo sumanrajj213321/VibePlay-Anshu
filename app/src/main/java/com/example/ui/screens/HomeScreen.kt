@@ -97,7 +97,9 @@ fun HomeScreen(
     onOpenGiftRanking: () -> Unit,
     onClaimDailyReward: () -> Unit,
     onOpenUserProfile: (UserProfile) -> Unit,
-    onVerifyPasscode: (VoiceRoom, String) -> Boolean
+    onVerifyPasscode: (VoiceRoom, String) -> Boolean,
+    onOpenGame: () -> Unit,
+    onOpenShop: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(RoomCategory.ALL) }
@@ -238,6 +240,14 @@ fun HomeScreen(
                         }
                     }
                 }
+            }
+        }
+
+        // Equal-size Home shortcuts; Profile Shop remains unchanged.
+        item {
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                HomeShortcutCard("VibePlay Shop", "Discover items", VibePink, "SHOP", Modifier.weight(1f).height(112.dp), onOpenShop)
+                HomeShortcutCard("Game Zone", "Fruit Treasure", VibeCyan, "PLAY", Modifier.weight(1f).height(112.dp), onOpenGame)
             }
         }
 
@@ -827,4 +837,15 @@ private fun EmptyRoomsPrompt(onCreateRoomClick: () -> Unit) {
             }
         }
     }
+}
+
+
+@Composable
+private fun HomeShortcutCard(title: String, subtitle: String, accent: Color, symbol: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+ Surface(modifier = modifier.clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick), shape = RoundedCornerShape(20.dp), color = accent.copy(alpha = 0.13f), border = BorderStroke(1.4.dp, accent.copy(alpha = 0.85f))) {
+  Row(modifier = Modifier.fillMaxSize().background(Brush.linearGradient(listOf(accent.copy(alpha = 0.24f), Color.Transparent))).padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+   Surface(shape = RoundedCornerShape(14.dp), color = accent.copy(alpha = 0.22f)) { Box(modifier = Modifier.size(46.dp), contentAlignment = Alignment.Center) { Text(symbol, color = accent, fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelLarge) } }
+   Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) { Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis); Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+  }
+ }
 }

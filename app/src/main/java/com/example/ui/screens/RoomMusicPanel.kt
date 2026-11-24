@@ -155,6 +155,12 @@ internal fun RoomMusicPanel(
                     title = ""
                     artist = ""
                     refreshLibrary()
+                    onUpdateRoomMusic(
+                        uploaded.id,
+                        "PLAYING",
+                        0L,
+                        roomMusic?.queueTrackIds.orEmpty()
+                    )
                 } catch (e: Exception) {
                     error = e.localizedMessage ?: "Upload failed."
                 } finally {
@@ -234,9 +240,25 @@ internal fun RoomMusicPanel(
                     ) { Text("Next in queue") }
                 }
                 Text("Queue · ${roomMusic?.queueTrackIds?.size ?: 0}")
-                roomMusic?.queueTrackIds?.take(5)?.forEachIndexed { index, id ->
+                roomMusic?.queueTrackIds?.forEachIndexed { index, id ->
                     val queued = tracks.firstOrNull { it.id == id }
-                    Text("${index + 1}. ${queued?.title ?: "Track"}", style = MaterialTheme.typography.labelSmall)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("${index + 1}. ${queued?.title ?: "Track"}", style = MaterialTheme.typography.labelSmall)
+                        if (canControl) {
+                            TextButton(onClick = {
+                                val queue = roomMusic?.queueTrackIds.orEmpty()
+                                onUpdateRoomMusic(
+                                    roomMusic?.trackId.orEmpty(),
+                                    roomMusic?.status ?: "STOPPED",
+                                    player.currentPosition.coerceAtLeast(0L),
+                                    queue.filterIndexed { itemIndex, _ -> itemIndex != index }
+                                )
+                            }) { Text("Remove") }
+                        }
+                    }
                 }
                 Text("Volume")
                 Slider(value = volume, onValueChange = {
@@ -274,18 +296,36 @@ internal fun RoomMusicPanel(
                             Column(Modifier.fillMaxWidth().padding(9.dp)) {
                                 Text(track.title, style = MaterialTheme.typography.bodyMedium)
                                 Text(track.artist, style = MaterialTheme.typography.labelSmall)
-                                if (canUpload) {
-                                    TextButton(onClick = {
-                                        val queue = roomMusic?.queueTrackIds.orEmpty()
-                                        if (track.id != roomMusic?.trackId && track.id !in queue) {
-                                            onUpdateRoomMusic(
-                                                roomMusic?.trackId.orEmpty(),
-                                                roomMusic?.status ?: "STOPPED",
-                                                player.currentPosition.coerceAtLeast(0L),
-                                                queue + track.id
-                                            )
-                                        }
-                                    }) { Text("Add to queue") }
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    if (canUpload) {
+                                        TextButton(onClick = {
+                                            val queue = roomMusic?.queueTrackIds.orEmpty()
+                                            if (track.id != roomMusic?.trackId && track.id !in queue) {
+                                                onUpdateRoomMusic(
+                                                    roomMusic?.trackId.orEmpty(),
+                                                    roomMusic?.status ?: "STOPPED",
+                                                    player.currentPosition.coerceAtLeast(0L),
+                                                    queue + track.id
+                                                )
+                                            }
+                                        }) { Text("Add to queue") }
+                                    }
+                                    if (track.uploadedBy == FirebaseAuth.getInstance().currentUser?.uid) {
+                                        TextButton(onClick = {
+                                            scope.launch {
+                                                loading = true
+                                                error = null
+                                                try {
+                                                    client.delete(track.id)
+                                                    refreshLibrary()
+                                                } catch (e: Exception) {
+                                                    error = e.localizedMessage ?: "Could not delete your upload."
+                                                } finally {
+                                                    loading = false
+                                                }
+                                            }
+                                        }, enabled = !loading) { Text("Delete my upload") }
+                                    }
                                 }
                             }
                         }

@@ -1161,6 +1161,15 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
         }
     }
 
+    // Never leave a gift overlay stuck on a black VideoView surface.
+    // If the remote clip does not prepare promptly, reveal the built-in animated fallback.
+    LaunchedEffect(event?.id, videoUrl, videoReady, videoLoadFailed) {
+        if (videoGift && event != null && videoUrl != null && !videoReady && !videoLoadFailed) {
+            delay(12_000L)
+            if (!videoReady) videoLoadFailed = true
+        }
+    }
+
     LaunchedEffect(event?.id, videoReady, videoLoadFailed) {
         if (videoGift && event != null) {
             when {
@@ -1184,7 +1193,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
         ) {
             if (videoGift && videoUrl != null && !videoLoadFailed) {
                 AndroidView(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().then(if (videoReady) Modifier else Modifier.alpha(0f)),
                     factory = { ctx ->
                         VideoView(ctx).apply {
                             tag = event?.id
@@ -1258,7 +1267,9 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                         drawCircle(gold.copy(alpha = 0.55f), (1.2f + (i % 3)) * density, Offset(px, py))
                     }
                 }
-            } else if (!videoGift || videoLoadFailed) {
+            } else if (!videoGift || !videoReady || videoLoadFailed) {
+                // Keep an animated visual on screen while a remote gift video buffers,
+                // and fall back to it if the clip cannot be loaded.
                 Canvas(Modifier.fillMaxSize()) {
                     val w=size.width; val h=size.height
                     drawRect(Brush.radialGradient(listOf(accent.copy(alpha=0.34f),Color.Transparent),Offset(w*0.5f,h*0.48f),w*0.78f))

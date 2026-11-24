@@ -22,6 +22,7 @@ import com.example.data.model.VoiceRoom
 import com.example.data.model.VoiceSeat
 import com.example.data.model.VoiceStage
 import com.google.firebase.Firebase
+import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.DocumentSnapshot
@@ -1735,7 +1736,7 @@ class RoomRepository(
             check(uid == ownerId || uid == hostId || uid in admins) {
                 "Only the room owner or an authorized room admin can change the cover."
             }
-            val resolver = db.app.applicationContext.contentResolver
+            val resolver = FirebaseApp.getInstance().applicationContext.contentResolver
             val input = resolver.openInputStream(uri)
                 ?: throw IllegalArgumentException("Could not read the selected room cover.")
             val original = input.use { BitmapFactory.decodeStream(it) }

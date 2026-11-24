@@ -349,12 +349,10 @@ internal fun RoomMusicPanel(
                                 Text(track.title, style = MaterialTheme.typography.bodyMedium)
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     if (canUpload) {
-                                        TextButton(onClick = {
-                                            val queue = roomMusic?.queueTrackIds.orEmpty()
-                                            if (track.id != roomMusic?.trackId && track.id !in queue) {
-                                                onAddTrackToQueue(track.id)
-                                            }
-                                        }) { Text("Add to queue") }
+                                        TextButton(
+                                            onClick = { onAddTrackToQueue(track.id) },
+                                            enabled = canControl
+                                        ) { Text("Play now") }
                                     }
                                     if (track.uploadedBy == FirebaseAuth.getInstance().currentUser?.uid) {
                                         TextButton(onClick = {

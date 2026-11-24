@@ -68,6 +68,13 @@ class RoomViewModel(
         }
     }
 
+    fun enqueueTrackToRoomMusicQueue(trackId: String) {
+        viewModelScope.launch {
+            roomRepository.enqueueTrackToRoomMusicQueue(roomId, trackId)
+                .onFailure { error -> _roomError.value = error.localizedMessage ?: "Could not add song to queue." }
+        }
+    }
+
     fun advanceRoomMusicQueue(expectedTrackId: String) {
         viewModelScope.launch {
             roomRepository.advanceRoomMusicQueue(roomId, expectedTrackId)

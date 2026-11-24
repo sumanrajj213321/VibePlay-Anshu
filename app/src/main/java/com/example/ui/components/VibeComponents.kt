@@ -992,23 +992,28 @@ fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
 @Composable
 fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val couple = event?.giftId == "gift_couple_kiss" || event?.giftId == "gift_royal_vows"
-    val videoGift = event?.giftId == "gift_sunset_love"
+    val couple = event?.giftId == "gift_couple_kiss"
+    // Royal Vows plays the exact video uploaded by the user (4866.mp4).
+    val videoGift = event?.giftId == "gift_sunset_love" || event?.giftId == "gift_royal_vows"
     var videoUrl by remember(event?.id) { mutableStateOf<String?>(null) }
     var videoReady by remember(event?.id) { mutableStateOf(false) }
     var videoLoadFailed by remember(event?.id) { mutableStateOf(false) }
     val progress by animateFloatAsState(
         targetValue = if (event == null) 0f else 1f,
-        animationSpec = tween(if (videoGift) 5200 else 5000, easing = LinearEasing),
+        animationSpec = tween(if (videoGift) 6900 else 5000, easing = LinearEasing),
         label = "full_screen_gift_progress"
     )
 
     LaunchedEffect(event?.id) {
         val active = event
         if (active != null) {
-            if (active.giftId == "gift_sunset_love") {
-                videoUrl = "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/sunset_love_gift.mp4"
-                if (videoUrl == null) videoLoadFailed = true
+            if (active.giftId == "gift_sunset_love" || active.giftId == "gift_royal_vows") {
+                videoUrl = if (active.giftId == "gift_royal_vows") {
+                    "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/From%20Klickpin.com-%20Discover%20Simple%20family%20dinner%20ideas%20that%20are%20trending%20right%20now%20across%20Pinterest%20boards%20for%20ideas%20worth%20saving%20right%20now-pin-id%20%28online-video-cutter.com%29.mp4"
+                } else {
+                    "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/sunset_love_gift.mp4"
+                }
+                if (videoUrl.isNullOrBlank()) videoLoadFailed = true
             } else {
                 val tone = ToneGenerator(AudioManager.STREAM_MUSIC, 70)
                 try {
@@ -1023,7 +1028,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
     LaunchedEffect(event?.id, videoReady, videoLoadFailed) {
         if (videoGift && event != null) {
             when {
-                videoReady -> { delay(5200L); onFinished() }
+                videoReady -> { delay(6900L); onFinished() }
                 videoLoadFailed -> { delay(5000L); onFinished() }
             }
         }

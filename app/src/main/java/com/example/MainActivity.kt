@@ -897,7 +897,7 @@ private fun GlobalGiftAnnouncementTicker(
         if (item != null) {
             Surface(
                 modifier = Modifier.align(Alignment.TopStart).padding(top = 8.dp).offset(x = x)
-                    .fillMaxWidth(0.88f).height(42.dp)
+                    .fillMaxWidth(0.96f).height(54.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .border(1.dp, VibeGold.copy(alpha = 0.85f), RoundedCornerShape(10.dp)),
                 color = androidx.compose.ui.graphics.Color(0xE91A1428),
@@ -920,21 +920,21 @@ private fun GlobalGiftAnnouncementTicker(
                             text = "★ ${item.senderName} sent ${item.giftName} to ${item.recipientName} • ${item.totalCoins} Coins • Go to see",
                             modifier = Modifier.weight(1f),
                             color = androidx.compose.ui.graphics.Color.White,
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.ExtraBold,
-                            maxLines = 1,
+                            maxLines = 2,
                             textAlign = TextAlign.Start
                         )
                         Button(
                             onClick = { onJoinRoom(item.roomId) },
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(30.dp),
+                            modifier = Modifier.height(36.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = VibeGold,
                                 contentColor = androidx.compose.ui.graphics.Color(0xFF1A1428)
                             )
                         ) {
-                            Text("Join", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black)
+                            Text("Join", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Black)
                         }
                     }
                 }

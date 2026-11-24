@@ -152,7 +152,8 @@ fun VoiceRoomScreen(
     onBack: () -> Unit,
     onSubmitReport: (targetType: String, targetId: String, targetName: String, reason: String, details: String) -> Unit,
     onBlockUser: (String) -> Unit,
-    onUnblockUser: (String) -> Unit = {}
+    onUnblockUser: (String) -> Unit = {},
+    onUnblockRoomMember: (String) -> Unit = {}
 ) {
     val room by roomViewModel.room.collectAsStateWithLifecycle()
     val stage by roomViewModel.voiceStage.collectAsStateWithLifecycle()
@@ -276,7 +277,8 @@ fun VoiceRoomScreen(
         onSubmitReport = onSubmitReport,
         onBlockUser = onBlockUser,
         onUnblockUser = onUnblockUser,
-        onKickMember = { targetId -> roomViewModel.kickRoomMember(targetId) }
+        onKickMember = { targetId -> roomViewModel.kickRoomMember(targetId) },
+        onUnblockRoomMember = { targetId -> roomViewModel.unblockRoomMember(targetId) }
     )
 }
 
@@ -333,7 +335,8 @@ internal fun VoiceRoomStageContent(
     onSubmitReport: (targetType: String, targetId: String, targetName: String, reason: String, details: String) -> Unit,
     onBlockUser: (String) -> Unit,
     onUnblockUser: (String) -> Unit = {},
-    onKickMember: (String) -> Unit = {}
+    onKickMember: (String) -> Unit = {},
+    onUnblockRoomMember: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -1017,7 +1020,8 @@ internal fun VoiceRoomStageContent(
             },
             onEndRoom = {
                 onEndRoom()
-            }
+            },
+            onUnblockRoomMember = onUnblockRoomMember
         )
     }
 

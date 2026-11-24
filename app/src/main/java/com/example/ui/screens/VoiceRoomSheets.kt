@@ -603,7 +603,9 @@ fun RoomOnlineMembersSheet(
     onOpenUserProfile: ((String) -> Unit)? = null,
     onToggleRoomAdmin: ((userId: String, username: String, promote: Boolean) -> Unit)? = null,
     onReportListener: (RoomListener) -> Unit,
+    blockedUserIds: List<String> = emptyList(),
     onBlockListener: (RoomListener) -> Unit,
+    onUnblockListener: (RoomListener) -> Unit = {},
     onKickMember: (String) -> Unit = {},
     onDismiss: () -> Unit
 ) {
@@ -745,8 +747,14 @@ fun RoomOnlineMembersSheet(
                                 IconButton(onClick = { onReportListener(listenerModel) }) {
                                     Icon(Icons.Filled.Flag, contentDescription = "Report user", modifier = Modifier.size(18.dp))
                                 }
-                                IconButton(onClick = { onBlockListener(listenerModel) }) {
-                                    Icon(Icons.Filled.Block, contentDescription = "Block user", tint = VibeCoral, modifier = Modifier.size(18.dp))
+                                if (member.userId in blockedUserIds) {
+                                    IconButton(onClick = { onUnblockListener(listenerModel) }) {
+                                        Icon(Icons.Filled.Check, contentDescription = "Unblock user", tint = VibeCyan, modifier = Modifier.size(18.dp))
+                                    }
+                                } else {
+                                    IconButton(onClick = { onBlockListener(listenerModel) }) {
+                                        Icon(Icons.Filled.Block, contentDescription = "Block user", tint = VibeCoral, modifier = Modifier.size(18.dp))
+                                    }
                                 }
                                 if (isHost && member.stageRole != "HOST") {
                                     IconButton(

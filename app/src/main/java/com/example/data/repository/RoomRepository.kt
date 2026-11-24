@@ -181,7 +181,6 @@ class RoomRepository(
                 state.getString("trackId") != expectedTrackId ||
                 state.getString("status") != "PLAYING"
             ) return@runTransaction
-            tx.get(roomRef)
             val queue = (state.get("queueTrackIds") as? List<*>).orEmpty()
                 .filterIsInstance<String>()
             val nextId = queue.firstOrNull()

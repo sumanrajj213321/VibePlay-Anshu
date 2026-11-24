@@ -418,8 +418,19 @@ private fun AuthenticatedVibePlayApp(
                     selectedConversationId = null
                 }
                 navController.navigate(tab.route) {
-                    popUpTo(navController.graph.findStartDestination().id) {
-                        saveState = true
+                    // Keep the active room destination on the back stack while
+                    // the user browses other tabs. Its NavBackStackEntry-scoped
+                    // RoomViewModel and realtime session therefore stay alive.
+                    val roomId = activeRoomId
+                    if (!roomId.isNullOrBlank()) {
+                        popUpTo("room/$roomId") {
+                            inclusive = false
+                            saveState = true
+                        }
+                    } else {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
                     }
                     launchSingleTop = true
                     restoreState = true
@@ -795,10 +806,12 @@ private fun AuthenticatedVibePlayApp(
                             activeRoomId?.takeIf { currentRoute != "room/$it" }?.let { roomId ->
                                 Button(
                                     onClick = {
-                                        navController.navigate("room/$roomId") {
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
+                                        // Reveal the existing room destination instead
+                                        // of creating a second room instance.
+                                        navController.popBackStack(
+                                            route = "room/$roomId",
+                                            inclusive = false
+                                        )
                                     },
                                     modifier = Modifier
                                         .align(Alignment.BottomEnd)

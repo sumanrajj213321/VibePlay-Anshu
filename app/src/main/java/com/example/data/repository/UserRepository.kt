@@ -584,34 +584,31 @@ class UserRepository(
                 val mySnap = tx.get(myUserRef)
                 val targetSnap = tx.get(targetUserRef)
                 val myFollowingSnap = tx.get(myFollowingRef)
-                val theirFollowerSnap = tx.get(theirFollowerRef)
 
                 val myFollowingCount = mySnap.getLong("followingCount") ?: currentUser.followingCount
                 val targetFollowersCount = targetSnap.getLong("followersCount") ?: targetUser.followersCount
                 val isActuallyFollowing = myFollowingSnap.exists()
 
-                if (isActuallyFollowing || (currentlyFollowing && theirFollowerSnap.exists())) {
-                    if (myFollowingSnap.exists()) tx.delete(myFollowingRef)
-                    if (theirFollowerSnap.exists()) tx.delete(theirFollowerRef)
-                    if (myFollowingSnap.exists()) {
-                        tx.update(
-                            myUserRef,
-                            mapOf(
-                                "followingCount" to (myFollowingCount - 1L).coerceAtLeast(0L),
-                                "updatedAt" to FieldValue.serverTimestamp()
-                            )
+                // The current user's following edge is the source of truth. Do not read
+                // the other user's followers subcollection: that list is private.
+                if (isActuallyFollowing) {
+                    tx.delete(myFollowingRef)
+                    tx.delete(theirFollowerRef)
+                    tx.update(
+                        myUserRef,
+                        mapOf(
+                            "followingCount" to (myFollowingCount - 1L).coerceAtLeast(0L),
+                            "updatedAt" to FieldValue.serverTimestamp()
                         )
-                    }
-                    if (theirFollowerSnap.exists()) {
-                        tx.update(
-                            targetUserRef,
-                            mapOf(
-                                "followersCount" to (targetFollowersCount - 1L).coerceAtLeast(0L),
-                                "updatedAt" to FieldValue.serverTimestamp()
-                            )
+                    )
+                    tx.update(
+                        targetUserRef,
+                        mapOf(
+                            "followersCount" to (targetFollowersCount - 1L).coerceAtLeast(0L),
+                            "updatedAt" to FieldValue.serverTimestamp()
                         )
-                    }
-                } else if (!myFollowingSnap.exists()) {
+                    )
+                } else {
                     tx.set(
                         myFollowingRef,
                         mapOf(

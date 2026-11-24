@@ -641,6 +641,15 @@ service cloud.firestore {
                                  incoming().contentType == 'image/jpeg' && isValidTs(incoming().updatedAt);
         allow delete: if isSignedIn() && request.auth.uid == userId;
       }
+      match /cover/{coverDocId} {
+        allow get: if isSignedIn() && coverDocId == 'image';
+        allow list: if false;
+        allow create, update: if isSignedIn() && request.auth.uid == userId && coverDocId == 'image' &&
+                                 incoming().keys().hasOnly(['data', 'contentType', 'updatedAt']) &&
+                                 incoming().data is string && incoming().data.size() <= 900000 &&
+                                 incoming().contentType == 'image/jpeg' && isValidTs(incoming().updatedAt);
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
       match /private/{docId} {
         allow get, list: if isSignedIn() && (request.auth.uid == userId);
         allow create, update: if isSignedIn() && isValidId(userId) && isValidId(docId) &&

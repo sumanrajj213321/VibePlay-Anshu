@@ -61,6 +61,13 @@ class RoomViewModel(
         }
     }
 
+    fun addTrackToRoomMusicQueue(trackId: String) {
+        viewModelScope.launch {
+            roomRepository.addTrackToRoomMusicQueue(roomId, trackId)
+                .onFailure { error -> _roomError.value = error.localizedMessage ?: "Could not add song to queue." }
+        }
+    }
+
     private val _roomError = MutableStateFlow<String?>(null)
     val roomError: StateFlow<String?> = _roomError.asStateFlow()
 

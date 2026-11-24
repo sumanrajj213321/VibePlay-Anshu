@@ -318,7 +318,8 @@ internal fun VoiceRoomStageContent(
     onVacateSpeakerSeat: (seatIndex: Int) -> Unit,
     onHostRemoveSpeaker: (seatIndex: Int) -> Unit,
     onSubmitReport: (targetType: String, targetId: String, targetName: String, reason: String, details: String) -> Unit,
-    onBlockUser: (String) -> Unit
+    onBlockUser: (String) -> Unit,
+    onKickMember: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current

@@ -872,7 +872,7 @@ internal fun VoiceRoomStageContent(
                                         )
                                         if (msg.type == "GIFT") {
                                             Text(
-                                                text = "Get 9999 Gifts",
+                                                text = "Get ${msg.giftCoins} Gifts",
                                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
                                                 color = VibeGold
                                             )

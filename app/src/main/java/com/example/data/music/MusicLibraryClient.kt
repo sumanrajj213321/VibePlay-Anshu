@@ -5,6 +5,8 @@ import android.net.Uri
 import com.example.BuildConfig
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -55,22 +57,24 @@ class MusicLibraryClient(
 
     suspend fun listTracks(): List<MusicTrack> {
         val request = authorizedRequest("/v1/music").get().build()
-        http.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (!response.isSuccessful) throw IOException(errorMessage(body, "Could not load music library."))
-            val array = JSONObject(body).optJSONArray("tracks") ?: return emptyList()
-            return (0 until array.length()).mapNotNull { index ->
-                val item = array.optJSONObject(index) ?: return@mapNotNull null
-                val id = item.optString("id")
-                if (id.isBlank()) return@mapNotNull null
-                MusicTrack(
-                    id = id,
-                    title = item.optString("title", "Untitled"),
-                    artist = item.optString("artist", "Unknown artist"),
-                    size = item.optLong("size"),
-                    contentType = item.optString("contentType", "audio/mpeg"),
-                    uploadedBy = item.optString("uploadedBy")
-                )
+        return withContext(Dispatchers.IO) {
+            http.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) throw IOException(errorMessage(body, "Could not load music library."))
+                val array = JSONObject(body).optJSONArray("tracks") ?: return@withContext emptyList()
+                (0 until array.length()).mapNotNull { index ->
+                    val item = array.optJSONObject(index) ?: return@mapNotNull null
+                    val id = item.optString("id")
+                    if (id.isBlank()) return@mapNotNull null
+                    MusicTrack(
+                        id = id,
+                        title = item.optString("title", "Untitled"),
+                        artist = item.optString("artist", "Unknown artist"),
+                        size = item.optLong("size"),
+                        contentType = item.optString("contentType", "audio/mpeg"),
+                        uploadedBy = item.optString("uploadedBy")
+                    )
+                }
             }
         }
     }
@@ -82,13 +86,15 @@ class MusicLibraryClient(
         artist: String
     ): MusicTrack {
         val mime = resolver.getType(uri)?.substringBefore(';') ?: "application/octet-stream"
-        val bytes = resolver.openInputStream(uri)?.use { input ->
-            val data = input.readBytes()
-            if (data.size > 15 * 1024 * 1024) {
-                throw IllegalArgumentException("Audio file must be 15 MB or smaller.")
-            }
-            data
-        } ?: throw IOException("Could not read the selected audio file.")
+        val bytes = withContext(Dispatchers.IO) {
+            resolver.openInputStream(uri)?.use { input ->
+                val data = input.readBytes()
+                if (data.size > 15 * 1024 * 1024) {
+                    throw IllegalArgumentException("Audio file must be 15 MB or smaller.")
+                }
+                data
+            } ?: throw IOException("Could not read the selected audio file.")
+        }
         if (bytes.isEmpty()) throw IllegalArgumentException("Selected audio file is empty.")
         val fileName = uri.lastPathSegment?.substringAfterLast('/')?.take(120) ?: "audio"
         val fileBody = bytes.toRequestBody(mime.toMediaTypeOrNull())
@@ -99,27 +105,31 @@ class MusicLibraryClient(
             .addFormDataPart("file", fileName, fileBody)
             .build()
         val request = authorizedRequest("/v1/music").post(multipart).build()
-        http.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (!response.isSuccessful) throw IOException(errorMessage(body, "Music upload failed."))
-            val item = JSONObject(body)
-            return MusicTrack(
-                id = item.optString("id"),
-                title = item.optString("title", title),
-                artist = item.optString("artist", artist),
-                size = item.optLong("size", bytes.size.toLong()),
-                contentType = item.optString("contentType", mime),
-                uploadedBy = item.optString("uploadedBy")
-            )
+        return withContext(Dispatchers.IO) {
+            http.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) throw IOException(errorMessage(body, "Music upload failed."))
+                val item = JSONObject(body)
+                MusicTrack(
+                    id = item.optString("id"),
+                    title = item.optString("title", title),
+                    artist = item.optString("artist", artist),
+                    size = item.optLong("size", bytes.size.toLong()),
+                    contentType = item.optString("contentType", mime),
+                    uploadedBy = item.optString("uploadedBy")
+                )
+            }
         }
     }
 
     suspend fun delete(trackId: String) {
         val encoded = URLEncoder.encode(trackId, "UTF-8").replace("+", "%20")
         val request = authorizedRequest("/v1/music/$encoded").delete().build()
-        http.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (!response.isSuccessful) throw IOException(errorMessage(body, "Could not remove track."))
+        withContext(Dispatchers.IO) {
+            http.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) throw IOException(errorMessage(body, "Could not remove track."))
+            }
         }
     }
 

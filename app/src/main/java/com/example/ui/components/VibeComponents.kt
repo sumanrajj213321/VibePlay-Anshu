@@ -1082,7 +1082,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
     }
 
     if (event != null) {
-        val accent = if (couple || videoGift) Color(0xFFFF8DBB) else when (event.giftId) {
+        val accent = if (royalRide) Color(0xFFFFD98A) else if (couple || videoGift) Color(0xFFFF8DBB) else when (event.giftId) {
             "gift_love_promise", "gift_moonlight_dance" -> Color(0xFFFF78B7)
             "gift_royal_phoenix", "gift_galaxy_crown" -> Color(0xFFFFC857)
             "gift_crystal_wave", "gift_ocean_palace", "gift_diamond_rain" -> Color(0xFF55DDF5)
@@ -1091,7 +1091,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
         }
         Box(
             modifier.fillMaxSize().zIndex(100f)
-                .then(if (videoGift && videoUrl != null && !videoLoadFailed) Modifier.background(Color.Black) else Modifier.background(Brush.verticalGradient(listOf(Color(0xFF08091E), Color(0xFF171039), Color(0xFF260F36), Color(0xFF08091E)))))
+                .then(if (videoGift && videoUrl != null && !videoLoadFailed) Modifier.background(Color.Black) else Modifier.background(Brush.verticalGradient(if (royalRide) listOf(Color(0xFF061A27), Color(0xFF123B38), Color(0xFF302C3E), Color(0xFF080F1C)) else listOf(Color(0xFF08091E), Color(0xFF171039), Color(0xFF260F36), Color(0xFF08091E)))))
         ) {
             if (videoGift && videoUrl != null && !videoLoadFailed) {
                 AndroidView(

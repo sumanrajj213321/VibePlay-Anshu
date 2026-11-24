@@ -143,6 +143,7 @@ data class VoiceRoom(
     val ownerOnline: Boolean = true,
     val adminIds: List<String> = emptyList(),
     val activeAdminIds: List<String> = emptyList(),
+    val bannedUserIds: List<String> = emptyList(),
     val title: String = "",
     val announcement: String = "",
     val category: String = "Chill",

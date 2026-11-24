@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.provider.OpenableColumns
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -72,27 +73,12 @@ internal fun RoomMusicPanel(
     val configuration = LocalConfiguration.current
     val scope = rememberCoroutineScope()
     val client = remember { MusicLibraryClient() }
-    val player = remember {
-        ExoPlayer.Builder(context).build().apply {
-            setAudioAttributes(
-                androidx.media3.common.AudioAttributes.Builder()
-                    .setUsage(androidx.media3.common.C.USAGE_MEDIA)
-                    .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .build(),
-                true
-            )
-            setHandleAudioBecomingNoisy(true)
-        }
-    }
+    val player = remember { RoomMusicPlayback.get(context) }
     var tracks by remember { mutableStateOf<List<MusicTrack>>(emptyList()) }
     var search by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var volume by remember { mutableFloatStateOf(1f) }
-
-    DisposableEffect(player) {
-        onDispose { player.release() }
-    }
 
     // Advance the shared queue when the current track finishes. Only a room music
     // controller writes the next shared state, so listeners do not race one another.
@@ -403,4 +389,33 @@ internal fun RoomMusicPanel(
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
     )
+}
+
+
+/** Keeps shared room music alive while the room screen is temporarily covered. */
+internal object RoomMusicPlayback {
+    @Volatile private var sharedPlayer: ExoPlayer? = null
+
+    @Synchronized
+    fun get(context: Context): ExoPlayer {
+        return sharedPlayer ?: ExoPlayer.Builder(context.applicationContext).build().apply {
+            setAudioAttributes(
+                androidx.media3.common.AudioAttributes.Builder()
+                    .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                    .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build(),
+                true
+            )
+            setHandleAudioBecomingNoisy(true)
+        }.also { sharedPlayer = it }
+    }
+
+    @Synchronized
+    fun release() {
+        sharedPlayer?.let { player ->
+            runCatching { player.stop() }
+            player.release()
+        }
+        sharedPlayer = null
+    }
 }

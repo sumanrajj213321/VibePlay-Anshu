@@ -144,8 +144,20 @@ internal fun RoomMusicPanel(
                 loading = true
                 error = null
                 try {
-                    val fallbackTitle = uri.lastPathSegment?.substringAfterLast('/')?.substringBeforeLast('.')
-                        ?.take(80).orEmpty().ifBlank { "Untitled" }
+                    val fallbackTitle = context.contentResolver.query(
+                        uri,
+                        arrayOf(OpenableColumns.DISPLAY_NAME),
+                        null,
+                        null,
+                        null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val nameColumn = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            if (nameColumn >= 0) cursor.getString(nameColumn) else null
+                        } else null
+                    }?.take(120)?.takeIf { it.isNotBlank() }
+                        ?: uri.lastPathSegment?.substringAfterLast('/')?.take(120)
+                        ?: "Untitled"
                     val uploaded = client.upload(
                         context.contentResolver,
                         uri,

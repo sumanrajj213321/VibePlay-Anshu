@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PersonOff
@@ -109,6 +110,7 @@ import com.example.data.model.GiftCatalogItem
 import com.example.data.model.GiftTransaction
 import com.example.data.model.RoomListener
 import com.example.data.model.RoomMessage
+import com.example.data.model.RoomMusicState
 import com.example.data.model.RoomOnlineMember
 import com.example.data.model.SpeakerRequest
 import com.example.data.model.UserProfile
@@ -160,6 +162,7 @@ fun VoiceRoomScreen(
     val giftBurst by roomViewModel.giftBurst.collectAsStateWithLifecycle()
     val vipEntrance by roomViewModel.vipEntrance.collectAsStateWithLifecycle()
     val roomError by roomViewModel.roomError.collectAsStateWithLifecycle()
+    val roomMusic by roomViewModel.roomMusic.collectAsStateWithLifecycle()
 
     BackHandler {
         roomViewModel.leaveRoom(onBack)
@@ -202,6 +205,10 @@ fun VoiceRoomScreen(
         vipEntrance = vipEntrance,
         roomEffectsEnabled = roomEffectsEnabled,
         roomError = roomError,
+        roomMusic = roomMusic,
+        onUpdateRoomMusic = { trackId, status, positionMs ->
+            roomViewModel.updateRoomMusic(trackId, status, positionMs)
+        },
         onClearError = { roomViewModel.clearError() },
         activeGifts = activeGifts,
         blockedUserIds = blockedUserIds,
@@ -273,6 +280,8 @@ internal fun VoiceRoomStageContent(
     vipEntrance: UserProfile? = null,
     roomEffectsEnabled: Boolean = true,
     roomError: String?,
+    roomMusic: RoomMusicState? = null,
+    onUpdateRoomMusic: (trackId: String, status: String, positionMs: Long) -> Unit = { _, _, _ -> },
     onClearError: () -> Unit,
     activeGifts: List<GiftCatalogItem>,
     blockedUserIds: List<String>,
@@ -318,6 +327,7 @@ internal fun VoiceRoomStageContent(
     var showGiftSheet by remember { mutableStateOf(false) }
     var preselectedGiftRecipientId by remember { mutableStateOf<String?>(null) }
     var showHostSettings by remember { mutableStateOf(false) }
+    var showRoomMusic by remember { mutableStateOf(false) }
     var showOnlineMembers by remember { mutableStateOf(false) }
     var showInvitationDialog by remember { mutableStateOf(false) }
     LaunchedEffect(mySeatInvitation?.id, mySeatInvitation?.status) {
@@ -660,6 +670,13 @@ internal fun VoiceRoomStageContent(
                                     modifier = Modifier.testTag("room_online_count_text")
                                 )
                             }
+                        }
+
+                        IconButton(
+                            onClick = { showRoomMusic = true },
+                            modifier = Modifier.testTag("room_music_button")
+                        ) {
+                            Icon(Icons.Filled.MusicNote, contentDescription = "Room music", tint = VibeCyan)
                         }
 
                         IconButton(
@@ -1075,6 +1092,15 @@ internal fun VoiceRoomStageContent(
             onBlockUser = {
                 onBlockUser(seat.occupantId)
             }
+        )
+    }
+
+    if (showRoomMusic) {
+        RoomMusicPanel(
+            roomMusic = roomMusic,
+            canControl = isManager || mySeat != null,
+            onUpdateRoomMusic = onUpdateRoomMusic,
+            onDismiss = { showRoomMusic = false }
         )
     }
 

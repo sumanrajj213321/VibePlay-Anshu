@@ -805,7 +805,9 @@ private fun AuthenticatedVibePlayApp(
                                     }
                                 }
                             }
-                            activeRoomId?.takeIf { currentRoute != "room/$it" }?.let { roomId ->
+                            activeRoomId?.takeIf { roomId ->
+                                currentRoute?.startsWith("room/") != true && currentRoute != "room/$roomId"
+                            }?.let { roomId ->
                                 Button(
                                     onClick = {
                                         // Reveal the existing room destination instead

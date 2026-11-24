@@ -5,6 +5,19 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.IgnoreExtraProperties
 
+/**
+ * Charms are earned from received room gifts:
+ * 10 gold coins of gift value = 1 charm.
+ */
+object CharmProgression {
+    const val COINS_PER_CHARM = 10L
+    private val milestones = listOf(4_000L, 10_000L, 20_000L, 40_000L, 80_000L, 160_000L, 320_000L, 640_000L, 1_280_000L)
+
+    fun fromReceivedGiftCoins(coins: Long): Long = coins.coerceAtLeast(0L) / COINS_PER_CHARM
+    fun levelFor(charms: Long): Long = milestones.indexOfLast { charms >= it }.let { if (it < 0) 0L else it + 1L }
+    fun nextMilestone(charms: Long): Long? = milestones.firstOrNull { charms < it }
+}
+
 enum class RoomCategory(val label: String) {
     ALL("All"),
     CHILL("Chill"),

@@ -1231,6 +1231,7 @@ class RoomRepository(
             val roomRef = db.collection("rooms").document(roomId)
             val targetSeatRef = roomRef.collection("seats").document(seatIndex.toString())
             val listenerRef = roomRef.collection("listeners").document(uid)
+            val musicStateRef = roomRef.collection("music").document("state")
 
             db.runTransaction { tx ->
                 val roomSnap = tx.get(roomRef)
@@ -1238,6 +1239,7 @@ class RoomRepository(
                     tx.get(roomRef.collection("seats").document(idx.toString()))
                 }
                 val listenerSnap = tx.get(listenerRef)
+                val musicStateSnap = tx.get(musicStateRef)
 
                 val targetSnap = seatSnaps.firstOrNull { it.id == seatIndex.toString() }
                 check(targetSnap != null && targetSnap.getString("occupantId") == uid) {
@@ -1269,6 +1271,28 @@ class RoomRepository(
                         "joinedAt" to FieldValue.serverTimestamp()
                     )
                 )
+
+                // If the user who started the current song leaves the stage, hand
+                // playback to the next already-queued track. Otherwise stop cleanly.
+                if (musicStateSnap.exists() &&
+                    musicStateSnap.getString("updatedBy") == uid &&
+                    musicStateSnap.getString("status") == "PLAYING"
+                ) {
+                    val queuedTracks = (musicStateSnap.get("queueTrackIds") as? List<*>)
+                        .orEmpty().filterIsInstance<String>()
+                    val nextTrackId = queuedTracks.firstOrNull()
+                    tx.set(
+                        musicStateRef,
+                        mapOf(
+                            "trackId" to (nextTrackId ?: musicStateSnap.getString("trackId").orEmpty()),
+                            "status" to if (nextTrackId != null) "PLAYING" else "STOPPED",
+                            "positionMs" to 0L,
+                            "updatedBy" to uid,
+                            "updatedAt" to FieldValue.serverTimestamp(),
+                            "queueTrackIds" to queuedTracks.drop(if (nextTrackId != null) 1 else 0)
+                        )
+                    )
+                }
 
                 val loadedRoom = roomSnap.toObject(VoiceRoom::class.java)
                 val currentListeners = roomSnap.getLong("listenerCount") ?: 0L

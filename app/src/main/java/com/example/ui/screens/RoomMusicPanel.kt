@@ -64,6 +64,7 @@ internal fun RoomMusicPanel(
     canUpload: Boolean,
     onUpdateRoomMusic: (trackId: String, status: String, positionMs: Long, queueTrackIds: List<String>) -> Unit,
     onAddTrackToQueue: (trackId: String) -> Unit,
+    onEnqueueTrackToQueue: (trackId: String) -> Unit,
     onAdvanceQueue: (expectedTrackId: String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -355,14 +356,15 @@ internal fun RoomMusicPanel(
                             color = if (track.id == roomMusic?.trackId)
                                 MaterialTheme.colorScheme.secondaryContainer
                             else MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.clickable {
-                                if (canControl) onUpdateRoomMusic(track.id, "PLAYING", 0L, roomMusic?.queueTrackIds.orEmpty())
-                            }
                         ) {
                             Column(Modifier.fillMaxWidth().padding(9.dp)) {
                                 Text(track.title, style = MaterialTheme.typography.bodyMedium)
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     if (canUpload) {
+                                        TextButton(
+                                            onClick = { onEnqueueTrackToQueue(track.id) },
+                                            enabled = canControl
+                                        ) { Text("Added to queue") }
                                         TextButton(
                                             onClick = { onAddTrackToQueue(track.id) },
                                             enabled = canControl

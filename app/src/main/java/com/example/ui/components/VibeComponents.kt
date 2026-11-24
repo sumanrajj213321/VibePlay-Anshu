@@ -1089,7 +1089,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                     modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->
                         VideoView(ctx).apply {
-                            tag = videoUrl
+                            tag = event?.id
                             setVideoURI(Uri.parse(videoUrl))
                             setOnPreparedListener { player ->
                                 player.setVolume(1f, 1f)
@@ -1103,8 +1103,12 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                         }
                     },
                     update = { view ->
-                        if (view.tag != videoUrl) {
-                            view.tag = videoUrl
+                        // Each successful gift transaction must replay its animation,
+                        // even when the same animated gift is sent again.
+                        if (view.tag != event.id) {
+                            view.stopPlayback()
+                            view.tag = event.id
+                            videoReady = false
                             view.setVideoURI(Uri.parse(videoUrl))
                         }
                     },

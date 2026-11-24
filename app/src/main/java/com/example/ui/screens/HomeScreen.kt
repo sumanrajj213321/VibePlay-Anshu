@@ -207,7 +207,7 @@ fun HomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            VibeCoinIcon(modifier = Modifier.size(20.dp))
+                            VibeCoinIcon(modifier = Modifier.size(24.dp))
                             Text(
                                 text = "${currentUser.coinBalance}",
                                 style = MaterialTheme.typography.labelMedium,

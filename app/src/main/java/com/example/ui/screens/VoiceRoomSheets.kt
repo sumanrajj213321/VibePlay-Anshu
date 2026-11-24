@@ -217,12 +217,18 @@ fun RoomGiftStoreSheet(
                                 maxLines = 1,
                                 textAlign = TextAlign.Center
                             )
-                            Text(
-                                text = "${gift.coinCost}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = VibeGold,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                VibeCoinIcon(modifier = Modifier.size(12.dp))
+                                Text(
+                                    text = "${gift.coinCost}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = VibeGold,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }

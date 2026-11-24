@@ -27,6 +27,18 @@ The key is used only by this server-side Worker. Do not paste the key into chat 
 
 Cloudflare Workers has a free usage tier, but check the dashboard and do not add a payment method or enable billing. If Cloudflare blocks deployment until billing is enabled, stop; do not upgrade.
 
+## GitHub Actions deployment (no billing)
+
+A manual deployment workflow is available at **Actions → Deploy VibePlay Music Worker → Run workflow**. Before running it, add these repository Actions secrets under **Settings → Secrets and variables → Actions**:
+
+- `CLOUDFLARE_API_TOKEN` — a Cloudflare API token limited to Workers Scripts edit for this account.
+- `CLOUDFLARE_ACCOUNT_ID` — the Cloudflare account ID.
+- `DBBYTE_API_KEY` — the bucket-scoped key for `vibeplay-music`.
+
+The workflow deploys this Worker and sets the DBByte key as a Worker secret. It does not add a payment method, upgrade a plan, or enable billing. If Cloudflare requires billing/payment to proceed, stop and do not enable it.
+
+After deployment, set the repository Actions secret `MUSIC_API_BASE_URL` to the exact HTTPS Worker URL shown by Wrangler (for example, the workers.dev URL). The APK workflow passes this value into the app. Do not put the DBByte key in `MUSIC_API_BASE_URL`, Android source, or the app.
+
 ## DBByte API behavior
 The Worker uses DBByte's documented REST object routes: multipart `POST /storage/{bucket}/upload`, paginated `GET /storage/{bucket}/list`, `GET /storage/{bucket}/download/{name}`, and `DELETE /storage/{bucket}/delete/{name}`. DBByte returns a storage-generated `key` and the uploaded filename as `name`; the Worker stores and addresses tracks by that returned filename. Listing is paginated and filters the filename prefix in the Worker because DBByte's list prefix filter applies to its generated key, not the uploaded filename.
 

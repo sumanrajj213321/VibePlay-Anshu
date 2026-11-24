@@ -99,6 +99,10 @@ import coil.compose.AsyncImage
 import com.example.R
 import com.example.data.model.FollowEdge
 import com.example.data.model.GiftTransaction
+import com.example.data.model.GiftCatalogItem
+import com.example.data.model.VibeCatalogDefaults
+import com.example.ui.components.CharmEmblem
+import com.example.ui.components.GiftCatalogArtwork
 import com.example.data.model.UserProfile
 import com.example.data.model.VibeShopCatalog
 import com.example.data.model.VibeCatalogDefaults
@@ -900,6 +904,7 @@ fun PublicProfileSheet(
     isFollowing: Boolean,
     followersList: List<FollowEdge> = emptyList(),
     followingList: List<FollowEdge> = emptyList(),
+    giftHistory: List<GiftTransaction> = emptyList(),
     myHostedRoom: VoiceRoom?,
     onDismiss: () -> Unit,
     onToggleFollow: () -> Unit,
@@ -1070,7 +1075,7 @@ fun PublicProfileSheet(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(if (charmLevel >= 2L) Icons.Filled.EmojiEvents else Icons.Filled.AutoAwesome, contentDescription = "Charm level", tint = if (charmLevel >= 2L) Color(0xFFFFD76A) else Color(0xFF65FFF0), modifier = Modifier.size(19.dp))
+                            CharmEmblem(level = charmLevel.toInt().coerceAtLeast(1), size = 24.dp)
                             Column {
                                 Text("CHARMS", style = MaterialTheme.typography.labelSmall, color = Color(0xFF65FFF0), fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
                                 Text("$charms  ·  Charm Level $charmLevel", style = MaterialTheme.typography.labelLarge, color = Color(0xFFE9FFFF), fontWeight = FontWeight.ExtraBold)
@@ -1082,6 +1087,71 @@ fun PublicProfileSheet(
 
             if (targetUser.bio.isNotBlank()) {
                 Text(targetUser.bio, style = MaterialTheme.typography.bodyMedium)
+            }
+
+            // Public counts are visible to everyone; only the owner can open the lists.
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("${targetUser.followersCount}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Followers", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("${targetUser.followingCount}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Following", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+
+            val publicGiftWall = remember(giftHistory, targetUser.userId) {
+                giftHistory.filter { transaction ->
+                    transaction.recipientId == targetUser.userId &&
+                        transaction.giftName.isNotBlank() &&
+                        VibeCatalogDefaults.defaultGifts.any { it.id == transaction.giftId }
+                }.groupBy { it.giftId.ifBlank { it.giftName.trim().lowercase() } }
+                    .map { (_, transactions) ->
+                        val first = transactions.first()
+                        GiftCatalogItem(id = first.giftId, name = first.giftName) to
+                            transactions.sumOf { it.quantity.coerceAtLeast(1L) }
+                    }.sortedByDescending { it.second }
+            }
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Gift Wall", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+                    Text("${publicGiftWall.size} gifts", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (publicGiftWall.isEmpty()) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                    ) {
+                        Text("Gifts received will appear here", modifier = Modifier.padding(14.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    }
+                } else {
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        publicGiftWall.forEach { (gift, quantity) ->
+                            Surface(
+                                modifier = Modifier.width(104.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+                                border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.20f))
+                            ) {
+                                Column(Modifier.padding(horizontal = 8.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Box(Modifier.size(62.dp), contentAlignment = Alignment.Center) {
+                                        GiftCatalogArtwork(gift = gift, modifier = Modifier.size(58.dp))
+                                    }
+                                    Text(gift.name, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("×$quantity", style = MaterialTheme.typography.labelSmall, color = VibeCyan, fontWeight = FontWeight.ExtraBold)
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             if (publicRelationshipTags.isNotEmpty() && !isSelf) {
@@ -1131,38 +1201,19 @@ fun PublicProfileSheet(
                 }
             }
 
-            // Followers and Following are private: only the profile owner can see them.
+            // Owners may open their lists; other viewers only see the counts above.
             if (isSelf) {
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .clickable { followSheetTab = 0 }
-                                .padding(horizontal = 14.dp, vertical = 4.dp)
-                                .testTag("public_profile_followers_stat")
-                        ) {
+                    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { followSheetTab = 0 }.padding(horizontal = 14.dp, vertical = 4.dp)) {
                             Text("${targetUser.followersCount}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Text("Followers", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .clickable { followSheetTab = 1 }
-                                .padding(horizontal = 14.dp, vertical = 4.dp)
-                                .testTag("public_profile_following_stat")
-                        ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { followSheetTab = 1 }.padding(horizontal = 14.dp, vertical = 4.dp)) {
                             Text("${targetUser.followingCount}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Text("Following", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }

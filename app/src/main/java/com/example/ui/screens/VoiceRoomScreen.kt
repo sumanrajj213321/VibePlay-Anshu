@@ -1113,7 +1113,7 @@ internal fun VoiceRoomStageContent(
     RoomMusicPanel(
         visible = showRoomMusic,
         roomMusic = roomMusic,
-        canControl = isManager,
+        canControl = isManager || mySeat != null,
         canUpload = mySeat != null,
         onUpdateRoomMusic = onUpdateRoomMusic,
         onDismiss = { showRoomMusic = false }

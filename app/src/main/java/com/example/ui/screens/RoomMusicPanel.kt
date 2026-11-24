@@ -124,10 +124,15 @@ internal fun RoomMusicPanel(
         if (visible && client.isConfigured) refreshLibrary()
     }
 
-    // Load/prepare audio only when the selected track changes or becomes available.
-    // Pause/resume status updates must never rebuild the media source.
+    // After leaving and rejoining, do not auto-resume the old room track on this device.
+    // A deliberate Play / Play now / Add to queue action re-enables local playback.
     LaunchedEffect(roomMusic?.trackId, tracks) {
         val state = roomMusic ?: return@LaunchedEffect
+        if (RoomMusicPlayback.requiresManualStart()) {
+            player.pause()
+            player.clearMediaItems()
+            return@LaunchedEffect
+        }
         if (!client.isConfigured) return@LaunchedEffect
         val track = tracks.firstOrNull { it.id == state.trackId }
         if (track == null) {
@@ -162,6 +167,10 @@ internal fun RoomMusicPanel(
     // Synchronize room play/pause commands without re-preparing the current song.
     LaunchedEffect(roomMusic?.trackId, roomMusic?.status) {
         val state = roomMusic ?: return@LaunchedEffect
+        if (RoomMusicPlayback.requiresManualStart()) {
+            player.pause()
+            return@LaunchedEffect
+        }
         if (state.trackId.isBlank()) return@LaunchedEffect
         when (state.status) {
             "PLAYING" -> player.play()
@@ -202,6 +211,7 @@ internal fun RoomMusicPanel(
                         "Unknown artist"
                     )
                     refreshLibrary()
+                    RoomMusicPlayback.allowPlaybackAfterUserAction()
                     onUpdateRoomMusic(
                         uploaded.id,
                         "PLAYING",
@@ -247,10 +257,16 @@ internal fun RoomMusicPanel(
                         onClick = {
                             val id = roomMusic?.trackId.orEmpty()
                             if (id.isNotBlank()) {
-                                if (roomMusic?.status == "PLAYING") {
+                                if (RoomMusicPlayback.requiresManualStart()) {
+                                    RoomMusicPlayback.allowPlaybackAfterUserAction()
+                                    player.seekTo(0L)
+                                    onUpdateRoomMusic(id, "PLAYING", 0L, roomMusic?.queueTrackIds.orEmpty())
+                                    player.play()
+                                } else if (roomMusic?.status == "PLAYING") {
                                     onUpdateRoomMusic(id, "PAUSED", player.currentPosition, roomMusic?.queueTrackIds.orEmpty())
                                     player.pause()
                                 } else {
+                                    RoomMusicPlayback.allowPlaybackAfterUserAction()
                                     onUpdateRoomMusic(id, "PLAYING", player.currentPosition, roomMusic?.queueTrackIds.orEmpty())
                                     player.play()
                                 }
@@ -282,6 +298,7 @@ internal fun RoomMusicPanel(
                         onClick = {
                             val queue = roomMusic?.queueTrackIds.orEmpty()
                             val nextId = queue.firstOrNull() ?: return@Button
+                            RoomMusicPlayback.allowPlaybackAfterUserAction()
                             onUpdateRoomMusic(nextId, "PLAYING", 0L, queue.drop(1))
                         }
                     ) { Text("Next in queue") }
@@ -355,11 +372,17 @@ internal fun RoomMusicPanel(
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     if (canUpload) {
                                         TextButton(
-                                            onClick = { onAddTrackToQueue(track.id) },
+                                            onClick = {
+                                                RoomMusicPlayback.allowPlaybackAfterUserAction()
+                                                onAddTrackToQueue(track.id)
+                                            },
                                             enabled = canControl
                                         ) { Text("Add to queue") }
                                         TextButton(
-                                            onClick = { onAddTrackToQueue(track.id) },
+                                            onClick = {
+                                                RoomMusicPlayback.allowPlaybackAfterUserAction()
+                                                onAddTrackToQueue(track.id)
+                                            },
                                             enabled = canControl
                                         ) { Text("Play now") }
                                     }
@@ -402,6 +425,13 @@ internal fun RoomMusicPanel(
 /** Keeps shared room music alive while the room screen is temporarily covered. */
 internal object RoomMusicPlayback {
     @Volatile private var sharedPlayer: ExoPlayer? = null
+    @Volatile private var manualStartRequired = false
+
+    fun requiresManualStart(): Boolean = manualStartRequired
+
+    fun allowPlaybackAfterUserAction() {
+        manualStartRequired = false
+    }
 
     @Synchronized
     fun get(context: Context): ExoPlayer {
@@ -419,6 +449,7 @@ internal object RoomMusicPlayback {
 
     @Synchronized
     fun release() {
+        manualStartRequired = true
         sharedPlayer?.let { player ->
             runCatching { player.stop() }
             player.release()

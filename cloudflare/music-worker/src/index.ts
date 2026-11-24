@@ -75,7 +75,7 @@ async function listFiles(env: Env): Promise<any[]> {
   const all: any[] = [];
   let cursor = "";
   do {
-    const query = "&prefix=music_" + (cursor ? "&cursor=" + encodeURIComponent(cursor) : "");
+    const query = cursor ? "&cursor=" + encodeURIComponent(cursor) : "";
     const response = await dbbyte(env, "/list?limit=1000" + query);
     if (!response.ok) throw new Error("Music library could not be listed (" + response.status + ").");
     const data = await response.json() as { files?: any[]; nextCursor?: string | null; hasMore?: boolean };
@@ -100,11 +100,11 @@ export default {
           .map(f => {
             const parts = f.name.replace(/\.[^.]+$/, "").split("_");
             const extension = f.name.split(".").pop()?.toLowerCase();
-            const title = parts.slice(3).join("_") || "Untitled";
+            const title = parts.slice(4).join("_") || "Untitled";
             const contentType = extension === "mp3" ? "audio/mpeg" : extension === "m4a" ? "audio/mp4" :
               extension === "aac" ? "audio/aac" : extension === "ogg" ? "audio/ogg" :
               extension === "flac" ? "audio/flac" : "audio/wav";
-            return { id: f.name, title, artist: parts[2] || "Unknown artist", size: Number(f.size || 0), contentType, uploadedBy: parts[1] || "" };
+            return { id: f.name, title, artist: parts[3] || "Unknown artist", size: Number(f.size || 0), contentType, uploadedBy: parts[1] || "" };
           });
         return reply({ tracks, truncated: false }, 200, h);
       }

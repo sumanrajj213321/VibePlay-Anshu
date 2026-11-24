@@ -364,7 +364,7 @@ internal fun RoomMusicPanel(
                                         TextButton(
                                             onClick = { onEnqueueTrackToQueue(track.id) },
                                             enabled = canControl
-                                        ) { Text("Added to queue") }
+                                        ) { Text("Add to queue") }
                                         TextButton(
                                             onClick = { onAddTrackToQueue(track.id) },
                                             enabled = canControl

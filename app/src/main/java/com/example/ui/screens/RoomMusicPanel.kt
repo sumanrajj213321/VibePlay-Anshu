@@ -63,6 +63,7 @@ internal fun RoomMusicPanel(
     canControl: Boolean,
     canUpload: Boolean,
     onUpdateRoomMusic: (trackId: String, status: String, positionMs: Long, queueTrackIds: List<String>) -> Unit,
+    onAddTrackToQueue: (trackId: String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -353,12 +354,7 @@ internal fun RoomMusicPanel(
                                         TextButton(onClick = {
                                             val queue = roomMusic?.queueTrackIds.orEmpty()
                                             if (track.id != roomMusic?.trackId && track.id !in queue) {
-                                                onUpdateRoomMusic(
-                                                    roomMusic?.trackId.orEmpty(),
-                                                    roomMusic?.status ?: "STOPPED",
-                                                    player.currentPosition.coerceAtLeast(0L),
-                                                    queue + track.id
-                                                )
+                                                onAddTrackToQueue(track.id)
                                             }
                                         }) { Text("Add to queue") }
                                     }

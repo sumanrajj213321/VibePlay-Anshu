@@ -830,19 +830,23 @@ service cloud.firestore {
         function roomMusicMember() {
           return isSignedIn() && exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid));
         }
+        function roomMusicSeat(roomId, seatIndex) {
+          let seatPath = /databases/$(database)/documents/rooms/$(roomId)/seats/$(seatIndex);
+          return exists(seatPath) && get(seatPath).data.occupantId == request.auth.uid;
+        }
         function roomMusicController() {
           let roomData = get(/databases/$(database)/documents/rooms/$(roomId)).data;
           return isSignedIn() && (
             isRoomManager(roomData) ||
-            get(/databases/$(database)/documents/rooms/$(roomId)/seats/0).data.occupantId == request.auth.uid ||
-            get(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId == request.auth.uid ||
-            get(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId == request.auth.uid ||
-            get(/databases/$(database)/documents/rooms/$(roomId)/seats/3).data.occupantId == request.auth.uid ||
-            get(/databases/$(database)/documents/rooms/$(roomId)/seats/4).data.occupantId == request.auth.uid ||
-            get(/databases/$(database)/documents/rooms/$(roomId)/seats/5).data.occupantId == request.auth.uid ||
-            get(/databases/$(database)/documents/rooms/$(roomId)/seats/6).data.occupantId == request.auth.uid ||
-            get(/databases/$(database)/documents/rooms/$(roomId)/seats/7).data.occupantId == request.auth.uid ||
-            get(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId == request.auth.uid
+            roomMusicSeat(roomId, 0) ||
+            roomMusicSeat(roomId, 1) ||
+            roomMusicSeat(roomId, 2) ||
+            roomMusicSeat(roomId, 3) ||
+            roomMusicSeat(roomId, 4) ||
+            roomMusicSeat(roomId, 5) ||
+            roomMusicSeat(roomId, 6) ||
+            roomMusicSeat(roomId, 7) ||
+            roomMusicSeat(roomId, 8)
           );
         }
         allow get: if musicDocId == 'state' && roomMusicMember();

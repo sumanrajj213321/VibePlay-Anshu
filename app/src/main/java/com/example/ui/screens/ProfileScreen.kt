@@ -453,14 +453,16 @@ fun ProfileScreen(
                         online = profile.online && profile.showOnlineStatus,
                         frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == profile.activeFrameId && profile.isFrameActive(it.id) }?.colorArgb
                     )
-                    OutlinedButton(
-                        onClick = { showEditSheet = true },
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.testTag("edit_profile_button")
-                    ) {
-                        Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Edit Profile")
+                    if (isOwnProfile) {
+                        OutlinedButton(
+                            onClick = { showEditSheet = true },
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.testTag("edit_profile_button")
+                        ) {
+                            Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Edit Profile")
+                        }
                     }
                 }
             }
@@ -981,7 +983,7 @@ fun ProfileScreen(
         )
     }
 
-    if (showSocialSheet) {
+    if (showSocialSheet && isOwnProfile) {
         SocialGraphSheet(
             title = "Followers & Following",
             initialTab = socialInitialTab,

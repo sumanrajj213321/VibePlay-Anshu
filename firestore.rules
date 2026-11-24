@@ -655,8 +655,12 @@ service cloud.firestore {
            getAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).data.peerId == request.auth.uid) ||
           (incoming().followersCount == existing().followersCount - 1 &&
            incoming().followersCount >= 0 &&
-           exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)) &&
-           !existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)))
+           (
+             (exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)) &&
+              !existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))) ||
+             (exists(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)) &&
+              !existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)))
+           ))
         );
 
       match /avatar/{avatarDocId} {

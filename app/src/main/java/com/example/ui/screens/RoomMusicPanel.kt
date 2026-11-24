@@ -124,20 +124,13 @@ internal fun RoomMusicPanel(
         if (visible && client.isConfigured) refreshLibrary()
     }
 
-    LaunchedEffect(
-        roomMusic?.trackId,
-        roomMusic?.status,
-        roomMusic?.positionMs,
-        roomMusic?.updatedAt,
-        roomMusic?.updatedBy,
-        tracks
-    ) {
+    // Load/prepare audio only when the selected track changes or becomes available.
+    // Pause/resume status updates must never rebuild the media source.
+    LaunchedEffect(roomMusic?.trackId, tracks) {
         val state = roomMusic ?: return@LaunchedEffect
         if (!client.isConfigured) return@LaunchedEffect
         val track = tracks.firstOrNull { it.id == state.trackId }
         if (track == null) {
-            // A different device may have uploaded this track after this device
-            // loaded its catalogue. Refresh before giving up on shared playback.
             if (state.trackId.isNotBlank()) refreshLibrary()
             return@LaunchedEffect
         }
@@ -163,6 +156,20 @@ internal fun RoomMusicPanel(
             if (state.status == "STOPPED") player.seekTo(0L)
         } catch (e: Exception) {
             error = e.localizedMessage ?: "Could not start room music."
+        }
+    }
+
+    // Synchronize room play/pause commands without re-preparing the current song.
+    LaunchedEffect(roomMusic?.trackId, roomMusic?.status) {
+        val state = roomMusic ?: return@LaunchedEffect
+        if (state.trackId.isBlank()) return@LaunchedEffect
+        when (state.status) {
+            "PLAYING" -> player.play()
+            "PAUSED" -> player.pause()
+            "STOPPED" -> {
+                player.pause()
+                player.seekTo(0L)
+            }
         }
     }
 

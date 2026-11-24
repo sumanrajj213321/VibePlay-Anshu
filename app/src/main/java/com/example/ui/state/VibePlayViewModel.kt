@@ -214,7 +214,9 @@ class VibePlayViewModel(
     val activeGiftsCatalog: StateFlow<List<GiftCatalogItem>> =
         roomRepository.observeActiveGifts()
             .map { remote ->
-                val curatedById = remote.filter { gift -> VibeCatalogDefaults.defaultGifts.any { it.id == gift.id } }.associateBy { it.id }
+                val curatedById = remote
+                    .filter { gift -> VibeCatalogDefaults.defaultGifts.any { it.id == gift.id } }
+                    .associateBy { it.id }
                 VibeCatalogDefaults.defaultGifts.map { defaultGift ->
                     val remoteGift = curatedById[defaultGift.id]
                     when (defaultGift.id) {

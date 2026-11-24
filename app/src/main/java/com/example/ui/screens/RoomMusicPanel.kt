@@ -93,9 +93,11 @@ internal fun RoomMusicPanel(
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (client.isConfigured) refreshLibrary()
-        else error = "Music storage setup pending: Worker deployment is required."
+    LaunchedEffect(visible) {
+        if (visible) {
+            if (client.isConfigured) refreshLibrary()
+            else error = "Music storage setup pending: Worker deployment is required."
+        }
     }
 
     LaunchedEffect(

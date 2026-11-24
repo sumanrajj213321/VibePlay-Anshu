@@ -1194,6 +1194,39 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                 .then(if (videoGift && videoUrl != null && !videoLoadFailed) Modifier.background(Color.Black) else Modifier.background(Brush.verticalGradient(if (royalRide) listOf(Color(0xFF061A27), Color(0xFF123B38), Color(0xFF302C3E), Color(0xFF080F1C)) else listOf(Color(0xFF08091E), Color(0xFF171039), Color(0xFF260F36), Color(0xFF08091E)))))
         ) {
             if (videoGift && videoUrl != null && !videoLoadFailed) {
+                // Draw an animated fallback immediately underneath the invisible
+                // VideoView. This prevents SurfaceView's black buffer from blanking the screen.
+                if (!videoReady) {
+                    Canvas(Modifier.fillMaxSize()) {
+                        val w = size.width
+                        val h = size.height
+                        drawRect(
+                            Brush.radialGradient(
+                                listOf(accent.copy(alpha = 0.38f), Color(0xFF090817), Color.Black),
+                                Offset(w * 0.5f, h * 0.48f),
+                                w * 0.9f
+                            )
+                        )
+                        for (i in 0..85) {
+                            val x = ((i * 73) % 997) / 997f * w
+                            val y = ((i * 137) % 991) / 991f * h
+                            val twinkle = 0.35f + 0.65f * kotlin.math.abs(
+                                kotlin.math.sin(progress.value * 6.28f + i * 0.37f)
+                            )
+                            drawCircle(
+                                accent.copy(alpha = twinkle),
+                                (1.2f + (i % 3)) * density,
+                                Offset(x, y)
+                            )
+                        }
+                        val pulse = 0.82f + 0.18f * kotlin.math.sin(progress.value * 6.28f)
+                        drawCircle(
+                            accent.copy(alpha = 0.18f),
+                            size.minDimension * 0.22f * pulse,
+                            Offset(w * 0.5f, h * 0.48f)
+                        )
+                    }
+                }
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->

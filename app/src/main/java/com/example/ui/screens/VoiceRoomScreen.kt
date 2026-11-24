@@ -762,6 +762,7 @@ internal fun VoiceRoomStageContent(
                             ownerOnline = currentRoom.effectiveOwnerOnline,
                             isSpeaking = currentRoom.effectiveOwnerOnline && !currentStage.hostSeat.muted &&
                                 agoraUidForUser(currentStage.hostSeat.occupantId) in activeSpeakerUids,
+                            roomMusic = roomMusic,
                             onClick = { activeSeatDialog = currentStage.hostSeat }
                         )
 
@@ -781,6 +782,7 @@ internal fun VoiceRoomStageContent(
                                             isRoomAdmin = seat.isOccupied && currentRoom.isRoomAdmin(seat.occupantId),
                                             isSpeaking = seat.isOccupied && !seat.muted &&
                                                 agoraUidForUser(seat.occupantId) in activeSpeakerUids,
+                                            roomMusic = roomMusic,
                                             modifier = Modifier.weight(1f),
                                             onClick = {
                                                 when {
@@ -1164,6 +1166,34 @@ private fun LiveKitStatusPill(
 
 
 @Composable
+private fun MusicNotePulse(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "music_note_pulse")
+    val alpha by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(520), repeatMode = RepeatMode.Reverse),
+        label = "music_note_alpha"
+    )
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        listOf(
+            Alignment.TopCenter,
+            Alignment.CenterEnd,
+            Alignment.BottomCenter,
+            Alignment.CenterStart
+        ).forEachIndexed { index, alignment ->
+            Icon(
+                imageVector = Icons.Filled.MusicNote,
+                contentDescription = if (index == 0) "Music playing" else null,
+                tint = if (index % 2 == 0) VibeCyan.copy(alpha = alpha) else VibePink.copy(alpha = alpha),
+                modifier = Modifier
+                    .align(alignment)
+                    .size(13.dp)
+            )
+        }
+    }
+}
+
+@Composable
 private fun VoiceActivityRings(modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "voice_activity_rings")
     val firstProgress by transition.animateFloat(
@@ -1205,6 +1235,7 @@ private fun HostSeatTile(
     seat: VoiceSeat,
     ownerOnline: Boolean,
     isSpeaking: Boolean,
+    roomMusic: RoomMusicState? = null,
     onClick: () -> Unit
 ) {
     Column(
@@ -1214,8 +1245,13 @@ private fun HostSeatTile(
             .testTag("host_seat_0")
     ) {
         Box(modifier = Modifier.size(92.dp), contentAlignment = Alignment.Center) {
-            if (ownerOnline && isSpeaking) {
+            val isMusicPlayingHere = roomMusic?.status == "PLAYING" &&
+                roomMusic?.updatedBy == seat.occupantId
+            if ((ownerOnline && isSpeaking) || isMusicPlayingHere) {
                 VoiceActivityRings(modifier = Modifier.size(92.dp))
+            }
+            if (isMusicPlayingHere) {
+                MusicNotePulse(modifier = Modifier.size(92.dp))
             }
             Box(contentAlignment = Alignment.BottomEnd) {
                 if (ownerOnline) {
@@ -1300,6 +1336,7 @@ private fun SpeakerSeatTile(
     seat: VoiceSeat,
     isRoomAdmin: Boolean = false,
     isSpeaking: Boolean = false,
+    roomMusic: RoomMusicState? = null,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -1312,8 +1349,13 @@ private fun SpeakerSeatTile(
     ) {
         if (seat.isOccupied) {
             Box(modifier = Modifier.size(70.dp), contentAlignment = Alignment.Center) {
-                if (isSpeaking) {
+                val isMusicPlayingHere = roomMusic?.status == "PLAYING" &&
+                    roomMusic?.updatedBy == seat.occupantId
+                if (isSpeaking || isMusicPlayingHere) {
                     VoiceActivityRings(modifier = Modifier.size(70.dp))
+                }
+                if (isMusicPlayingHere) {
+                    MusicNotePulse(modifier = Modifier.size(70.dp))
                 }
                 Box(contentAlignment = Alignment.BottomEnd) {
                     VibeAvatar(

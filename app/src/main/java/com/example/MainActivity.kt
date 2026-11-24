@@ -375,6 +375,7 @@ private fun AuthenticatedVibePlayApp(
             val currentRoute = backStackEntry?.destination?.route
 
             var selectedConversationId by remember { mutableStateOf<String?>(null) }
+            var activeRoomId by remember { mutableStateOf<String?>(null) }
             var inspectedUser by remember { mutableStateOf<UserProfile?>(null) }
             var showNotificationsSheet by remember { mutableStateOf(false) }
             var passwordPromptRoom by remember { mutableStateOf<VoiceRoom?>(null) }
@@ -390,6 +391,7 @@ private fun AuthenticatedVibePlayApp(
             val followingIds = remember(followingList) { followingList.map { it.peerId }.toSet() }
 
             val openRoomDirect: (VoiceRoom) -> Unit = { room ->
+                activeRoomId = room.id
                 viewModel.recordRoomVisited(room.id)
                 navController.navigate("room/${room.id}") {
                     launchSingleTop = true
@@ -409,7 +411,7 @@ private fun AuthenticatedVibePlayApp(
             val mainTabs = remember {
                 listOf(MainTab.Home, MainTab.Explore, MainTab.Rooms, MainTab.Inbox, MainTab.Profile)
             }
-            val showTopLevelNav = (currentRoute ?: MainTab.Home.route) in mainTabs.map { it.route }
+            val showTopLevelNav = (currentRoute ?: MainTab.Home.route) in mainTabs.map { it.route } || activeRoomId != null
 
             val switchTab: (MainTab) -> Unit = { tab ->
                 if (tab != MainTab.Inbox) {
@@ -486,6 +488,20 @@ private fun AuthenticatedVibePlayApp(
                                         modifier = Modifier.testTag("nav_${tab.route}")
                                     )
                                 }
+                                activeRoomId?.let { roomId ->
+                                    NavigationBarItem(
+                                        selected = currentRoute == "room/$roomId",
+                                        onClick = {
+                                            navController.navigate("room/$roomId") {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
+                                        },
+                                        icon = { Icon(Icons.Filled.GraphicEq, contentDescription = "Return to live room") },
+                                        label = { Text("Live Room", maxLines = 1) },
+                                        modifier = Modifier.testTag("nav_live_room")
+                                    )
+                                }
                             }
                         }
                     }
@@ -515,6 +531,20 @@ private fun AuthenticatedVibePlayApp(
                                         },
                                         label = { Text(tab.label) },
                                         modifier = Modifier.testTag("rail_${tab.route}")
+                                    )
+                                }
+                                activeRoomId?.let { roomId ->
+                                    NavigationRailItem(
+                                        selected = currentRoute == "room/$roomId",
+                                        onClick = {
+                                            navController.navigate("room/$roomId") {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
+                                        },
+                                        icon = { Icon(Icons.Filled.GraphicEq, contentDescription = "Return to live room") },
+                                        label = { Text("Live Room") },
+                                        modifier = Modifier.testTag("rail_live_room")
                                     )
                                 }
                             }
@@ -602,6 +632,7 @@ private fun AuthenticatedVibePlayApp(
                                                 locked = locked,
                                                 rawPassword = rawPwd,
                                                 onCreated = { createdRoomId ->
+                                                    activeRoomId = createdRoomId
                                                     navController.navigate("room/$createdRoomId") {
                                                         launchSingleTop = true
                                                     }
@@ -760,11 +791,6 @@ private fun AuthenticatedVibePlayApp(
                                         SideEffect {
                                             (context as? MainActivity)?.setVoiceRoomActive(true)
                                         }
-                                        DisposableEffect(context) {
-                                            onDispose {
-                                                (context as? MainActivity)?.setVoiceRoomActive(false)
-                                            }
-                                        }
                                         VoiceRoomScreen(
                                             roomViewModel = roomVm,
                                             onMinimizeToPip = {
@@ -780,7 +806,11 @@ private fun AuthenticatedVibePlayApp(
                                                 viewModel.inviteFriendToRoom(currentUser, targetId, targetRoom)
                                             },
                                             onOpenUserProfile = inspectUserById,
-                                            onBack = { navController.popBackStack() },
+                                            onBack = {
+                                                (context as? MainActivity)?.setVoiceRoomActive(false)
+                                                activeRoomId = null
+                                                navController.popBackStack()
+                                            },
                                             onSubmitReport = { type, id, name, reason, details ->
                                                 viewModel.submitReport(currentUser, type, id, name, reason, details)
                                             },
@@ -799,7 +829,8 @@ private fun AuthenticatedVibePlayApp(
                         liveRoomsList.firstOrNull { it.id == roomId }?.let { room ->
                             tryOpenRoom(room)
                         } ?: run {
-                            navController.navigate("room/$roomId") {
+                            activeRoomId = roomId
+                                            navController.navigate("room/$roomId") {
                                 launchSingleTop = true
                             }
                         }

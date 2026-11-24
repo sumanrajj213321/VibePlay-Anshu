@@ -30,6 +30,7 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -105,7 +106,6 @@ import com.example.ui.components.CharmEmblem
 import com.example.ui.components.GiftCatalogArtwork
 import com.example.data.model.UserProfile
 import com.example.data.model.VibeShopCatalog
-import com.example.data.model.VibeCatalogDefaults
 import com.example.data.model.VoiceRoom
 import com.example.ui.components.BiologicalGenderBadge
 import com.example.ui.components.LevelBadge

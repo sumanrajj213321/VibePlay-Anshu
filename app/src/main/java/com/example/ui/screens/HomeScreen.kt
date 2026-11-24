@@ -67,6 +67,7 @@ import com.example.data.model.RoomCategory
 import com.example.data.model.UserProfile
 import com.example.data.model.VibeShopCatalog
 import com.example.data.model.VoiceRoom
+import com.example.ui.components.VibeCoinIcon
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.VoiceRoomCard
 import com.example.ui.state.UiState

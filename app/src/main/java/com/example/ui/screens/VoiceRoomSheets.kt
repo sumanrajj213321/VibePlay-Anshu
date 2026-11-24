@@ -114,10 +114,7 @@ fun RoomGiftStoreSheet(
                 ?: stageRecipients.firstOrNull()
         )
     }
-    // Keep Royal Ride available while older remote catalogs are still syncing.
-    val giftOptions = remember(gifts) {
-        (gifts + VibeCatalogDefaults.defaultGifts.filter { it.id == "gift_royal_ride" }).distinctBy { it.id }
-    }
+    val giftOptions = remember(gifts) { gifts.distinctBy { it.id } }
     val giftCategories = remember { listOf("All", "Daily", "Love", "Premium") }
     var selectedCategory by remember { mutableStateOf("All") }
     val visibleGifts = remember(giftOptions, selectedCategory) {

@@ -10,6 +10,7 @@ import com.example.data.agora.VoiceConnectionState
 import com.example.data.model.GiftBurstEvent
 import com.example.data.model.GiftCatalogItem
 import com.example.data.model.GiftTransaction
+import com.example.data.model.RoomMusicState
 import com.example.data.model.RoomListener
 import com.example.data.model.RoomMessage
 import com.example.data.model.RoomOnlineMember
@@ -40,6 +41,21 @@ class RoomViewModel(
     private val roomRepository: RoomRepository,
     private val voiceEngine: AgoraVoiceEngine = AgoraVoiceEngine()
 ) : ViewModel() {
+
+
+    val roomMusic: StateFlow<RoomMusicState?> = roomRepository.observeRoomMusic(roomId)
+        .catch { error ->
+            Log.w(TAG, "Room music sync failed", unwrapFirestoreError(error))
+            emit(null)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
+
+    fun updateRoomMusic(trackId: String, status: String, positionMs: Long = 0L) {
+        viewModelScope.launch {
+            roomRepository.updateRoomMusic(roomId, trackId, status, positionMs)
+                .onFailure { error -> _roomError.value = error.localizedMessage ?: "Music control failed." }
+        }
+    }
 
     private val _roomError = MutableStateFlow<String?>(null)
     val roomError: StateFlow<String?> = _roomError.asStateFlow()

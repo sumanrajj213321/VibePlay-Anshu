@@ -646,6 +646,7 @@ object VibeCatalogDefaults {
         GiftCatalogItem(id = "gift_love_promise", name = "Love Promise", category = "Love", coinCost = 180L, accentColorHex = "#FB7185"),
         GiftCatalogItem(id = "gift_couple_kiss", name = "Couple Kiss", category = "Love", coinCost = 360L, accentColorHex = "#F9A8D4"),
         GiftCatalogItem(id = "gift_sunset_love", name = "Sunset Love", category = "Love", coinCost = 19999L, accentColorHex = "#F9A8D4"),
+        GiftCatalogItem(id = "gift_royal_vows", name = "Royal Vows", category = "Love", coinCost = 99999L, accentColorHex = "#D4AF37"),
         GiftCatalogItem(id = "gift_moonlight_dance", name = "Moonlight Dance", category = "Love", coinCost = 520L, accentColorHex = "#C084FC"),
         GiftCatalogItem(id = "gift_royal_phoenix", name = "Royal Phoenix", category = "Premium", coinCost = 850L, accentColorHex = "#F97316"),
         GiftCatalogItem(id = "gift_galaxy_crown", name = "Galaxy Crown", category = "Premium", coinCost = 1200L, accentColorHex = "#FBBF24"),

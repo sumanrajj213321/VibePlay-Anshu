@@ -830,6 +830,7 @@ class RoomRepository(
             val listenerRef = roomRef.collection("listeners").document(uid)
             val sessionRef = roomRef.collection("room_sessions").document(uid)
             val seat0Ref = roomRef.collection("seats").document("0")
+            val musicStateRef = roomRef.collection("music").document("state")
 
             db.runTransaction { tx ->
                 val roomSnap = tx.get(roomRef)
@@ -837,6 +838,7 @@ class RoomRepository(
                 val loadedRoom = roomSnap.toObject(VoiceRoom::class.java) ?: room
                 val listenerSnap = tx.get(listenerRef)
                 val seat0Snap = tx.get(seat0Ref)
+                val musicStateSnap = tx.get(musicStateRef)
                 val seatSnaps = (1..VoiceStage.SPEAKER_SEAT_COUNT).map { idx ->
                     tx.get(roomRef.collection("seats").document(idx.toString()))
                 }
@@ -844,6 +846,28 @@ class RoomRepository(
                 if (loadedRoom.status != "LIVE") return@runTransaction
 
                 tx.delete(sessionRef)
+
+                // Leaving the room also relinquishes music control. Continue the
+                // pre-existing queue, or stop playback if there is no queued track.
+                if (musicStateSnap.exists() &&
+                    musicStateSnap.getString("updatedBy") == uid &&
+                    musicStateSnap.getString("status") == "PLAYING"
+                ) {
+                    val queuedTracks = (musicStateSnap.get("queueTrackIds") as? List<*>)
+                        .orEmpty().filterIsInstance<String>()
+                    val nextTrackId = queuedTracks.firstOrNull()
+                    tx.set(
+                        musicStateRef,
+                        mapOf(
+                            "trackId" to (nextTrackId ?: musicStateSnap.getString("trackId").orEmpty()),
+                            "status" to if (nextTrackId != null) "PLAYING" else "STOPPED",
+                            "positionMs" to 0L,
+                            "updatedBy" to uid,
+                            "updatedAt" to FieldValue.serverTimestamp(),
+                            "queueTrackIds" to if (nextTrackId != null) queuedTracks.drop(1) else emptyList<String>()
+                        )
+                    )
+                }
 
                 var updatedListenerCount = loadedRoom.listenerCount
                 var occupiedSpeakers = seatSnaps.count { !(it.getString("occupantId").orEmpty()).isBlank() }

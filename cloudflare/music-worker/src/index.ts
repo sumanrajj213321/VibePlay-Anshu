@@ -64,16 +64,13 @@ function safeName(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100);
 }
 function encodeName(value: string): string {
-  const bytes = new TextEncoder().encode(value);
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  return Array.from(new TextEncoder().encode(value), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 function decodeName(value: string): string {
   try {
-    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
-    const binary = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "="));
-    return new TextDecoder().decode(Uint8Array.from(binary, char => char.charCodeAt(0)));
+    if (!value || value.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(value)) return value || "Untitled";
+    const bytes = new Uint8Array(value.match(/.{2}/g)!.map(pair => parseInt(pair, 16)));
+    return new TextDecoder().decode(bytes);
   } catch {
     return value || "Untitled";
   }

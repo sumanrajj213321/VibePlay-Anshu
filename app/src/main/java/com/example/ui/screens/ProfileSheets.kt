@@ -1,6 +1,14 @@
 package com.example.ui.screens
 
 import android.graphics.Bitmap
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Offset
 import android.graphics.BitmapFactory
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Paint
@@ -889,6 +897,63 @@ private fun FollowEdgeRow(
     }
 }
 
+
+@Composable
+private fun VibePlayOfficialAnimatedTag() {
+    val transition = rememberInfiniteTransition(label = "vibeplay_official_tag")
+    val shimmerOffset by transition.animateFloat(
+        initialValue = -180f,
+        targetValue = 240f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1850, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "official_tag_shimmer"
+    )
+    val glowAlpha by transition.animateFloat(
+        initialValue = 0.58f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1150, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "official_tag_glow"
+    )
+    val gold = Color(0xFFFFD76A)
+    Surface(
+        shape = RoundedCornerShape(9.dp),
+        color = Color(0xFF080807),
+        border = BorderStroke(
+            1.4.dp,
+            Brush.linearGradient(
+                colors = listOf(
+                    Color(0xFF8A641F).copy(alpha = glowAlpha),
+                    Color(0xFFFFF0B8),
+                    Color(0xFFFFC342).copy(alpha = glowAlpha),
+                    Color(0xFF9C711F)
+                ),
+                start = Offset(shimmerOffset, 0f),
+                end = Offset(shimmerOffset + 190f, 42f)
+            )
+        ),
+        shadowElevation = 5.dp + (glowAlpha * 3f).dp
+    ) {
+        Text(
+            "★ VibePlay Official ★",
+            Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall.copy(
+                brush = Brush.linearGradient(
+                    colors = listOf(Color(0xFF9C711F), Color(0xFFFFF2B8), gold, Color(0xFFFFFDF0), Color(0xFFFFC342)),
+                    start = Offset(shimmerOffset, 0f),
+                    end = Offset(shimmerOffset + 190f, 38f)
+                )
+            ),
+            fontWeight = FontWeight.ExtraBold,
+            maxLines = 1
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 private fun formatPublicGiftCount(value: Long): String {
     if (value < 1_000L) return value.toString()
@@ -1020,14 +1085,7 @@ fun PublicProfileSheet(
                     Text(targetUser.username, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (targetUser.userId == "1fLIHgOyAJV6LNbHBXNeVg9JR6v1") {
-                            Surface(
-                                shape = RoundedCornerShape(9.dp),
-                                color = Color(0xFF080807),
-                                border = BorderStroke(1.2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF8A641F), Color(0xFFFFE6A0), Color(0xFF9C711F)))),
-                                shadowElevation = 5.dp
-                            ) {
-                                Text("★ VibePlay Official ★", Modifier.padding(horizontal = 7.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = Color(0xFFFFD76A), fontWeight = FontWeight.ExtraBold, maxLines = 1)
-                            }
+                            VibePlayOfficialAnimatedTag()
                         }
                         BiologicalGenderBadge(gender = targetUser.gender, showGender = targetUser.showGender, compact = true)
                     }

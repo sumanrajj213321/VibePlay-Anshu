@@ -120,7 +120,16 @@ class MusicLibraryClient(
             } ?: throw IOException("Could not read the selected audio file.")
         }
         if (bytes.isEmpty()) throw IllegalArgumentException("Selected audio file is empty.")
-        val fileName = uri.lastPathSegment?.substringAfterLast('/')?.take(120) ?: "audio"
+        val fileName = withContext(Dispatchers.IO) {
+            resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameColumn = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (nameColumn >= 0) cursor.getString(nameColumn) else null
+                } else null
+            }
+        }?.take(120)?.takeIf { it.isNotBlank() }
+            ?: uri.lastPathSegment?.substringAfterLast('/')?.take(120)
+            ?: "audio"
         val fileBody = bytes.toRequestBody(mime.toMediaTypeOrNull())
         val multipart = MultipartBody.Builder()
             .setType(MultipartBody.FORM)

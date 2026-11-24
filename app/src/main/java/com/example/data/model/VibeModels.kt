@@ -666,5 +666,6 @@ data class RoomMusicState(
     val status: String = "STOPPED",
     val positionMs: Long = 0L,
     val updatedBy: String = "",
-    val updatedAt: Timestamp? = null
+    val updatedAt: Timestamp? = null,
+    val queueTrackIds: List<String> = emptyList()
 )

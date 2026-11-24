@@ -96,6 +96,33 @@ class RoomRepository(
                 }
             }
 
+
+    fun observeRoomMusic(roomId: String): Flow<com.example.data.model.RoomMusicState?> =
+        db.collection("rooms").document(roomId).collection("music").document("state")
+            .snapshots()
+            .map { it.toObject(com.example.data.model.RoomMusicState::class.java) }
+
+    suspend fun updateRoomMusic(
+        roomId: String,
+        trackId: String,
+        status: String,
+        positionMs: Long
+    ): Result<Unit> = runCatching {
+        require(status in setOf("PLAYING", "PAUSED", "STOPPED")) { "Invalid music status." }
+        require(trackId.length <= 512) { "Invalid track ID." }
+        require(positionMs in 0L..86_400_000L) { "Invalid playback position." }
+        val uid = requireUserId()
+        db.collection("rooms").document(roomId).collection("music").document("state").set(
+            mapOf(
+                "trackId" to trackId,
+                "status" to status,
+                "positionMs" to positionMs,
+                "updatedBy" to uid,
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+        ).await()
+    }
+
     fun observeRoom(roomId: String): Flow<VoiceRoom?> =
         db.collection("rooms").document(roomId)
             .snapshots()

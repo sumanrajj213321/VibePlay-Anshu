@@ -97,6 +97,13 @@ class RoomRepository(
             }
 
 
+    fun observeRoomSession(roomId: String, userId: String): Flow<Boolean?> =
+        db.collection("rooms").document(roomId)
+            .collection("room_sessions").document(userId)
+            .snapshots()
+            .map { snapshot -> snapshot.exists() }
+            .onStart { emit(null) }
+
     fun observeRoomMusic(roomId: String): Flow<com.example.data.model.RoomMusicState?> =
         db.collection("rooms").document(roomId).collection("music").document("state")
             .snapshots()

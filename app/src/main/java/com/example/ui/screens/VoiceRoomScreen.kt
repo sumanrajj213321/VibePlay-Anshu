@@ -171,7 +171,10 @@ fun VoiceRoomScreen(
     val roomSessionRemoved by roomViewModel.roomSessionRemoved.collectAsStateWithLifecycle()
 
     LaunchedEffect(roomSessionRemoved) {
-        if (roomSessionRemoved) onBack()
+        if (roomSessionRemoved) {
+            RoomMusicPlayback.release()
+            onBack()
+        }
     }
 
     BackHandler {
@@ -187,6 +190,7 @@ fun VoiceRoomScreen(
         if (loaded != null) {
             roomViewModel.onRoomLoaded(loaded, currentUser)
             if (loaded.status == "ENDED") {
+                RoomMusicPlayback.release()
                 onBack()
             }
         }
@@ -231,7 +235,12 @@ fun VoiceRoomScreen(
         onOpenUserProfile = onOpenUserProfile,
         onMinimizeToPip = onMinimizeToPip,
         onBack = onBack,
-        onLeaveRoom = { roomViewModel.leaveRoom(onBack) },
+        onLeaveRoom = {
+            roomViewModel.leaveRoom {
+                RoomMusicPlayback.release()
+                onBack()
+            }
+        },
         onSendRoomMessage = { text -> roomViewModel.sendRoomMessage(currentUser, text) },
         onToggleSeatMute = { seat -> roomViewModel.toggleSeatMute(seat) },
         onEnableMicrophone = { roomViewModel.enableMicrophone() },
@@ -256,7 +265,12 @@ fun VoiceRoomScreen(
         onPromoteOrDemoteAdmin = { targetUserId, targetUsername, promote ->
             roomViewModel.promoteOrDemoteAdmin(targetUserId, targetUsername, promote)
         },
-        onEndRoom = { roomViewModel.endRoom(onBack) },
+        onEndRoom = {
+            roomViewModel.endRoom {
+                RoomMusicPlayback.release()
+                onBack()
+            }
+        },
         onHostAssignUserToSeat = { seatIndex, targetUserId, username, avatarUrl, vipLevel, gender ->
             roomViewModel.hostAssignUserToSeat(
                 room = currentRoom,

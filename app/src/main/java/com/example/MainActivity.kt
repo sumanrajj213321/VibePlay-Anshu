@@ -816,8 +816,8 @@ private fun AuthenticatedVibePlayApp(
                                         )
                                     },
                                     modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .padding(16.dp)
+                                        .align(Alignment.TopEnd)
+                                        .padding(top = 16.dp, end = 16.dp)
                                         .testTag("floating_return_to_room"),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = VibeViolet,

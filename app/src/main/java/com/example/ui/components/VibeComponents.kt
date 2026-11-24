@@ -1167,7 +1167,9 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
     // If the remote clip does not prepare promptly, reveal the built-in animated fallback.
     LaunchedEffect(event?.id, videoUrl, videoReady, videoLoadFailed) {
         if (videoGift && event != null && videoUrl != null && !videoReady && !videoLoadFailed) {
-            delay(3_000L)
+            // Give slower connections time to load the original gift video and its embedded audio.
+            // Keep the animated fallback visible underneath while buffering.
+            delay(12_000L)
             if (!videoReady) videoLoadFailed = true
         }
     }

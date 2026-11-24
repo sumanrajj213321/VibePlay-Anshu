@@ -11,11 +11,18 @@ import com.google.firebase.firestore.IgnoreExtraProperties
  */
 object CharmProgression {
     const val COINS_PER_CHARM = 10L
-    private val milestones = listOf(4_000L, 10_000L, 20_000L, 40_000L, 80_000L, 160_000L, 320_000L, 640_000L, 1_280_000L)
+    val milestones = listOf(
+        1_000L, 4_000L, 12_000L, 30_000L, 80_000L, 160_000L,
+        300_000L, 500_000L, 1_000_000L, 2_000_000L, 3_500_000L,
+        6_000_000L, 8_500_000L, 12_000_000L, 16_000_000L,
+        26_000_000L, 48_000_000L, 86_000_000L, 120_000_000L,
+        240_000_000L, 360_000_000L
+    )
 
     fun fromReceivedGiftCoins(coins: Long): Long = coins.coerceAtLeast(0L) / COINS_PER_CHARM
     fun levelFor(charms: Long): Long = milestones.indexOfLast { charms >= it }.let { if (it < 0) 0L else it + 1L }
     fun nextMilestone(charms: Long): Long? = milestones.firstOrNull { charms < it }
+    fun previousMilestone(charms: Long): Long = milestones.lastOrNull { charms >= it } ?: 0L
 }
 
 enum class RoomCategory(val label: String) {

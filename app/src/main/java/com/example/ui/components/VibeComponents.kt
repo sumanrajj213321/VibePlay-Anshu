@@ -1028,6 +1028,7 @@ fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
 fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val couple = event?.giftId == "gift_couple_kiss"
+    val royalRide = event?.giftId == "gift_royal_ride"
     // Royal Vows plays the exact video uploaded by the user (4866.mp4).
     val videoGift = event?.giftId == "gift_sunset_love" || event?.giftId == "gift_royal_vows" || event?.giftId == "gift_enchanted_heart"
     var videoUrl by remember(event?.id) { mutableStateOf<String?>(null) }
@@ -1043,7 +1044,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
         progress.snapTo(0f)
         progress.animateTo(
             targetValue = 1f,
-            animationSpec = tween(if (videoGift) 6900 else 5000, easing = LinearEasing)
+            animationSpec = tween(if (videoGift) 6900 else if (royalRide) 8500 else 5000, easing = LinearEasing)
         )
     }
 
@@ -1064,7 +1065,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                 val tone = ToneGenerator(AudioManager.STREAM_MUSIC, 70)
                 try {
                     tone.startTone(ToneGenerator.TONE_DTMF_0 + Math.floorMod(active.giftId.hashCode(), 16), 420)
-                    delay(5000L)
+                    delay(if (active.giftId == "gift_royal_ride") 8500L else 5000L)
                 } finally { tone.release() }
                 onFinished()
             }
@@ -1122,6 +1123,52 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                     },
                     onRelease = { it.stopPlayback() }
                 )
+            } else if (royalRide) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val w = size.width
+                    val h = size.height
+                    val t = progress.value
+                    val gold = Color(0xFFFFD98A)
+                    val horse = Color(0xFFF4F0E7)
+                    drawCircle(Brush.radialGradient(listOf(Color(0xFFBDEFFF).copy(alpha = 0.25f), Color.Transparent), Offset(w * 0.75f, h * 0.2f), w * 0.65f), w * 0.65f, Offset(w * 0.75f, h * 0.2f))
+                    for (i in 0..8) {
+                        val x = (i * 137 % 997) / 997f * w
+                        val top = h * (0.45f + (i % 4) * 0.04f)
+                        val p = Path().apply { moveTo(x, h); lineTo(x - w * 0.07f, top); lineTo(x + w * 0.07f, top); close() }
+                        drawPath(p, Color(0xFF071C22).copy(alpha = 0.9f))
+                    }
+                    for (i in 0..5) {
+                        val x = w * (0.12f + ((i * 0.17f + t * 0.4f) % 0.78f))
+                        val y = h * (0.25f + (i % 3) * 0.14f + 0.025f * kotlin.math.sin((t * 8f + i).toDouble()).toFloat())
+                        drawCircle(gold, 3.dp.toPx(), Offset(x, y))
+                        drawCircle(Color(0xFFBDEFFF), 2.dp.toPx(), Offset(x + 5.dp.toPx(), y - 3.dp.toPx()))
+                    }
+                    val travel = ((t - 0.08f) / 0.82f).coerceIn(0f, 1f)
+                    val cx = -w * 0.25f + w * 1.3f * travel
+                    val cy = h * 0.68f
+                    val s = w * 0.2f
+                    drawOval(Color.Black.copy(alpha = 0.3f), Offset(cx - s, cy + s * 0.55f), androidx.compose.ui.geometry.Size(s * 2f, s * 0.2f))
+                    drawOval(horse, Offset(cx - s * 0.7f, cy - s * 0.2f), androidx.compose.ui.geometry.Size(s * 1.4f, s * 0.62f))
+                    drawLine(horse, Offset(cx + s * 0.4f, cy - s * 0.05f), Offset(cx + s * 0.72f, cy - s * 0.78f), s * 0.25f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                    drawCircle(horse, s * 0.25f, Offset(cx + s * 0.78f, cy - s * 0.78f))
+                    drawLine(Color(0xFFB9C6D5), Offset(cx + s * 0.55f, cy - s * 0.8f), Offset(cx + s * 0.25f, cy - s * 0.48f), s * 0.09f)
+                    val stride = kotlin.math.sin((t * 42f).toDouble()).toFloat() * s * 0.12f
+                    for (i in 0..3) {
+                        val lx = cx - s * 0.5f + i * s * 0.34f
+                        val swing = if (i % 2 == 0) stride else -stride
+                        drawLine(horse, Offset(lx, cy + s * 0.2f), Offset(lx + swing, cy + s * 0.75f), s * 0.1f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                    }
+                    val rx = cx - s * 0.12f
+                    drawRoundRect(Color(0xFF263B68), Offset(rx - s * 0.2f, cy - s * 0.78f), androidx.compose.ui.geometry.Size(s * 0.46f, s * 0.6f), androidx.compose.ui.geometry.CornerRadius(s * 0.12f))
+                    drawPath(Path().apply { moveTo(rx - s * 0.18f, cy - s * 0.3f); lineTo(rx + s * 0.35f, cy - s * 0.3f); lineTo(rx + s * 0.6f, cy + s * 0.25f); lineTo(rx - s * 0.4f, cy + s * 0.25f); close() }, Color(0xFF7D3152))
+                    drawCircle(Color(0xFFF0C9A7), s * 0.16f, Offset(rx, cy - s * 0.92f))
+                    drawArc(gold, 205f, 130f, false, Offset(rx - s * 0.18f, cy - s * 1.13f), androidx.compose.ui.geometry.Size(s * 0.36f, s * 0.25f), style = Stroke(s * 0.045f))
+                    for (i in 0..24) {
+                        val px = cx - s + ((i * 47) % 113) / 113f * s * 2.3f
+                        val py = cy - s * (0.9f + ((i * 31) % 100) / 100f)
+                        drawCircle(gold.copy(alpha = 0.55f), (1.2f + (i % 3)) * density, Offset(px, py))
+                    }
+                }
             } else if (!videoGift || videoLoadFailed) {
                 Canvas(Modifier.fillMaxSize()) {
                     val w=size.width; val h=size.height

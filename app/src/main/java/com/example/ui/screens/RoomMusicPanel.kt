@@ -64,6 +64,7 @@ internal fun RoomMusicPanel(
     canUpload: Boolean,
     onUpdateRoomMusic: (trackId: String, status: String, positionMs: Long, queueTrackIds: List<String>) -> Unit,
     onAddTrackToQueue: (trackId: String) -> Unit,
+    onAdvanceQueue: (expectedTrackId: String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -92,12 +93,10 @@ internal fun RoomMusicPanel(
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (
                     playbackState == Player.STATE_ENDED &&
-                    canControl &&
-                    roomMusic?.updatedBy == FirebaseAuth.getInstance().currentUser?.uid
+                    canControl
                 ) {
-                    val queue = roomMusic?.queueTrackIds.orEmpty()
-                    val nextId = queue.firstOrNull() ?: return
-                    onUpdateRoomMusic(nextId, "PLAYING", 0L, queue.drop(1))
+                    val finishedTrackId = roomMusic?.trackId.orEmpty()
+                    if (finishedTrackId.isNotBlank()) onAdvanceQueue(finishedTrackId)
                 }
             }
 

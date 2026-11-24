@@ -78,6 +78,7 @@ import com.example.data.model.RoomListener
 import com.example.data.model.RoomOnlineMember
 import com.example.data.model.SpeakerRequest
 import com.example.data.model.UserProfile
+import com.example.data.model.VibeCatalogDefaults
 import com.example.data.model.VoiceRoom
 import com.example.data.model.VoiceSeat
 import com.example.data.model.VoiceStage
@@ -111,11 +112,15 @@ fun RoomGiftStoreSheet(
                 ?: stageRecipients.firstOrNull()
         )
     }
+    // Keep Royal Ride available while older remote catalogs are still syncing.
+    val giftOptions = remember(gifts) {
+        (gifts + VibeCatalogDefaults.defaultGifts.filter { it.id == "gift_royal_ride" }).distinctBy { it.id }
+    }
     val giftCategories = remember { listOf("All", "Daily", "Love", "Premium") }
     var selectedCategory by remember { mutableStateOf("All") }
-    val visibleGifts = remember(gifts, selectedCategory) {
-        if (selectedCategory == "All") gifts
-        else gifts.filter { it.category.equals(selectedCategory, ignoreCase = true) }
+    val visibleGifts = remember(giftOptions, selectedCategory) {
+        if (selectedCategory == "All") giftOptions
+        else giftOptions.filter { it.category.equals(selectedCategory, ignoreCase = true) }
     }
     var selectedGift by remember(gifts) { mutableStateOf(gifts.firstOrNull()) }
     LaunchedEffect(visibleGifts) {

@@ -640,21 +640,8 @@ object VibeShopCatalog {
 
 object VibeCatalogDefaults {
     val defaultGifts = listOf(
-        GiftCatalogItem(id = "gift_aurora_bloom", name = "Aurora Bloom", category = "Daily", coinCost = 20L, accentColorHex = "#F472B6"),
-        GiftCatalogItem(id = "gift_starfall", name = "Starfall", category = "Daily", coinCost = 45L, accentColorHex = "#60A5FA"),
-        GiftCatalogItem(id = "gift_crystal_wave", name = "Crystal Wave", category = "Daily", coinCost = 90L, accentColorHex = "#22D3EE"),
-        GiftCatalogItem(id = "gift_love_promise", name = "Love Promise", category = "Love", coinCost = 180L, accentColorHex = "#FB7185"),
-        GiftCatalogItem(id = "gift_couple_kiss", name = "Couple Kiss", category = "Love", coinCost = 360L, accentColorHex = "#F9A8D4"),
         GiftCatalogItem(id = "gift_sunset_love", name = "Sunset Love", category = "Love", coinCost = 19999L, accentColorHex = "#F9A8D4"),
-        GiftCatalogItem(id = "gift_royal_vows", name = "Royal Vows", category = "Love", coinCost = 99999L, accentColorHex = "#D4AF37"),
-        GiftCatalogItem(id = "gift_enchanted_heart", name = "Enchanted Heart", category = "Love", coinCost = 50000L, accentColorHex = "#F472B6"),
-        GiftCatalogItem(id = "gift_moonlight_dance", name = "Moonlight Dance", category = "Love", coinCost = 520L, accentColorHex = "#C084FC"),
-        GiftCatalogItem(id = "gift_royal_phoenix", name = "Royal Phoenix", category = "Premium", coinCost = 850L, accentColorHex = "#F97316"),
-        GiftCatalogItem(id = "gift_galaxy_crown", name = "Galaxy Crown", category = "Premium", coinCost = 1200L, accentColorHex = "#FBBF24"),
-        GiftCatalogItem(id = "gift_diamond_rain", name = "Diamond Rain", category = "Premium", coinCost = 1800L, accentColorHex = "#67E8F9"),
-        GiftCatalogItem(id = "gift_dragon_flight", name = "Dragon Flight", category = "Premium", coinCost = 2600L, accentColorHex = "#A78BFA"),
-        GiftCatalogItem(id = "gift_ocean_palace", name = "Ocean Palace", category = "Premium", coinCost = 3800L, accentColorHex = "#38BDF8"),
-        GiftCatalogItem(id = "gift_vibe_universe", name = "Vibe Universe", category = "Premium", coinCost = 5500L, accentColorHex = "#E879F9")
+        GiftCatalogItem(id = "gift_royal_vows", name = "Royal Vows", category = "Love", coinCost = 99999L, accentColorHex = "#D4AF37")
     )
 
     val vipTiers = listOf(

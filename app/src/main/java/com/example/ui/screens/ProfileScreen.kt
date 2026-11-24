@@ -81,6 +81,7 @@ import com.example.ui.components.CharmEmblem
 import com.example.ui.components.GiftCatalogArtwork
 import com.example.data.model.GiftTransaction
 import com.example.data.model.GiftCatalogItem
+import com.example.data.model.VibeCatalogDefaults
 import com.example.data.model.LevelProgression
 import com.example.data.model.UserProfile
 import com.example.data.model.VibeShopCatalog
@@ -683,7 +684,11 @@ fun ProfileScreen(
         item {
             val receivedGiftWall = remember(giftHistory, profile.userId) {
                 giftHistory
-                    .filter { it.recipientId == profile.userId && it.giftName.isNotBlank() }
+                    .filter {
+                        it.recipientId == profile.userId &&
+                            it.giftName.isNotBlank() &&
+                            VibeCatalogDefaults.defaultGifts.any { currentGift -> currentGift.id == it.giftId }
+                    }
                     .groupBy { it.giftId.ifBlank { it.giftName.trim().lowercase() } }
                     .map { (_, transactions) ->
                         val first = transactions.first()

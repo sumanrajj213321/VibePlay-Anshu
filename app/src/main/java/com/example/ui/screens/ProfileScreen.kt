@@ -116,7 +116,8 @@ fun ProfileScreen(
     onOpenNotifications: () -> Unit,
     onSignOut: () -> Unit,
     onOpenShop: () -> Unit = {},
-    onOpenRelationships: () -> Unit = {}
+    onOpenRelationships: () -> Unit = {},
+    onOpenCharmLevels: () -> Unit = {}
 ) {
     val clipboardManager = LocalClipboardManager.current
     val isOwnProfile = FirebaseAuth.getInstance().currentUser?.uid == profile.userId
@@ -613,7 +614,7 @@ fun ProfileScreen(
                     shape = RoundedCornerShape(14.dp),
                     color = Color(0xFF102B3A).copy(alpha = 0.96f),
                     border = BorderStroke(1.dp, Brush.linearGradient(listOf(Color(0xFF35F4E5), Color(0xFF8B72FF), Color(0xFFFF78D6)))),
-                    modifier = Modifier.testTag("profile_charms_card")
+                    modifier = Modifier.clickable(onClick = onOpenCharmLevels).testTag("profile_charms_card")
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),

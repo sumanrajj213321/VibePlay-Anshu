@@ -142,21 +142,29 @@ class RoomRepository(
             val snapshot = tx.get(stateRef)
             val currentTrackId = snapshot.getString("trackId").orEmpty()
             val currentStatus = snapshot.getString("status") ?: "STOPPED"
-            val currentPosition = snapshot.getLong("positionMs") ?: 0L
             val currentQueue = (snapshot.get("queueTrackIds") as? List<*>)
                 .orEmpty().filterIsInstance<String>()
-            require(trackId != currentTrackId) { "This song is already playing." }
-            require(trackId !in currentQueue) { "This song is already in the queue." }
-            require(currentQueue.size < 100) { "The room queue is full." }
+            // Tapping Add to Queue is an immediate-play request. Promote the selected
+            // track even if it is already queued, and keep the previous track available.
+            val remainingQueue = currentQueue.filterNot { it == trackId }
+            val nextQueue = if (
+                currentTrackId.isNotBlank() &&
+                currentTrackId != trackId &&
+                currentStatus == "PLAYING"
+            ) {
+                (remainingQueue + currentTrackId).distinct().take(100)
+            } else {
+                remainingQueue.distinct().take(100)
+            }
             tx.set(
                 stateRef,
                 mapOf(
-                    "trackId" to currentTrackId,
-                    "status" to currentStatus,
-                    "positionMs" to currentPosition.coerceIn(0L, 86_400_000L),
+                    "trackId" to trackId,
+                    "status" to "PLAYING",
+                    "positionMs" to 0L,
                     "updatedBy" to uid,
                     "updatedAt" to FieldValue.serverTimestamp(),
-                    "queueTrackIds" to (currentQueue + trackId)
+                    "queueTrackIds" to nextQueue
                 )
             )
         }.await()

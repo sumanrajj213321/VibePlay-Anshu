@@ -250,6 +250,7 @@ class RoomRepository(
             .snapshots()
             .map { snapshot ->
                 snapshot.toObjects(GiftCatalogItem::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+                    .filter { it.id == "gift_sunset_love" || it.id == "gift_royal_vows" }
                     .sortedBy { it.coinCost }
             }
 

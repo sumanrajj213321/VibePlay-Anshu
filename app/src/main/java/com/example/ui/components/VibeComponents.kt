@@ -122,6 +122,51 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.tasks.await
 
+/**
+ * Shared VibePlay coin artwork. The single and pile variants use the same
+ * glossy gold face, raised rim and curved C emblem.
+ */
+@Composable
+fun VibeCoinIcon(modifier: Modifier = Modifier, pile: Boolean = false) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val goldFace = Brush.linearGradient(
+            listOf(Color(0xFFFFF18A), Color(0xFFFFC52E), Color(0xFFFF9418), Color(0xFFFFD84A)),
+            start = Offset(0f, 0f), end = Offset(w, h)
+        )
+        val rim = Brush.linearGradient(
+            listOf(Color(0xFFFFF4A8), Color(0xFFE58A08), Color(0xFFFFD34A), Color(0xFFB95A05)),
+            start = Offset(0f, 0f), end = Offset(w, h)
+        )
+        fun coin(cx: Float, cy: Float, rx: Float, ry: Float) {
+            drawOval(rim, Offset(cx-rx, cy-ry), androidx.compose.ui.geometry.Size(rx*2f, ry*2f))
+            drawOval(Color(0xFF9E4B05).copy(alpha=0.32f), Offset(cx-rx*0.84f,cy-ry*0.78f), androidx.compose.ui.geometry.Size(rx*1.68f,ry*1.58f))
+            drawOval(goldFace, Offset(cx-rx*0.84f,cy-ry*0.88f), androidx.compose.ui.geometry.Size(rx*1.68f,ry*1.68f))
+            drawOval(Color.White.copy(alpha=0.48f), Offset(cx-rx*0.62f,cy-ry*0.77f), androidx.compose.ui.geometry.Size(rx*0.78f,ry*0.28f))
+            drawArc(
+                color = Color(0xFFB96808), startAngle = 48f, sweepAngle = 264f,
+                useCenter = false, topLeft = Offset(cx-rx*0.34f,cy-ry*0.40f),
+                size = androidx.compose.ui.geometry.Size(rx*0.68f,ry*0.80f),
+                style = Stroke(width = minOf(rx,ry)*0.22f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            )
+            drawArc(
+                color = Color(0xFFFFF7BD), startAngle = 48f, sweepAngle = 264f,
+                useCenter = false, topLeft = Offset(cx-rx*0.34f,cy-ry*0.40f),
+                size = androidx.compose.ui.geometry.Size(rx*0.68f,ry*0.80f),
+                style = Stroke(width = minOf(rx,ry)*0.10f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            )
+        }
+        if (pile) {
+            coin(w*0.34f,h*0.39f,w*0.27f,h*0.22f)
+            coin(w*0.67f,h*0.39f,w*0.27f,h*0.22f)
+            coin(w*0.50f,h*0.66f,w*0.43f,h*0.30f)
+        } else {
+            coin(w*0.5f,h*0.5f,w*0.46f,h*0.46f)
+        }
+    }
+}
+
 @DrawableRes
 fun coverDrawableRes(coverKey: String): Int = when (coverKey) {
     "chill_lounge" -> R.drawable.img_cover_chill_lounge

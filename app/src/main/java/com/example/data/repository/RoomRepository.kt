@@ -26,6 +26,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
@@ -65,6 +66,24 @@ class RoomRepository(
         return bytes.joinToString("") { "%02x".format(it) }
     }
 
+    private fun observeActiveRoomSessionIds(roomId: String): Flow<Set<String>> {
+        val sessions = db.collection("rooms").document(roomId)
+            .collection("room_sessions").snapshots()
+        val clock = flow {
+            while (true) {
+                emit(Unit)
+                delay(15_000L)
+            }
+        }
+        return combine(sessions, clock) { snapshot, _ ->
+            snapshot.documents.filter { doc ->
+                val seenAt = doc.getTimestamp("lastSeenAt")?.toDate()?.time ?: 0L
+                val age = System.currentTimeMillis() - seenAt
+                seenAt > 0L && age <= ROOM_SESSION_STALE_AFTER_MS && age >= -30_000L
+            }.map { it.id }.toSet()
+        }
+    }
+
     fun observeLiveRooms(): Flow<List<VoiceRoom>> =
         db.collection("rooms").whereEqualTo("status", "LIVE").snapshots()
             .map { it.toObjects(VoiceRoom::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE) }
@@ -73,12 +92,7 @@ class RoomRepository(
                 else {
                     val roomCountFlows = rooms.map { room ->
                         val roomRef = db.collection("rooms").document(room.id)
-                        val sessionsFlow = roomRef.collection("room_sessions").snapshots()
-                            .map { snapshot -> snapshot.documents.filter { doc ->
-                                val seenAt = doc.getTimestamp("lastSeenAt")?.toDate()?.time ?: 0L
-                                val age = System.currentTimeMillis() - seenAt
-                                seenAt > 0L && age <= ROOM_SESSION_STALE_AFTER_MS && age >= -30_000L
-                            }.map { it.id }.toSet() }
+                        val sessionsFlow = observeActiveRoomSessionIds(room.id)
                             .onStart { emit(emptySet()) }
                         val seatsFlow = roomRef.collection("seats").snapshots()
                             .map { snap -> snap.documents.mapNotNull { it.getString("occupantId") }.filter { it.isNotBlank() }.toSet() }
@@ -260,12 +274,7 @@ class RoomRepository(
             .map { snapshot ->
                 snapshot.toObjects(VoiceSeat::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
             }
-        val sessionsFlow = roomRef.collection("room_sessions").snapshots()
-            .map { snapshot -> snapshot.documents.filter { doc ->
-                val seenAt = doc.getTimestamp("lastSeenAt")?.toDate()?.time ?: 0L
-                val age = System.currentTimeMillis() - seenAt
-                seenAt > 0L && age <= ROOM_SESSION_STALE_AFTER_MS && age >= -30_000L
-            }.map { it.id }.toSet() }
+        val sessionsFlow = observeActiveRoomSessionIds(roomId)
         // Seat presence comes from room_sessions; load frame cosmetics for all active
         // profiles so a delayed global online heartbeat cannot hide an equipped frame.
         val onlineUsersFlow = db.collection("users")
@@ -370,13 +379,7 @@ class RoomRepository(
             }
         // The room session is the authoritative signal that a listener is currently in this room.
         // Do not hide valid room members merely because their global users/{uid}.online flag is stale.
-        val sessionsFlow = roomRef.collection("room_sessions")
-            .snapshots()
-            .map { snapshot -> snapshot.documents.filter { doc ->
-                val seenAt = doc.getTimestamp("lastSeenAt")?.toDate()?.time ?: 0L
-                val age = System.currentTimeMillis() - seenAt
-                seenAt > 0L && age <= ROOM_SESSION_STALE_AFTER_MS && age >= -30_000L
-            }.map { it.id }.toSet() }
+        val sessionsFlow = observeActiveRoomSessionIds(roomId)
         // Listener membership is validated against room_sessions below. Do not gate
         // equipped frame cosmetics on the separate global online heartbeat.
         val onlineFrameColorsFlow = db.collection("users")

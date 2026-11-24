@@ -58,6 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+    MUSIC_API_BASE_URL: ${{ secrets.MUSIC_API_BASE_URL }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -84,7 +85,7 @@ jobs:
           exit 1
 
       - name: Build debug APK
-        run: gradle --no-daemon --stacktrace :app:assembleDebug
+        run: gradle --no-daemon --stacktrace -PMUSIC_API_BASE_URL="$MUSIC_API_BASE_URL" :app:assembleDebug
 
       - name: Verify Google Sign-In signing fingerprints
         run: |

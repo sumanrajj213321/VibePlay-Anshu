@@ -89,7 +89,11 @@ internal fun RoomMusicPanel(
     DisposableEffect(player, roomMusic?.trackId, roomMusic?.queueTrackIds, canControl) {
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED && canControl) {
+                if (
+                    playbackState == Player.STATE_ENDED &&
+                    canControl &&
+                    roomMusic?.updatedBy == FirebaseAuth.getInstance().currentUser?.uid
+                ) {
                     val queue = roomMusic?.queueTrackIds.orEmpty()
                     val nextId = queue.firstOrNull() ?: return
                     onUpdateRoomMusic(nextId, "PLAYING", 0L, queue.drop(1))

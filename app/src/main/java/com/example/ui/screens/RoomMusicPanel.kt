@@ -40,6 +40,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
@@ -64,6 +65,7 @@ internal fun RoomMusicPanel(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
     val scope = rememberCoroutineScope()
     val client = remember { MusicLibraryClient() }
     val player = remember {
@@ -186,7 +188,7 @@ internal fun RoomMusicPanel(
         title = { Text("Room Music") },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp).verticalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth().heightIn(max = (configuration.screenHeightDp * 0.62f).dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
@@ -283,7 +285,7 @@ internal fun RoomMusicPanel(
                 )
                 if (canUpload) {
                     Button(
-                        onClick = { picker.launch(arrayOf("audio/*")) },
+                        onClick = { picker.launch(arrayOf("audio/*", "video/mp4", "application/mp4")) },
                         enabled = !loading && client.isConfigured,
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("Upload audio") }

@@ -488,20 +488,6 @@ private fun AuthenticatedVibePlayApp(
                                         modifier = Modifier.testTag("nav_${tab.route}")
                                     )
                                 }
-                                activeRoomId?.let { roomId ->
-                                    NavigationBarItem(
-                                        selected = currentRoute == "room/$roomId",
-                                        onClick = {
-                                            navController.navigate("room/$roomId") {
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        },
-                                        icon = { Icon(Icons.Filled.GraphicEq, contentDescription = "Return to live room") },
-                                        label = { Text("Live Room", maxLines = 1) },
-                                        modifier = Modifier.testTag("nav_live_room")
-                                    )
-                                }
                             }
                         }
                     }
@@ -531,20 +517,6 @@ private fun AuthenticatedVibePlayApp(
                                         },
                                         label = { Text(tab.label) },
                                         modifier = Modifier.testTag("rail_${tab.route}")
-                                    )
-                                }
-                                activeRoomId?.let { roomId ->
-                                    NavigationRailItem(
-                                        selected = currentRoute == "room/$roomId",
-                                        onClick = {
-                                            navController.navigate("room/$roomId") {
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        },
-                                        icon = { Icon(Icons.Filled.GraphicEq, contentDescription = "Return to live room") },
-                                        label = { Text("Live Room") },
-                                        modifier = Modifier.testTag("rail_live_room")
                                     )
                                 }
                             }
@@ -818,6 +790,32 @@ private fun AuthenticatedVibePlayApp(
                                             onUnblockUser = { targetId -> viewModel.toggleBlockUser(targetId, block = false) }
                                         )
                                     }
+                                }
+                            }
+                            activeRoomId?.takeIf { currentRoute != "room/$it" }?.let { roomId ->
+                                Button(
+                                    onClick = {
+                                        navController.navigate("room/$roomId") {
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(16.dp)
+                                        .testTag("floating_return_to_room"),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = VibeViolet,
+                                        contentColor = androidx.compose.ui.graphics.Color.White
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.GraphicEq,
+                                        contentDescription = "Return to live room",
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Live Room", fontWeight = FontWeight.Bold)
                                 }
                             }
                         }

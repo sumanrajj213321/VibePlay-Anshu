@@ -1069,26 +1069,6 @@ fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
             }.getOrNull()
         }
     }
-    if (gift.id == "gift_royal_vows") {
-            value = withContext(Dispatchers.IO) {
-                runCatching {
-                    MediaMetadataRetriever().let { retriever ->
-                        try {
-                            retriever.setDataSource(
-                                "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/From%20Klickpin.com-%20Discover%20Simple%20family%20dinner%20ideas%20that%20are%20trending%20right%20now%20across%20Pinterest%20boards%20for%20ideas%20worth%20saving%20right%20now-pin-id%20%28online-video-cutter.com%29.mp4",
-                                HashMap()
-                            )
-                            retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                        } finally {
-                            retriever.release()
-                        }
-                    }
-                }.getOrNull()
-            }
-        } else {
-            value = null
-        }
-    }
     if (gift.id in setOf("gift_royal_vows", "gift_sunlit_dream", "gift_prism_muse") && videoGiftThumbnail != null) {
         Image(
             bitmap = videoGiftThumbnail!!.asImageBitmap(),

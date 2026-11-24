@@ -155,8 +155,10 @@ service cloud.firestore {
     }
 
     function isRoomMemberBanned(roomId) {
-      let roomData = get(/databases/$(database)/documents/rooms/$(roomId)).data;
-      return ('bannedUserIds' in roomData) && request.auth.uid in roomData.bannedUserIds;
+      let roomPath = /databases/$(database)/documents/rooms/$(roomId);
+      return exists(roomPath) &&
+             ('bannedUserIds' in get(roomPath).data) &&
+             request.auth.uid in get(roomPath).data.bannedUserIds;
     }
 
     function isValidRoom(data) {
@@ -959,7 +961,7 @@ service cloud.firestore {
                                  listenerId == request.auth.uid &&
                                  incoming().userId == request.auth.uid &&
                                  isValidRoomListener(incoming()) &&
-                                 !isRoomMemberBanned(roomId) &&
+                                 existsAfter(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
                                  isValidTs(incoming().joinedAt);
         allow delete: if isSignedIn() && (listenerId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
       }

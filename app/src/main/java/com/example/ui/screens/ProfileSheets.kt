@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Flag
@@ -1055,19 +1056,24 @@ fun PublicProfileSheet(
                     ) {
                         Text("Level ${targetUser.level}", Modifier.padding(horizontal = 10.dp, vertical = 9.dp), style = MaterialTheme.typography.labelSmall, color = VibeGold, fontWeight = FontWeight.Bold, maxLines = 1)
                     }
+                    val charms = com.example.data.model.CharmProgression.fromReceivedGiftCoins(targetUser.totalGiftCoinsReceived)
+                    val charmLevel = com.example.data.model.CharmProgression.levelFor(charms)
                     Surface(
                         Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        color = VibePink.copy(alpha = 0.10f),
-                        border = BorderStroke(1.dp, VibePink.copy(alpha = 0.35f))
+                        shape = RoundedCornerShape(13.dp),
+                        color = Color(0xFF102B3A),
+                        border = BorderStroke(1.dp, Brush.linearGradient(listOf(Color(0xFF35F4E5), Color(0xFF8B72FF), Color(0xFFFF78D6))))
                     ) {
                         Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                            Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 9.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("GIFTING", style = MaterialTheme.typography.labelSmall, color = VibePink, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                            Text("${formatPublicGiftCount(targetUser.totalGiftsReceived)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.ExtraBold)
+                            Icon(Icons.Filled.AutoAwesome, contentDescription = "Charms", tint = Color(0xFF65FFF0), modifier = Modifier.size(19.dp))
+                            Column {
+                                Text("CHARMS", style = MaterialTheme.typography.labelSmall, color = Color(0xFF65FFF0), fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
+                                Text("$charms  ·  Charm Level $charmLevel", style = MaterialTheme.typography.labelLarge, color = Color(0xFFE9FFFF), fontWeight = FontWeight.ExtraBold)
+                            }
                         }
                     }
                 }

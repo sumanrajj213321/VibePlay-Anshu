@@ -242,6 +242,10 @@ internal fun RoomMusicPanel(
                     singleLine = true,
                     label = { Text("Search music") }
                 )
+                TextButton(
+                    onClick = { scope.launch { refreshLibrary() } },
+                    enabled = !loading && client.isConfigured
+                ) { Text("Refresh shared library") }
                 if (loading) CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().heightIn(max = 190.dp),

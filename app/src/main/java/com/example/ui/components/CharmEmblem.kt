@@ -14,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -52,7 +51,8 @@ fun CharmEmblem(level: Int = 1, modifier: Modifier = Modifier, size: Dp = 24.dp,
         label = "charm_orbit"
     )
     Box(modifier = modifier.size(size * 1.28f), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(size).graphicsLayer { scaleX = pulse; scaleY = pulse }) {
+        Canvas(Modifier.size(size)) {
+            drawContext.transform.scale(pulse, pulse, pivot = center)
             val w = this.size.width
             val h = this.size.height
             val c = Offset(w / 2f, h / 2f)

@@ -822,6 +822,37 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Room music playback metadata is independent of Agora voice chat.
+      match /music/{musicDocId} {
+        function roomMusicMember() {
+          return isSignedIn() && exists(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid));
+        }
+        function roomMusicController() {
+          let roomData = get(/databases/$(database)/documents/rooms/$(roomId)).data;
+          return isSignedIn() && (
+            isRoomManager(roomData) ||
+            get(/databases/$(database)/documents/rooms/$(roomId)/seats/0).data.occupantId == request.auth.uid ||
+            get(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId == request.auth.uid ||
+            get(/databases/$(database)/documents/rooms/$(roomId)/seats/2).data.occupantId == request.auth.uid ||
+            get(/databases/$(database)/documents/rooms/$(roomId)/seats/3).data.occupantId == request.auth.uid ||
+            get(/databases/$(database)/documents/rooms/$(roomId)/seats/4).data.occupantId == request.auth.uid ||
+            get(/databases/$(database)/documents/rooms/$(roomId)/seats/5).data.occupantId == request.auth.uid ||
+            get(/databases/$(database)/documents/rooms/$(roomId)/seats/6).data.occupantId == request.auth.uid ||
+            get(/databases/$(database)/documents/rooms/$(roomId)/seats/7).data.occupantId == request.auth.uid ||
+            get(/databases/$(database)/documents/rooms/$(roomId)/seats/8).data.occupantId == request.auth.uid
+          );
+        }
+        allow get: if musicDocId == 'state' && roomMusicMember();
+        allow list: if false;
+        allow create, update: if musicDocId == 'state' && roomMusicController() &&
+          incoming().keys().hasOnly(['trackId', 'status', 'positionMs', 'updatedBy', 'updatedAt']) &&
+          incoming().trackId is string && incoming().trackId.size() <= 512 &&
+          incoming().status in ['PLAYING', 'PAUSED', 'STOPPED'] &&
+          incoming().positionMs is int && incoming().positionMs >= 0 && incoming().positionMs <= 86400000 &&
+          incoming().updatedBy == request.auth.uid && incoming().updatedAt == request.time;
+        allow delete: if false;
+      }
+
       match /speaker_requests/{requestId} {
         allow get: if isSignedIn() && isValidId(requestId) && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
         allow list: if isSignedIn() && (existing().userId == request.auth.uid || existing().hostId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));

@@ -649,10 +649,12 @@ fun ProfileScreen(
                             label = "Followers",
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
-                                .clickable {
-                                    socialInitialTab = 0
-                                    showSocialSheet = true
-                                }
+                                .then(
+                                    if (isOwnProfile) Modifier.clickable {
+                                        socialInitialTab = 0
+                                        showSocialSheet = true
+                                    } else Modifier
+                                )
                                 .padding(horizontal = 16.dp, vertical = 4.dp)
                                 .testTag("profile_followers_stat")
                         )
@@ -661,10 +663,12 @@ fun ProfileScreen(
                             label = "Following",
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
-                                .clickable {
-                                    socialInitialTab = 1
-                                    showSocialSheet = true
-                                }
+                                .then(
+                                    if (isOwnProfile) Modifier.clickable {
+                                        socialInitialTab = 1
+                                        showSocialSheet = true
+                                    } else Modifier
+                                )
                                 .padding(horizontal = 16.dp, vertical = 4.dp)
                                 .testTag("profile_following_stat")
                         )

@@ -611,6 +611,7 @@ class UserRepository(
                             )
                         )
                     }
+                    false
                 } else if (!myFollowingSnap.exists()) {
                     tx.set(
                         myFollowingRef,

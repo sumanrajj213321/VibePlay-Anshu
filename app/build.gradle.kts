@@ -18,6 +18,8 @@ android {
     targetSdk = 36
     versionCode = 1
     versionName = "1.0"
+    val musicApiBaseUrl = providers.gradleProperty("MUSIC_API_BASE_URL").orElse("").get()
+    buildConfigField("String", "MUSIC_API_BASE_URL", "\"${musicApiBaseUrl}\"")
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     buildConfigField("String", "LIVEKIT_URL", "\"\"")

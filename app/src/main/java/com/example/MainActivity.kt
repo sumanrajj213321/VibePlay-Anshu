@@ -639,6 +639,7 @@ private fun AuthenticatedVibePlayApp(
                                         },
                                         onOpenUserById = inspectUserById,
                                         onBlockUser = { targetId -> viewModel.toggleBlockUser(targetId, block = true) },
+                                             onUnblockUser = { targetId -> viewModel.toggleBlockUser(targetId, block = false) },
                                         onSubmitReport = { type, id, name, reason, details ->
                                             viewModel.submitReport(currentUser, type, id, name, reason, details)
                                         }

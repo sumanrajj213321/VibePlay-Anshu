@@ -80,7 +80,7 @@ fun CharmLevelsScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                     Spacer(Modifier.weight(1f))
-                    Text("Charm Levels", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                    Text("Charms", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.weight(1f))
                     Box(Modifier.width(48.dp))
                 }
@@ -90,7 +90,7 @@ fun CharmLevelsScreen(
                 ) {
                     TextButton(onClick = { selectedTab = 0 }) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Charm Levels", color = if (selectedTab == 0) Color.White else Color.White.copy(alpha = .65f), fontWeight = FontWeight.Bold)
+                            Text("Charm", color = if (selectedTab == 0) Color.White else Color.White.copy(alpha = .65f), fontWeight = FontWeight.Bold)
                             if (selectedTab == 0) Box(Modifier.padding(top = 3.dp).size(width = 30.dp, height = 3.dp).clip(CircleShape).background(Color(0xFF25DDF5)))
                         }
                     }
@@ -150,20 +150,6 @@ fun CharmLevelsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
-                    Text("Charm Levels", fontSize = 21.sp, color = Color.Black, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(10.dp))
-                    Text("Charm represents a player's popularity. Players performing well in rooms receive gifts that increase their Charm.", color = CharmMuted, fontSize = 15.sp, lineHeight = 23.sp)
-                    Spacer(Modifier.height(12.dp))
-                    Text("Reaching Charm goals unlocks special icons. Your Charm icon highlights your popularity.", color = CharmMuted, fontSize = 15.sp, lineHeight = 23.sp)
-                    Spacer(Modifier.height(14.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Color(0xFFF5F3F8)).padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        (1..7).forEach { CharmEmblem(level = it, size = 31.dp) }
-                    }
-                    Spacer(Modifier.height(22.dp))
                     Text("How to Increase Charm", fontSize = 21.sp, color = Color.Black, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -177,8 +163,6 @@ fun CharmLevelsScreen(
                         }
                     }
                     Spacer(Modifier.height(22.dp))
-                    Text("Charm Icons", fontSize = 21.sp, color = Color.Black, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(10.dp))
                     Row(Modifier.fillMaxWidth().background(Color(0xFFF5F3F8), RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)).padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                         Text("Charm", color = Color.Black, fontWeight = FontWeight.SemiBold)
                         Text("Icon", color = Color.Black, fontWeight = FontWeight.SemiBold)
@@ -191,10 +175,7 @@ fun CharmLevelsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(formatCharmGoal(milestone), color = CharmMuted, fontSize = 18.sp)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CharmEmblem(level = index + 1, size = 29.dp)
-                            Text("${index + 1}", color = Color(0xFFE49A38), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
+                        CharmEmblem(level = index + 1, size = 38.dp, showLevel = true)
                     }
                 }
             }
@@ -213,10 +194,10 @@ fun CharmLevelsScreen(
                         modifier = Modifier.fillMaxWidth().background(Color(0xFFF6F4FA), RoundedCornerShape(14.dp)).padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CharmEmblem(level = CharmProgression.milestones.indexOf(milestone) + 1, size = 32.dp)
+                        CharmEmblem(level = CharmProgression.milestones.indexOf(milestone) + 1, size = 40.dp, showLevel = true)
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("Charm Level ${CharmProgression.milestones.indexOf(milestone) + 1}", fontWeight = FontWeight.Bold, color = CharmInk)
+                            Text("Charm", fontWeight = FontWeight.Bold, color = CharmInk)
                             Text("${formatCharmGoal(milestone)} Charms", color = CharmMuted)
                         }
                         Text("ACTIVE", color = Color(0xFF2AA876), fontSize = 11.sp, fontWeight = FontWeight.Bold)

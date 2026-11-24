@@ -1122,10 +1122,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                 Text(event.giftName, color = Color.White, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(6.dp))
                 Text("For ${event.recipientName}  ·  ${event.coinCost} coins", color = accent, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(14.dp))
-                Box(Modifier.fillMaxWidth(0.58f).height(3.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.25f))) {
-                    Box(Modifier.fillMaxWidth(progress.coerceIn(0f,1f)).fillMaxSize().background(accent))
-                }
+
             }
         }
     }

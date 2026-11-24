@@ -154,7 +154,7 @@ fun RoomGiftStoreSheet(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         VibeCoinIcon(modifier = Modifier.size(22.dp))
-                        Text("${currentUser.coinBalance} Coins", style = MaterialTheme.typography.labelMedium, color = VibeGold, fontWeight = FontWeight.Bold)
+                        Text("${currentUser.coinBalance}", style = MaterialTheme.typography.titleMedium, color = VibeGold, fontWeight = FontWeight.Bold)
                     }
                 }
             }

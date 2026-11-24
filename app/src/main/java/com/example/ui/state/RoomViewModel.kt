@@ -21,7 +21,6 @@ import com.example.data.model.VoiceRoom
 import com.example.data.model.VoiceSeat
 import com.example.data.model.VoiceStage
 import com.example.data.repository.RoomRepository
-import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -439,23 +438,9 @@ class RoomViewModel(
 
     fun uploadRoomCover(uri: Uri) {
         viewModelScope.launch {
-            try {
-                val storage = FirebaseStorage.getInstance("gs://vibeplay-anshu.firebasestorage.app")
-                val coverRef = storage.reference
-                    .child("room-covers/$roomId/cover_${System.currentTimeMillis()}.jpg")
-                val metadata = com.google.firebase.storage.StorageMetadata.Builder()
-                    .setContentType("image/jpeg")
-                    .build()
-                coverRef.putFile(uri, metadata).await()
-                val downloadUrl = coverRef.downloadUrl.await().toString()
-                roomRepository.updateRoomCoverUrl(roomId, downloadUrl)
-                    .onSuccess { _roomError.value = "Room cover uploaded successfully." }
-                    .onFailure { _roomError.value = it.localizedMessage ?: "Could not save room cover." }
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                _roomError.value = error.localizedMessage ?: "Room cover upload failed."
-            }
+            roomRepository.saveRoomCover(roomId, uri)
+                .onSuccess { _roomError.value = "Room cover saved. It is now visible to everyone." }
+                .onFailure { _roomError.value = it.localizedMessage ?: "Room cover upload failed." }
         }
     }
 

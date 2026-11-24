@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -130,6 +131,7 @@ fun ProfileScreen(
     var showEditSheet by remember { mutableStateOf(false) }
     var showVipSheet by remember { mutableStateOf(false) }
     var showGiftHistory by remember { mutableStateOf(false) }
+    var selectedGiftPrice by remember { mutableStateOf<GiftCatalogItem?>(null) }
     var showSocialSheet by remember { mutableStateOf(false) }
     var socialInitialTab by remember { mutableStateOf(0) }
     var showSetupGuide by remember { mutableStateOf(false) }
@@ -726,7 +728,9 @@ fun ProfileScreen(
                     ) {
                         receivedGiftWall.forEach { (gift, quantity) ->
                             Surface(
-                                modifier = Modifier.width(112.dp),
+                                modifier = Modifier.width(112.dp).clickable {
+                                    selectedGiftPrice = VibeCatalogDefaults.defaultGifts.firstOrNull { it.id == gift.id }
+                                },
                                 shape = RoundedCornerShape(16.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
                                 border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.20f))
@@ -999,6 +1003,17 @@ fun ProfileScreen(
 
     if (showSetupGuide) {
         BackendIntegrationGuideSheet(onDismiss = { showSetupGuide = false })
+    }
+
+    selectedGiftPrice?.let { gift ->
+        AlertDialog(
+            onDismissRequest = { selectedGiftPrice = null },
+            title = { Text(gift.name) },
+            text = { Text("${gift.coinCost} coins") },
+            confirmButton = {
+                TextButton(onClick = { selectedGiftPrice = null }) { Text("OK") }
+            }
+        )
     }
 }
 

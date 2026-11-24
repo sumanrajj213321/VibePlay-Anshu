@@ -951,9 +951,8 @@ fun PublicProfileSheet(
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.94f)
-                .fillMaxHeight(0.94f),
-            shape = RoundedCornerShape(18.dp),
+                .fillMaxSize(),
+            shape = RoundedCornerShape(0.dp),
             color = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
             border = BorderStroke(
@@ -1096,11 +1095,11 @@ fun PublicProfileSheet(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clip(RoundedCornerShape(10.dp)).then(if (isSelf) Modifier.clickable { followSheetTab = 0 } else Modifier).padding(horizontal = 14.dp, vertical = 4.dp)) {
                         Text("${targetUser.followersCount}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text("Followers", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clip(RoundedCornerShape(10.dp)).then(if (isSelf) Modifier.clickable { followSheetTab = 1 } else Modifier).padding(horizontal = 14.dp, vertical = 4.dp)) {
                         Text("${targetUser.followingCount}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text("Following", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -1196,26 +1195,6 @@ fun PublicProfileSheet(
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-                        }
-                    }
-                }
-            }
-
-            // Owners may open their lists; other viewers only see the counts above.
-            if (isSelf) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { followSheetTab = 0 }.padding(horizontal = 14.dp, vertical = 4.dp)) {
-                            Text("${targetUser.followersCount}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text("Followers", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { followSheetTab = 1 }.padding(horizontal = 14.dp, vertical = 4.dp)) {
-                            Text("${targetUser.followingCount}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text("Following", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }

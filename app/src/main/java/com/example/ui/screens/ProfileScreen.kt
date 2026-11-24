@@ -620,7 +620,7 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Filled.AutoAwesome, contentDescription = "Charms", tint = Color(0xFF65FFF0), modifier = Modifier.size(20.dp))
+                        Icon(if (charmLevel >= 2L) Icons.Filled.EmojiEvents else Icons.Filled.AutoAwesome, contentDescription = "Charm level", tint = if (charmLevel >= 2L) Color(0xFFFFD76A) else Color(0xFF65FFF0), modifier = Modifier.size(20.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                             Text("CHARMS", style = MaterialTheme.typography.labelSmall, color = Color(0xFF65FFF0), fontWeight = FontWeight.Black, letterSpacing = 1.4.sp)
                             Text("$charms  ·  Charm Level $charmLevel", style = MaterialTheme.typography.titleSmall, color = Color(0xFFE9FFFF), fontWeight = FontWeight.ExtraBold)

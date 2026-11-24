@@ -638,6 +638,27 @@ service cloud.firestore {
 
       allow delete: if false;
 
+      // Allow a follower to update only the target's follower counter when
+      // the matching follower edge is created or removed in the same transaction.
+      allow update: if isSignedIn() && isValidId(userId) &&
+        request.auth.uid != userId &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().coinBalance == existing().coinBalance &&
+        incoming().vipLevel == existing().vipLevel &&
+        isValidTs(incoming().updatedAt) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['followersCount', 'updatedAt']) &&
+        (
+          (incoming().followersCount == existing().followersCount + 1 &&
+           !exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)) &&
+           existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)) &&
+           getAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).data.peerId == request.auth.uid) ||
+          (incoming().followersCount == existing().followersCount - 1 &&
+           incoming().followersCount >= 0 &&
+           exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)) &&
+           !existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)))
+        );
+
       match /avatar/{avatarDocId} {
         allow get: if isSignedIn() && avatarDocId == 'image';
         allow list: if false;

@@ -148,7 +148,8 @@ fun VoiceRoomScreen(
     onOpenUserProfile: ((String) -> Unit)? = null,
     onBack: () -> Unit,
     onSubmitReport: (targetType: String, targetId: String, targetName: String, reason: String, details: String) -> Unit,
-    onBlockUser: (String) -> Unit
+    onBlockUser: (String) -> Unit,
+    onUnblockUser: (String) -> Unit = {}
 ) {
     val room by roomViewModel.room.collectAsStateWithLifecycle()
     val stage by roomViewModel.voiceStage.collectAsStateWithLifecycle()
@@ -267,6 +268,7 @@ fun VoiceRoomScreen(
         },
         onSubmitReport = onSubmitReport,
         onBlockUser = onBlockUser,
+        onUnblockUser = onUnblockUser,
         onKickMember = { targetId -> roomViewModel.kickRoomMember(targetId) }
     )
 }
@@ -319,6 +321,7 @@ internal fun VoiceRoomStageContent(
     onHostRemoveSpeaker: (seatIndex: Int) -> Unit,
     onSubmitReport: (targetType: String, targetId: String, targetName: String, reason: String, details: String) -> Unit,
     onBlockUser: (String) -> Unit,
+    onUnblockUser: (String) -> Unit = {},
     onKickMember: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -1061,9 +1064,11 @@ internal fun VoiceRoomStageContent(
                 showOnlineMembers = false
                 reportTarget = Triple("USER", listener.userId, listener.username)
             },
+            blockedUserIds = blockedUserIds,
             onBlockListener = { listener ->
                 onBlockUser(listener.userId)
             },
+            onUnblockListener = { listener -> onUnblockUser(listener.userId) },
             onKickMember = onKickMember,
             onDismiss = { showOnlineMembers = false }
         )

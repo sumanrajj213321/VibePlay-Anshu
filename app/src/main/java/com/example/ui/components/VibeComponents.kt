@@ -99,9 +99,7 @@ import coil.decode.GifDecoder
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import android.content.Context
-import android.media.AudioManager
 import android.media.MediaMetadataRetriever
-import android.media.ToneGenerator
 import android.util.Base64
 import com.example.BuildConfig
 import com.example.R
@@ -1155,11 +1153,9 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                 }
                 if (videoUrl.isNullOrBlank()) videoLoadFailed = true
             } else {
-                val tone = ToneGenerator(AudioManager.STREAM_MUSIC, 70)
-                try {
-                    tone.startTone(ToneGenerator.TONE_DTMF_0 + Math.floorMod(active.giftId.hashCode(), 16), 420)
-                    delay(if (active.giftId == "gift_royal_ride") 8500L else 5000L)
-                } finally { tone.release() }
+                // Gift visuals must never request or emit STREAM_MUSIC audio:
+                // keep the shared room song uninterrupted while the animation runs.
+                delay(if (active.giftId == "gift_royal_ride") 8500L else 5000L)
                 onFinished()
             }
         }
@@ -1194,7 +1190,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                             tag = event?.id
                             setVideoURI(Uri.parse(videoUrl))
                             setOnPreparedListener { player ->
-                                player.setVolume(1f, 1f)
+                                player.setVolume(0f, 0f)
                                 videoReady = true
                                 start()
                             }

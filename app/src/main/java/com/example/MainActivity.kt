@@ -115,6 +115,7 @@ import com.example.ui.screens.ShopScreen
 import com.example.ui.screens.RelationshipScreen
 import com.example.ui.screens.PublicProfileSheet
 import com.example.ui.screens.RoomsHubScreen
+import com.example.ui.screens.RoomMusicPlayback
 import com.example.ui.screens.VoiceRoomScreen
 import com.example.ui.state.RoomViewModel
 import com.example.ui.state.UiState
@@ -792,6 +793,7 @@ private fun AuthenticatedVibePlayApp(
                                             },
                                             onOpenUserProfile = inspectUserById,
                                             onBack = {
+                                                RoomMusicPlayback.release()
                                                 (context as? MainActivity)?.setVoiceRoomActive(false)
                                                 activeRoomId = null
                                                 navController.popBackStack()
@@ -808,32 +810,28 @@ private fun AuthenticatedVibePlayApp(
                             activeRoomId?.takeIf { roomId ->
                                 currentRoute?.startsWith("room/") != true && currentRoute != "room/$roomId"
                             }?.let { roomId ->
-                                Button(
+                                Surface(
                                     onClick = {
-                                        // Reveal the existing room destination instead
-                                        // of creating a second room instance.
-                                        navController.popBackStack(
-                                            route = "room/$roomId",
-                                            inclusive = false
-                                        )
+                                        navController.popBackStack(route = "room/$roomId", inclusive = false)
                                     },
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
                                         .padding(top = 16.dp, end = 16.dp)
+                                        .size(46.dp)
                                         .testTag("floating_return_to_room"),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = VibeViolet,
-                                        contentColor = androidx.compose.ui.graphics.Color.White
-                                    )
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                    color = VibeViolet,
+                                    contentColor = androidx.compose.ui.graphics.Color.White,
+                                    shadowElevation = 8.dp
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.GraphicEq,
-                                        contentDescription = "Return to live room",
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Live Room", fontWeight = FontWeight.Bold)
-                                }
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Filled.GraphicEq,
+                                            contentDescription = "Return to room",
+                                            modifier = Modifier.size(23.dp)
+                                        )
+                                    }
+                                }              }
                             }
                         }
                     }

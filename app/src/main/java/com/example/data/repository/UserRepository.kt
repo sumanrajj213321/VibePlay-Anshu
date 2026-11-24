@@ -575,29 +575,48 @@ class UserRepository(
         return try {
             val uid = requireUserId()
             check(uid == currentUser.userId && uid != targetUser.userId)
+
             val myUserRef = db.collection("users").document(uid)
             val targetUserRef = db.collection("users").document(targetUser.userId)
             val myFollowingRef = myUserRef.collection("following").document(targetUser.userId)
             val theirFollowerRef = targetUserRef.collection("followers").document(uid)
 
             db.runTransaction { tx ->
+                // Read every document before making any writes. Firestore may retry
+                // this block, so the decision is based only on the current database state.
                 val mySnap = tx.get(myUserRef)
                 val targetSnap = tx.get(targetUserRef)
                 val myFollowingSnap = tx.get(myFollowingRef)
                 val theirFollowerSnap = tx.get(theirFollowerRef)
 
-                val myFollowingCount = mySnap.getLong("followingCount") ?: currentUser.followingCount
-                val targetFollowersCount = targetSnap.getLong("followersCount") ?: targetUser.followersCount
-                if (myFollowingSnap.exists() || (currentlyFollowing && theirFollowerSnap.exists())) {
-                    if (myFollowingSnap.exists()) tx.delete(myFollowingRef)
-                    if (theirFollowerSnap.exists()) tx.delete(theirFollowerRef)
-                    if (myFollowingSnap.exists()) {
-                        tx.update(myUserRef, mapOf("followingCount" to (myFollowingCount - 1L).coerceAtLeast(0L), "updatedAt" to FieldValue.serverTimestamp()))
-                    }
-                    if (theirFollowerSnap.exists()) {
-                        tx.update(targetUserRef, mapOf("followersCount" to (targetFollowersCount - 1L).coerceAtLeast(0L), "updatedAt" to FieldValue.serverTimestamp()))
-                    }
-                } else if (!myFollowingSnap.exists()) {
+                check(mySnap.exists()) { "Your profile could not be found." }
+                check(targetSnap.exists()) { "This user's profile could not be found." }
+
+                val myFollowingCount = (mySnap.getLong("followingCount") ?: 0L).coerceAtLeast(0L)
+                val targetFollowersCount = (targetSnap.getLong("followersCount") ?: 0L).coerceAtLeast(0L)
+
+                // Either edge means this relationship already exists. Remove BOTH
+                // sides to repair any legacy one-sided relationship.
+                val relationshipExists = myFollowingSnap.exists() || theirFollowerSnap.exists()
+                if (relationshipExists) {
+                    tx.delete(myFollowingRef)
+                    tx.delete(theirFollowerRef)
+                    tx.update(
+                        myUserRef,
+                        mapOf(
+                            "followingCount" to (myFollowingCount - 1L).coerceAtLeast(0L),
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                    tx.update(
+                        targetUserRef,
+                        mapOf(
+                            "followersCount" to (targetFollowersCount - 1L).coerceAtLeast(0L),
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                } else {
+                    val now = FieldValue.serverTimestamp()
                     tx.set(
                         myFollowingRef,
                         mapOf(
@@ -605,7 +624,7 @@ class UserRepository(
                             "peerName" to targetUser.username,
                             "peerAvatarUrl" to targetUser.avatarUrl,
                             "peerGender" to targetUser.gender,
-                            "createdAt" to FieldValue.serverTimestamp()
+                            "createdAt" to now
                         )
                     )
                     tx.set(
@@ -615,7 +634,7 @@ class UserRepository(
                             "peerName" to currentUser.username,
                             "peerAvatarUrl" to currentUser.avatarUrl,
                             "peerGender" to currentUser.gender,
-                            "createdAt" to FieldValue.serverTimestamp()
+                            "createdAt" to now
                         )
                     )
                     tx.update(
@@ -632,6 +651,7 @@ class UserRepository(
                             "updatedAt" to FieldValue.serverTimestamp()
                         )
                     )
+
                     val notifRef = db.collection("notifications").document()
                     tx.set(
                         notifRef,
@@ -658,7 +678,7 @@ class UserRepository(
         }
     }
 
-    suspend fun blockOrUnblockUser(targetUserId: String, block: Boolean, currentBlocked: List<String>): Result<Unit> {
+        suspend fun blockOrUnblockUser(targetUserId: String, block: Boolean, currentBlocked: List<String>): Result<Unit> {
         val uid = auth.currentUser?.uid ?: "unauthenticated"
         val path = "users/$uid/private/account"
         return try {

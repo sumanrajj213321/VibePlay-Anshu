@@ -322,7 +322,7 @@ internal fun RoomMusicPanel(
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
                 Text(
-                    "Upload limit: 15 MB per track. Storage is shared by everyone in this room.",
+                    "Upload limit: 15 MB per track. This music library is shared across all VibePlay rooms.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

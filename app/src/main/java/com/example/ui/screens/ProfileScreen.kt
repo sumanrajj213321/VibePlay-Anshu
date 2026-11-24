@@ -655,7 +655,7 @@ fun ProfileScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         VibeCoinIcon(modifier = Modifier.size(32.dp))
-                        Text("${profile.coinBalance} Coins", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = VibeGold)
+                        Text("${profile.coinBalance}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = VibeGold)
                         Text("Tap to claim daily +150", style = MaterialTheme.typography.labelSmall)
                     }
                 }

@@ -50,9 +50,9 @@ class RoomViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), null)
 
-    fun updateRoomMusic(trackId: String, status: String, positionMs: Long = 0L) {
+    fun updateRoomMusic(trackId: String, status: String, positionMs: Long = 0L, queueTrackIds: List<String> = emptyList()) {
         viewModelScope.launch {
-            roomRepository.updateRoomMusic(roomId, trackId, status, positionMs)
+            roomRepository.updateRoomMusic(roomId, trackId, status, positionMs, queueTrackIds)
                 .onFailure { error -> _roomError.value = error.localizedMessage ?: "Music control failed." }
         }
     }

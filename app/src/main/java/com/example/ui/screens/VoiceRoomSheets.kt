@@ -604,6 +604,7 @@ fun RoomOnlineMembersSheet(
     onToggleRoomAdmin: ((userId: String, username: String, promote: Boolean) -> Unit)? = null,
     onReportListener: (RoomListener) -> Unit,
     onBlockListener: (RoomListener) -> Unit,
+    onKickMember: (String) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     // Only show users verified by the live room session + online presence stream.
@@ -746,6 +747,14 @@ fun RoomOnlineMembersSheet(
                                 }
                                 IconButton(onClick = { onBlockListener(listenerModel) }) {
                                     Icon(Icons.Filled.Block, contentDescription = "Block user", tint = VibeCoral, modifier = Modifier.size(18.dp))
+                                }
+                                if (isHost && member.stageRole != "HOST") {
+                                    IconButton(
+                                        onClick = { onKickMember(member.userId) },
+                                        modifier = Modifier.testTag("kick_room_member_${member.userId}")
+                                    ) {
+                                        Icon(Icons.Filled.PersonRemove, contentDescription = "Remove from room", tint = VibeCoral, modifier = Modifier.size(18.dp))
+                                    }
                                 }
                             }
                         }

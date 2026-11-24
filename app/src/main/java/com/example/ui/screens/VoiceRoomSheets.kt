@@ -223,14 +223,10 @@ fun RoomGiftStoreSheet(
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Combo Quantity", style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(1L, 5L, 10L, 50L, 99L).forEach { qty ->
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(listOf(1L, 5L, 10L, 50L, 99L)) { qty ->
                         FilterChip(
                             selected = selectedQuantity == qty,
                             onClick = { selectedQuantity = qty },

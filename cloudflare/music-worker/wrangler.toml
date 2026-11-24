@@ -1,0 +1,14 @@
+name = "vibeplay-music"
+main = "src/index.ts"
+compatibility_date = "2026-11-24"
+workers_dev = true
+
+[vars]
+FIREBASE_PROJECT_ID = "vibeplay-anshu"
+MAX_STORAGE_BYTES = "10200547328"
+MAX_UPLOAD_BYTES = "15728640"
+ALLOWED_ORIGINS = "*"
+
+[[r2_buckets]]
+binding = "MUSIC_BUCKET"
+bucket_name = "vibeplay-music"

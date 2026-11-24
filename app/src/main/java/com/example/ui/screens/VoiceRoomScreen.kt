@@ -1095,14 +1095,13 @@ internal fun VoiceRoomStageContent(
         )
     }
 
-    if (showRoomMusic) {
-        RoomMusicPanel(
-            roomMusic = roomMusic,
-            canControl = isManager || mySeat != null,
-            onUpdateRoomMusic = onUpdateRoomMusic,
-            onDismiss = { showRoomMusic = false }
-        )
-    }
+    RoomMusicPanel(
+        visible = showRoomMusic,
+        roomMusic = roomMusic,
+        canControl = isManager || mySeat != null,
+        onUpdateRoomMusic = onUpdateRoomMusic,
+        onDismiss = { showRoomMusic = false }
+    )
 
     reportTarget?.let { (type, id, name) ->
         ReportUserOrRoomDialog(

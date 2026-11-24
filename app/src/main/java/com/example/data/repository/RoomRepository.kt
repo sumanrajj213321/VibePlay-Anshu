@@ -711,6 +711,7 @@ class RoomRepository(
                 val loadedRoom = roomSnap.toObject(VoiceRoom::class.java)
                     ?: throw IllegalStateException("Room data could not be loaded.")
                 check(loadedRoom.status == "LIVE") { "This room is no longer live." }
+                check(uid !in loadedRoom.bannedUserIds) { "You are banned from this room. Ask the Room Owner to unblock you." }
                 val listenerSnap = tx.get(listenerRef)
                 val seatSnaps = (1..VoiceStage.SPEAKER_SEAT_COUNT).map { idx ->
                     tx.get(roomRef.collection("seats").document(idx.toString()))
@@ -1517,7 +1518,7 @@ class RoomRepository(
                 val roomSnap = tx.get(roomRef)
                 val loadedRoom = roomSnap.toObject(VoiceRoom::class.java)
                     ?: throw IllegalStateException("Room not found.")
-                check(loadedRoom.isManager(uid)) { "Only the Room Owner or a Room Admin can kick members." }
+                check(loadedRoom.isOwner(uid)) { "Only the Room Owner can ban members from this room." }
                 check(!loadedRoom.isOwner(targetUserId)) { "The Room Owner cannot be kicked." }
                 val listenerSnap = tx.get(listenerRef)
                 val sessionSnap = tx.get(sessionRef)
@@ -1532,8 +1533,7 @@ class RoomRepository(
                 if (listenerSnap.exists()) tx.delete(listenerRef)
                 if (sessionSnap.exists()) tx.delete(sessionRef)
                 if (targetSeat >= 0) {
-                    val seatRef = seatRefs[targetSeat]
-                    tx.update(seatRef, mapOf(
+                    tx.update(seatRefs[targetSeat], mapOf(
                         "occupantId" to "",
                         "occupantName" to "",
                         "occupantAvatarUrl" to "",
@@ -1547,13 +1547,42 @@ class RoomRepository(
                 val remainingSpeakers = seatSnaps.count {
                     it.getString("occupantId").orEmpty().isNotBlank() && it.getString("occupantId") != targetUserId
                 }
-                val nextActiveAdmins = loadedRoom.activeAdminIds.filter { it != targetUserId }
                 tx.update(roomRef, mapOf(
+                    "bannedUserIds" to FieldValue.arrayUnion(targetUserId),
+                    "adminIds" to FieldValue.arrayRemove(targetUserId),
+                    "activeAdminIds" to FieldValue.arrayRemove(targetUserId),
                     "listenerCount" to (loadedRoom.listenerCount - if (listenerSnap.exists()) 1L else 0L).coerceAtLeast(0L),
                     "activeSpeakersCount" to ((if (loadedRoom.effectiveOwnerOnline) 1 else 0) + remainingSpeakers).coerceIn(0, 9).toLong(),
-                    "activeAdminIds" to nextActiveAdmins,
                     "updatedAt" to FieldValue.serverTimestamp()
                 ))
+            }.await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, path)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun unblockRoomMember(roomId: String, targetUserId: String): Result<Unit> {
+        val path = "rooms/$roomId"
+        return try {
+            val uid = requireUserId()
+            require(targetUserId.isNotBlank() && targetUserId != uid)
+            val roomRef = db.collection("rooms").document(roomId)
+            db.runTransaction { tx ->
+                val roomSnap = tx.get(roomRef)
+                val loadedRoom = roomSnap.toObject(VoiceRoom::class.java)
+                    ?: throw IllegalStateException("Room not found.")
+                check(loadedRoom.isOwner(uid)) { "Only the Room Owner can unblock members." }
+                tx.update(
+                    roomRef,
+                    mapOf(
+                        "bannedUserIds" to FieldValue.arrayRemove(targetUserId),
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                )
             }.await()
             Result.success(Unit)
         } catch (e: CancellationException) {

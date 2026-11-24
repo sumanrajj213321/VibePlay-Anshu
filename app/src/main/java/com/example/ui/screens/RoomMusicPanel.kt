@@ -73,8 +73,6 @@ internal fun RoomMusicPanel(
     }
     var tracks by remember { mutableStateOf<List<MusicTrack>>(emptyList()) }
     var search by remember { mutableStateOf("") }
-    var title by remember { mutableStateOf("") }
-    var artist by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var volume by remember { mutableFloatStateOf(1f) }
@@ -162,11 +160,9 @@ internal fun RoomMusicPanel(
                     val uploaded = client.upload(
                         context.contentResolver,
                         uri,
-                        title.ifBlank { fallbackTitle },
-                        artist.ifBlank { "Unknown artist" }
+                        fallbackTitle,
+                        "Unknown artist"
                     )
-                    title = ""
-                    artist = ""
                     refreshLibrary()
                     onUpdateRoomMusic(
                         uploaded.id,
@@ -308,7 +304,6 @@ internal fun RoomMusicPanel(
                         ) {
                             Column(Modifier.fillMaxWidth().padding(9.dp)) {
                                 Text(track.title, style = MaterialTheme.typography.bodyMedium)
-                                Text(track.artist, style = MaterialTheme.typography.labelSmall)
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     if (canUpload) {
                                         TextButton(onClick = {
@@ -345,20 +340,6 @@ internal fun RoomMusicPanel(
                     }
                 }
                 if (canUpload) {
-                    OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it.take(80) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text("Track title (optional)") }
-                    )
-                    OutlinedTextField(
-                        value = artist,
-                        onValueChange = { artist = it.take(80) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text("Artist (optional)") }
-                    )
                     Button(
                         onClick = { picker.launch(arrayOf("audio/*")) },
                         enabled = !loading && client.isConfigured,

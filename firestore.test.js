@@ -585,6 +585,10 @@ test("Strict 9-seat Voice Room batch creation, seat 9 rejection, seat 0 protecti
     joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
     lastSeenAt: firebase.firestore.FieldValue.serverTimestamp(),
   }));
+  await assertSucceeds(roomRef.update({
+    bannedUserIds: firebase.firestore.FieldValue.arrayRemove(BOB_UID),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
 
   // Safe ownership transfer from Alice to Bob (seated in seat 1)
   const transferBatch = aliceDb.batch();

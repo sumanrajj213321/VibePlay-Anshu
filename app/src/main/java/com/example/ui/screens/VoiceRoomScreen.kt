@@ -146,6 +146,7 @@ fun VoiceRoomScreen(
     roomEffectsEnabled: Boolean = true,
     onInviteUserToRoom: (userId: String, room: VoiceRoom) -> Unit = { _, _ -> },
     onOpenUserProfile: ((String) -> Unit)? = null,
+    onMinimizeToPip: () -> Unit = {},
     onBack: () -> Unit,
     onSubmitReport: (targetType: String, targetId: String, targetName: String, reason: String, details: String) -> Unit,
     onBlockUser: (String) -> Unit,
@@ -171,7 +172,7 @@ fun VoiceRoomScreen(
     }
 
     BackHandler {
-        roomViewModel.leaveRoom(onBack)
+        onMinimizeToPip()
     }
 
     LaunchedEffect(activeGifts) {
@@ -726,6 +727,12 @@ internal fun VoiceRoomStageContent(
                             }
                         }
 
+                        IconButton(
+                            onClick = onMinimizeToPip,
+                            modifier = Modifier.testTag("minimize_room_button")
+                        ) {
+                            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Keep room floating")
+                        }
                         IconButton(
                             onClick = onLeaveRoom,
                             modifier = Modifier.testTag("leave_room_button")

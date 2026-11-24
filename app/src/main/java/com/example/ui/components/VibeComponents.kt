@@ -950,6 +950,7 @@ fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
         return
     }
     val colors = when (gift.id) {
+        "gift_royal_vows" -> listOf(Color(0xFFFFD76A), Color(0xFF8B1E3F))
         "gift_couple_kiss", "gift_love_promise", "gift_moonlight_dance" -> listOf(Color(0xFFFF8DBB), Color(0xFF713A91))
         "gift_royal_phoenix", "gift_galaxy_crown" -> listOf(Color(0xFFFFC857), Color(0xFF8138A8))
         "gift_crystal_wave", "gift_diamond_rain", "gift_ocean_palace" -> listOf(Color(0xFF37D9E8), Color(0xFF2450A4))
@@ -981,6 +982,7 @@ fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
             "gift_dragon_flight" -> { val p=Path().apply{moveTo(c.x-u*1.5f,c.y+u*0.7f);cubicTo(c.x-u*0.3f,c.y-u*1.8f,c.x+u*0.3f,c.y+u*1.8f,c.x+u*1.5f,c.y-u*0.7f);lineTo(c.x+u*0.65f,c.y-u*0.35f);lineTo(c.x+u*0.95f,c.y-u*1.35f);lineTo(c.x-u*0.15f,c.y-u*0.6f);close()};drawPath(p,Color(0xFFD6B9FF));drawPath(p,white,style=Stroke(2.dp.toPx())) }
             "gift_ocean_palace" -> { drawRoundRect(Color(0xFFB6F8FF),Offset(c.x-u*1.35f,c.y-u*0.2f),androidx.compose.ui.geometry.Size(u*2.7f,u*1.35f),androidx.compose.ui.geometry.CornerRadius(u*0.12f));for(i in -1..1){val x=c.x+i*u*0.9f;val p=Path().apply{moveTo(x-u*0.42f,c.y-u*0.2f);lineTo(x,c.y-u*1.15f);lineTo(x+u*0.42f,c.y-u*0.2f);close()};drawPath(p,gold)} }
             "gift_vibe_universe" -> { drawCircle(white,u*0.48f,c);drawCircle(gold,u,c,style=Stroke(3.dp.toPx()));drawOval(white,Offset(c.x-u*1.5f,c.y-u*0.48f),androidx.compose.ui.geometry.Size(u*3f,u*0.95f),style=Stroke(3.dp.toPx())) }
+            "gift_royal_vows" -> { drawCircle(gold,u*1.05f,Offset(c.x-u*0.48f,c.y)); drawCircle(Color(0xFF8B1E3F),u*0.82f,Offset(c.x+u*0.48f,c.y)); drawCircle(Color(0xFFFFE6A3),u*0.2f,Offset(c.x,c.y-u*0.92f)); diamond(c.x,c.y-u*1.35f,u*0.42f,white) }
             else -> diamond(c.x,c.y,u,white)
         }
         for(i in 0..3)drawCircle(white.copy(alpha=0.75f),1.8.dp.toPx(),Offset(size.width*(0.16f+i*0.22f),size.height*(0.16f+(i%2)*0.68f)))

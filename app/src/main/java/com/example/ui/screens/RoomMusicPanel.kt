@@ -58,7 +58,7 @@ internal fun RoomMusicPanel(
     visible: Boolean,
     roomMusic: RoomMusicState?,
     canControl: Boolean,
-    onUpdateRoomMusic: (trackId: String, status: String, positionMs: Long) -> Unit,
+    onUpdateRoomMusic: (trackId: String, status: String, positionMs: Long, queueTrackIds: List<String>) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -149,7 +149,7 @@ internal fun RoomMusicPanel(
                     title = ""
                     artist = ""
                     refreshLibrary()
-                    onUpdateRoomMusic(uploaded.id, "PLAYING", 0L)
+                    onUpdateRoomMusic(uploaded.id, "PLAYING", 0L, roomMusic?.queueTrackIds.orEmpty())
                 } catch (e: Exception) {
                     error = e.localizedMessage ?: "Upload failed."
                 } finally {
@@ -187,10 +187,10 @@ internal fun RoomMusicPanel(
                             val id = roomMusic?.trackId.orEmpty()
                             if (id.isNotBlank()) {
                                 if (roomMusic?.status == "PLAYING") {
-                                    onUpdateRoomMusic(id, "PAUSED", player.currentPosition)
+                                    onUpdateRoomMusic(id, "PAUSED", player.currentPosition, roomMusic?.queueTrackIds.orEmpty())
                                     player.pause()
                                 } else {
-                                    onUpdateRoomMusic(id, "PLAYING", player.currentPosition)
+                                    onUpdateRoomMusic(id, "PLAYING", player.currentPosition, roomMusic?.queueTrackIds.orEmpty())
                                     player.play()
                                 }
                             }
@@ -208,12 +208,27 @@ internal fun RoomMusicPanel(
                             if (id.isNotBlank()) {
                                 player.pause()
                                 player.seekTo(0L)
-                                onUpdateRoomMusic(id, "STOPPED", 0L)
+                                onUpdateRoomMusic(id, "STOPPED", 0L, roomMusic?.queueTrackIds.orEmpty())
                             }
                         }
                     ) {
                         Icon(Icons.Filled.Stop, contentDescription = "Stop music")
                     }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        enabled = canControl && !roomMusic?.queueTrackIds.isNullOrEmpty(),
+                        onClick = {
+                            val queue = roomMusic?.queueTrackIds.orEmpty()
+                            val nextId = queue.firstOrNull() ?: return@Button
+                            onUpdateRoomMusic(nextId, "PLAYING", 0L, queue.drop(1))
+                        }
+                    ) { Text("Next in queue") }
+                }
+                Text("Queue · ${roomMusic?.queueTrackIds?.size ?: 0}")
+                roomMusic?.queueTrackIds?.take(5)?.forEachIndexed { index, id ->
+                    val queued = tracks.firstOrNull { it.id == id }
+                    Text("${index + 1}. ${queued?.title ?: "Track"}", style = MaterialTheme.typography.labelSmall)
                 }
                 Text("Volume")
                 Slider(value = volume, onValueChange = {
@@ -241,12 +256,25 @@ internal fun RoomMusicPanel(
                                 MaterialTheme.colorScheme.secondaryContainer
                             else MaterialTheme.colorScheme.surfaceVariant,
                             modifier = Modifier.clickable {
-                                if (canControl) onUpdateRoomMusic(track.id, "PLAYING", 0L)
+                                if (canControl) onUpdateRoomMusic(track.id, "PLAYING", 0L, roomMusic?.queueTrackIds.orEmpty())
                             }
                         ) {
                             Column(Modifier.fillMaxWidth().padding(9.dp)) {
                                 Text(track.title, style = MaterialTheme.typography.bodyMedium)
                                 Text(track.artist, style = MaterialTheme.typography.labelSmall)
+                                if (canControl) {
+                                    TextButton(onClick = {
+                                        val queue = roomMusic?.queueTrackIds.orEmpty()
+                                        if (track.id != roomMusic?.trackId && track.id !in queue) {
+                                            onUpdateRoomMusic(
+                                                roomMusic?.trackId.orEmpty(),
+                                                roomMusic?.status ?: "STOPPED",
+                                                player.currentPosition.coerceAtLeast(0L),
+                                                queue + track.id
+                                            )
+                                        }
+                                    }) { Text("Add to queue") }
+                                }
                             }
                         }
                     }

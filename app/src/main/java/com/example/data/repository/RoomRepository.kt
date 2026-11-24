@@ -1734,6 +1734,7 @@ class RoomRepository(
                         "giftId" to gift.id,
                         "giftName" to "$qtyLabel${gift.name}",
                         "giftCoins" to totalCost,
+                        "giftQuantity" to safeQty,
                         "recipientName" to recipientName,
                         "createdAt" to FieldValue.serverTimestamp()
                     )

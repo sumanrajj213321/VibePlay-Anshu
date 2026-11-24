@@ -90,6 +90,59 @@ beforeEach(async () => {
   }
 });
 
+
+test("Room music queue can be read and updated by a seated room member", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
+  const roomId = "room_music_queue";
+  const roomPath = `rooms/${roomId}`;
+
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const admin = ctx.firestore();
+    await admin.doc(roomPath).set({
+      hostId: ALICE_UID,
+      ownerId: ALICE_UID,
+      adminIds: [],
+    });
+    await admin.doc(`${roomPath}/room_sessions/${ALICE_UID}`).set({
+      userId: ALICE_UID,
+      joinedAt: pastDate(),
+    });
+    await admin.doc(`${roomPath}/room_sessions/${BOB_UID}`).set({
+      userId: BOB_UID,
+      joinedAt: pastDate(),
+    });
+    await admin.doc(`${roomPath}/seats/2`).set({
+      seatIndex: 2,
+      role: "SPEAKER",
+      occupantId: BOB_UID,
+    });
+  });
+
+  const stateRef = aliceDb.doc(`${roomPath}/music/state`);
+  await assertSucceeds(stateRef.set({
+    trackId: "track_current",
+    status: "PLAYING",
+    positionMs: 0,
+    updatedBy: ALICE_UID,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    queueTrackIds: [],
+  }));
+
+  const bobStateRef = bobDb.doc(`${roomPath}/music/state`);
+  const snapshot = await assertSucceeds(bobStateRef.get());
+  await assertSucceeds(bobStateRef.update({
+    queueTrackIds: ["track_next"],
+    updatedBy: BOB_UID,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+
+  const updated = await assertSucceeds(bobStateRef.get());
+  if (updated.get("queueTrackIds")[0] !== "track_next") {
+    throw new Error("A seated member's queued track was not saved.");
+  }
+});
+
 test("Only the owner can feature a partner from an ACTIVE relationship pair", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();

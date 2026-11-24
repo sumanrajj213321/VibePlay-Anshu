@@ -79,6 +79,7 @@ import com.example.data.model.VibeShopCatalog
 import com.example.ui.components.BackendIntegrationGuideSheet
 import com.example.ui.components.BiologicalGenderBadge
 import com.example.ui.components.LevelBadge
+import com.example.ui.components.VibeCoinIcon
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.VipBadgePill
 import com.example.ui.components.VipShiningNameText
@@ -654,7 +655,7 @@ fun ProfileScreen(
                         modifier = Modifier.padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(Icons.Filled.MonetizationOn, contentDescription = null, tint = VibeGold)
+                        VibeCoinIcon(modifier = Modifier.size(30.dp), pile = true)
                         Text("${profile.coinBalance} Coins", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = VibeGold)
                         Text("Tap to claim daily +150", style = MaterialTheme.typography.labelSmall)
                     }

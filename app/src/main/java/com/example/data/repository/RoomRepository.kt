@@ -181,12 +181,7 @@ class RoomRepository(
                 state.getString("trackId") != expectedTrackId ||
                 state.getString("status") != "PLAYING"
             ) return@runTransaction
-            val room = tx.get(roomRef).toObject(VoiceRoom::class.java)
-                ?: throw IllegalStateException("Room no longer exists.")
-            val isController = room.isRoomAdmin(uid) ||
-                (1..VoiceStage.SPEAKER_SEAT_COUNT).any { index ->
-                    false
-                }
+            tx.get(roomRef)
             val queue = (state.get("queueTrackIds") as? List<*>).orEmpty()
                 .filterIsInstance<String>()
             val nextId = queue.firstOrNull()

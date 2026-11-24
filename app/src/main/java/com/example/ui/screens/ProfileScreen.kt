@@ -78,7 +78,9 @@ import com.example.R
 import com.example.data.model.FollowEdge
 import com.example.data.model.CharmProgression
 import com.example.ui.components.CharmEmblem
+import com.example.ui.components.GiftCatalogArtwork
 import com.example.data.model.GiftTransaction
+import com.example.data.model.GiftCatalogItem
 import com.example.data.model.LevelProgression
 import com.example.data.model.UserProfile
 import com.example.data.model.VibeShopCatalog
@@ -684,7 +686,9 @@ fun ProfileScreen(
                     .filter { it.recipientId == profile.userId && it.giftName.isNotBlank() }
                     .groupBy { it.giftId.ifBlank { it.giftName.trim().lowercase() } }
                     .map { (_, transactions) ->
-                        transactions.first().giftName to transactions.sumOf { it.quantity.coerceAtLeast(1L) }
+                        val first = transactions.first()
+                        GiftCatalogItem(id = first.giftId, name = first.giftName) to
+                            transactions.sumOf { it.quantity.coerceAtLeast(1L) }
                     }
                     .sortedByDescending { it.second }
             }
@@ -713,7 +717,7 @@ fun ProfileScreen(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        receivedGiftWall.forEach { (giftName, quantity) ->
+                        receivedGiftWall.forEach { (gift, quantity) ->
                             Surface(
                                 modifier = Modifier.width(112.dp),
                                 shape = RoundedCornerShape(16.dp),
@@ -732,9 +736,9 @@ fun ProfileScreen(
                                         ),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(giftWallThumbnail(giftName), fontSize = 38.sp)
+                                        GiftCatalogArtwork(gift = gift, modifier = Modifier.size(58.dp))
                                     }
-                                    Text(giftName, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(gift.name, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text("×$quantity", style = MaterialTheme.typography.labelSmall, color = VibeCyan, fontWeight = FontWeight.ExtraBold)
                                 }
                             }
@@ -1048,23 +1052,3 @@ private fun ProfileActionRow(
     }
 }
 
-private fun giftWallThumbnail(giftName: String): String {
-    val name = giftName.lowercase()
-    return when {
-        "mojito" in name || "cocktail" in name || "drink" in name -> "🍹"
-        "star box" in name || "lucky box" in name || "gift box" in name -> "🎁"
-        "bloom" in name || "flower" in name -> "🌸"
-        "firework" in name || "2026" in name -> "🎆"
-        "vr" in name || "glass" in name -> "🥽"
-        "beer" in name -> "🍻"
-        "garage" in name || "car" in name || "ride" in name -> "🏎️"
-        "cherry" in name -> "🍒"
-        "balloon" in name -> "🎈"
-        "dragon" in name || "egg" in name -> "🥚"
-        "finger heart" in name || "heart" in name || "love" in name -> "💗"
-        "necklace" in name || "pearl" in name -> "📿"
-        "ice cream" in name -> "🍦"
-        "planet" in name || "universe" in name -> "🪐"
-        else -> "🎁"
-    }
-}

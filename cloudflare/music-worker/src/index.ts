@@ -142,7 +142,7 @@ export default {
         };
         const type = aliases[reportedType] || (reportedType === "application/octet-stream" || !reportedType
           ? extensionType : reportedType);
-        if (!TYPES.has(reportedType) || !["audio/mpeg","audio/mp4","audio/aac","audio/ogg","audio/wav","audio/flac"].includes(type)) {
+        if ((reportedType !== "" && !TYPES.has(reportedType)) || !["audio/mpeg","audio/mp4","audio/aac","audio/ogg","audio/wav","audio/flac"].includes(type)) {
           return reply({ error: "Unsupported audio format. Choose MP3, M4A, AAC, OGG, WAV or FLAC." }, 415, h);
         }
         const maxUpload = Number(env.MAX_UPLOAD_BYTES || DEFAULT_MAX_UPLOAD);

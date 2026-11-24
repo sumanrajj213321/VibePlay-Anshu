@@ -9,7 +9,7 @@ export interface Env {
 
 const DEFAULT_MAX_STORAGE = 4.5 * 1024 * 1024 * 1024;
 const DEFAULT_MAX_UPLOAD = 15 * 1024 * 1024;
-const TYPES = new Set(["audio/mpeg","audio/mp4","audio/aac","audio/ogg","audio/wav","audio/x-wav","audio/flac","audio/opus","video/mp4","application/mp4"]);
+const TYPES = new Set(["audio/mpeg","audio/mp4","audio/aac","audio/ogg","audio/wav","audio/x-wav","audio/wave","audio/vnd.wave","audio/flac","audio/x-flac","audio/x-aac","audio/m4a","audio/x-m4a","audio/opus","audio/x-opus+ogg","application/ogg","video/mp4","application/mp4","application/octet-stream"]);
 
 function cors(request: Request, env: Env): Headers {
   const origin = request.headers.get("Origin") || "";
@@ -126,8 +126,25 @@ export default {
         const incoming = await request.formData();
         const file = incoming.get("file");
         if (!(file instanceof File)) return reply({ error: "Choose an audio file." }, 400, h);
-        const type = (file.type || "").toLowerCase().split(";")[0];
-        if (!TYPES.has(type)) return reply({ error: "Unsupported audio format." }, 415, h);
+        const reportedType = (file.type || "").toLowerCase().split(";")[0].trim();
+        const extension = (file.name.split(".").pop() || "").toLowerCase();
+        const extensionType = extension === "mp3" ? "audio/mpeg" :
+          extension === "m4a" || extension === "mp4" ? "audio/mp4" :
+          extension === "aac" ? "audio/aac" :
+          ["ogg", "oga", "opus"].includes(extension) ? "audio/ogg" :
+          extension === "flac" ? "audio/flac" : extension === "wav" ? "audio/wav" : "";
+        const aliases: Record<string, string> = {
+          "video/mp4": "audio/mp4", "application/mp4": "audio/mp4",
+          "audio/m4a": "audio/mp4", "audio/x-m4a": "audio/mp4",
+          "audio/x-wav": "audio/wav", "audio/wave": "audio/wav", "audio/vnd.wave": "audio/wav",
+          "audio/x-flac": "audio/flac", "audio/x-aac": "audio/aac",
+          "application/ogg": "audio/ogg", "audio/opus": "audio/ogg", "audio/x-opus+ogg": "audio/ogg"
+        };
+        const type = aliases[reportedType] || (reportedType === "application/octet-stream" || !reportedType
+          ? extensionType : reportedType);
+        if (!TYPES.has(reportedType) || !["audio/mpeg","audio/mp4","audio/aac","audio/ogg","audio/wav","audio/flac"].includes(type)) {
+          return reply({ error: "Unsupported audio format. Choose MP3, M4A, AAC, OGG, WAV or FLAC." }, 415, h);
+        }
         const maxUpload = Number(env.MAX_UPLOAD_BYTES || DEFAULT_MAX_UPLOAD);
         if (file.size <= 0 || file.size > maxUpload) return reply({ error: "Maximum upload size is 15 MB." }, 413, h);
         const files = await listFiles(env);
@@ -135,8 +152,8 @@ export default {
         if (used + file.size > Number(env.MAX_STORAGE_BYTES || DEFAULT_MAX_STORAGE)) {
           return reply({ error: "Music storage is full. Remove a track before uploading." }, 507, h);
         }
-        const ext = type === "audio/mpeg" ? "mp3" : type === "audio/mp4" ? "m4a" :
-          type === "audio/aac" ? "aac" : type === "audio/ogg" || type === "audio/opus" ? "ogg" :
+        const ext = type === "audio/mpeg" ? "mp3" : type === "audio/mp4" ? (extension === "mp4" ? "mp4" : "m4a") :
+          type === "audio/aac" ? "aac" : type === "audio/ogg" ? (["oga","opus"].includes(extension) ? extension : "ogg") :
           type === "audio/flac" ? "flac" : "wav";
         const title = String(incoming.get("title") || file.name).trim().slice(0, 120) || "Untitled";
         const artist = String(incoming.get("artist") || "Unknown artist").trim().slice(0, 80) || "Unknown artist";
@@ -159,7 +176,7 @@ export default {
 
       if (url.pathname.startsWith("/v1/music/") && request.method === "GET") {
         const name = decodeURIComponent(url.pathname.slice("/v1/music/".length));
-        if (!/^music_[A-Za-z0-9_-]{1,32}_[A-Fa-f0-9-]{36}_[A-Za-z0-9._-]+_[A-Za-z0-9._-]+\.(mp3|m4a|mp4|aac|ogg|flac|wav)$/i.test(name) || name.includes("..")) return reply({ error: "Invalid track." }, 400, h);
+        if (!/^music_[A-Za-z0-9_-]{1,32}_[A-Fa-f0-9-]{36}_[A-Za-z0-9._-]+_[A-Za-z0-9._-]+\.(mp3|m4a|mp4|aac|ogg|oga|opus|flac|wav)$/i.test(name) || name.includes("..")) return reply({ error: "Invalid track." }, 400, h);
         const response = await dbbyte(env, "/download/" + encodeURIComponent(name), {
           method: "GET",
           headers: request.headers.has("Range") ? { Range: request.headers.get("Range")! } : {}

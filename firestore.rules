@@ -751,7 +751,7 @@ service cloud.firestore {
                        isValidTs(incoming().updatedAt) && (
         (isRoomOwner(existing()) && existing().status == 'LIVE' &&
          incoming().featured == existing().featured &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'coverUrl', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'status', 'hostId', 'hostName', 'hostAvatarUrl', 'ownerId', 'ownerName', 'ownerOnline', 'adminIds', 'activeAdminIds', 'listenerCount', 'activeSpeakersCount', 'updatedAt'])) ||
+         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'coverUrl', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'status', 'hostId', 'hostName', 'hostAvatarUrl', 'ownerId', 'ownerName', 'ownerOnline', 'adminIds', 'activeAdminIds', 'bannedUserIds', 'listenerCount', 'activeSpeakersCount', 'updatedAt'])) ||
         (isRoomOwner(existing()) && existing().status == 'LIVE' &&
          incoming().featured == existing().featured &&
          incoming().diff(existing()).affectedKeys().hasOnly(['bannedUserIds', 'updatedAt']) &&

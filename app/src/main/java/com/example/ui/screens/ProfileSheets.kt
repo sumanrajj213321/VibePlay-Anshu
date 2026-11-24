@@ -35,6 +35,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Flag
@@ -1069,7 +1070,7 @@ fun PublicProfileSheet(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.Filled.AutoAwesome, contentDescription = "Charms", tint = Color(0xFF65FFF0), modifier = Modifier.size(19.dp))
+                            Icon(if (charmLevel >= 2L) Icons.Filled.EmojiEvents else Icons.Filled.AutoAwesome, contentDescription = "Charm level", tint = if (charmLevel >= 2L) Color(0xFFFFD76A) else Color(0xFF65FFF0), modifier = Modifier.size(19.dp))
                             Column {
                                 Text("CHARMS", style = MaterialTheme.typography.labelSmall, color = Color(0xFF65FFF0), fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
                                 Text("$charms  ·  Charm Level $charmLevel", style = MaterialTheme.typography.labelLarge, color = Color(0xFFE9FFFF), fontWeight = FontWeight.ExtraBold)

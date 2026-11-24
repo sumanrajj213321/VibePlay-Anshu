@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
-    MUSIC_API_BASE_URL: ${{ secrets.MUSIC_API_BASE_URL }}
+      MUSIC_API_BASE_URL: ${{ secrets.MUSIC_API_BASE_URL }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4

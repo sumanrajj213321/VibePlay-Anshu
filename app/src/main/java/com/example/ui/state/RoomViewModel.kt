@@ -132,7 +132,8 @@ class RoomViewModel(
                         recipientName = latestGift.recipientName,
                         giftName = latestGift.giftName,
                         coinCost = latestGift.giftCoins,
-                        giftId = latestGift.giftId
+                        giftId = latestGift.giftId,
+                        quantity = latestGift.giftQuantity.coerceIn(1L, 999L)
                     )
                 }
             }

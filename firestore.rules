@@ -154,6 +154,11 @@ service cloud.firestore {
       return isRoomOwner(roomData) || isRoomAdminUser(roomData);
     }
 
+    function isRoomMemberBanned(roomId) {
+      let roomData = get(/databases/$(database)/documents/rooms/$(roomId)).data;
+      return ('bannedUserIds' in roomData) && request.auth.uid in roomData.bannedUserIds;
+    }
+
     function isValidRoom(data) {
       return (!('publicRoomId' in data) || (data.publicRoomId is string && data.publicRoomId.matches('^[0-9]{6}$'))) &&
              (!('creatorId' in data) || (data.creatorId is string && data.creatorId.size() <= 128)) &&
@@ -165,7 +170,6 @@ service cloud.firestore {
              (!('ownerOnline' in data) || data.ownerOnline is bool) &&
              (!('adminIds' in data) || (data.adminIds is list && data.adminIds.size() <= 20 && (data.adminIds.size() == 0 || data.adminIds[0] is string))) &&
              (!('activeAdminIds' in data) || (data.activeAdminIds is list && data.activeAdminIds.size() <= 20 && (data.activeAdminIds.size() == 0 || data.activeAdminIds[0] is string))) &&
-             (!('bannedUserIds' in data) || (data.bannedUserIds is list && data.bannedUserIds.size() <= 500 && (data.bannedUserIds.size() == 0 || (data.bannedUserIds[0] is string && data.bannedUserIds[0].size() <= 128)))) &&
              data.title is string && data.title.size() >= 2 && data.title.size() <= 60 &&
              (!('announcement' in data) || (data.announcement is string && data.announcement.size() <= 200)) &&
              data.category in ['Chill', 'Music', 'Gaming', 'Dating', 'Karaoke', 'Chat'] &&
@@ -752,10 +756,6 @@ service cloud.firestore {
         (isRoomOwner(existing()) && existing().status == 'LIVE' &&
          incoming().featured == existing().featured &&
          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'announcement', 'category', 'coverKey', 'coverUrl', 'tags', 'locked', 'hasPassword', 'passcodeHash', 'status', 'hostId', 'hostName', 'hostAvatarUrl', 'ownerId', 'ownerName', 'ownerOnline', 'adminIds', 'activeAdminIds', 'bannedUserIds', 'listenerCount', 'activeSpeakersCount', 'updatedAt'])) ||
-        (isRoomOwner(existing()) && existing().status == 'LIVE' &&
-         incoming().featured == existing().featured &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['bannedUserIds', 'updatedAt']) &&
-         (!('bannedUserIds' in incoming()) || incoming().bannedUserIds is list)) ||
         (isRoomAdminUser(existing()) && existing().status == 'LIVE' &&
          incoming().hostId == existing().hostId &&
          (!('ownerId' in existing()) || incoming().ownerId == existing().ownerId) &&
@@ -932,7 +932,7 @@ service cloud.firestore {
                                  incoming().userId == request.auth.uid &&
                                  incoming().joinedAt is timestamp &&
                                  incoming().joinedAt == request.time &&
-                                 (!('bannedUserIds' in get(/databases/$(database)/documents/rooms/$(roomId)).data) || !(request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.bannedUserIds)) &&
+                                 !isRoomMemberBanned(roomId) &&
                                  incoming().keys().hasOnly(['userId', 'joinedAt', 'lastSeenAt']) &&
                                  (!('lastSeenAt' in incoming()) ||
                                   (incoming().lastSeenAt is timestamp && incoming().lastSeenAt == request.time));
@@ -959,7 +959,7 @@ service cloud.firestore {
                                  listenerId == request.auth.uid &&
                                  incoming().userId == request.auth.uid &&
                                  isValidRoomListener(incoming()) &&
-                                 (!('bannedUserIds' in get(/databases/$(database)/documents/rooms/$(roomId)).data) || !(request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.bannedUserIds)) &&
+                                 !isRoomMemberBanned(roomId) &&
                                  isValidTs(incoming().joinedAt);
         allow delete: if isSignedIn() && (listenerId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
       }

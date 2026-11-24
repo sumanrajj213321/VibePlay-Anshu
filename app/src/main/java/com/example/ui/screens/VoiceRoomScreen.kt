@@ -126,6 +126,7 @@ import com.example.ui.components.VipBadgePill
 import com.example.ui.components.VipShiningNameText
 import com.example.ui.components.VipEntranceOverlay
 import com.example.ui.components.coverDrawableRes
+import com.example.ui.components.RoomCoverImage
 import com.example.ui.state.RoomViewModel
 import com.example.ui.theme.VibeCoral
 import com.example.ui.theme.VibeCyan
@@ -604,25 +605,13 @@ internal fun VoiceRoomStageContent(
                 .padding(innerPadding)
         ) {
             // Subtle atmospheric cover backdrop
-            if (currentRoom.coverUrl.isNotBlank()) {
-                AsyncImage(
-                    model = currentRoom.coverUrl,
-                    contentDescription = "Room cover",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .alpha(0.18f),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Image(
-                    painter = painterResource(id = coverDrawableRes(currentRoom.coverKey)),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .alpha(0.18f),
-                    contentScale = ContentScale.Crop
-                )
-            }
+            RoomCoverImage(
+                roomId = currentRoom.id,
+                coverUrl = currentRoom.coverUrl,
+                fallbackCoverKey = currentRoom.coverKey,
+                modifier = Modifier.fillMaxSize().alpha(0.18f),
+                contentScale = ContentScale.Crop
+            )
             Box(
                 modifier = Modifier
                     .fillMaxSize()

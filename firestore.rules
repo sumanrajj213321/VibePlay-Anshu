@@ -936,7 +936,7 @@ service cloud.firestore {
                                     incoming().lastSeenAt == request.time &&
                                     incoming().diff(existing()).affectedKeys().hasOnly(['lastSeenAt']))
                                  );
-        allow delete: if isSignedIn() && sessionUserId == request.auth.uid;
+        allow delete: if isSignedIn() && (sessionUserId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
       }
 
       match /listeners/{listenerId} {

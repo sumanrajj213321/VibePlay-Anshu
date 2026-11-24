@@ -2068,12 +2068,7 @@ class RoomRepository(
     }
 
     companion object {
+        const val ROOM_SESSION_STALE_AFTER_MS = 90_000L
         const val ONE_ROOM_PER_USER_MESSAGE =
             "You have already used your one-time room creation privilege. Each account can create only one room permanently."
-    }
-}
-
-    private companion object {
-        const val ROOM_SESSION_STALE_AFTER_MS = 90_000L
-    }
-
+    }}

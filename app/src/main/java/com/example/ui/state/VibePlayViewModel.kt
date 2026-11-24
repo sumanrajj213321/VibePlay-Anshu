@@ -222,6 +222,8 @@ class VibePlayViewModel(
                     when (defaultGift.id) {
                         "gift_sunset_love" -> (remoteGift ?: defaultGift).copy(coinCost = 19999L)
                         "gift_royal_vows" -> (remoteGift ?: defaultGift).copy(coinCost = 99999L)
+                        "gift_sunlit_dream" -> (remoteGift ?: defaultGift).copy(coinCost = 29999L)
+                        "gift_prism_muse" -> (remoteGift ?: defaultGift).copy(coinCost = 49999L)
                         else -> remoteGift ?: defaultGift
                     }
                 }

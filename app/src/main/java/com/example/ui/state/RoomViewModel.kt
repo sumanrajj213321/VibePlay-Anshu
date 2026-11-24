@@ -68,6 +68,13 @@ class RoomViewModel(
         }
     }
 
+    fun advanceRoomMusicQueue(expectedTrackId: String) {
+        viewModelScope.launch {
+            roomRepository.advanceRoomMusicQueue(roomId, expectedTrackId)
+                .onFailure { error -> _roomError.value = error.localizedMessage ?: "Could not advance room music queue." }
+        }
+    }
+
     private val _roomError = MutableStateFlow<String?>(null)
     val roomError: StateFlow<String?> = _roomError.asStateFlow()
 

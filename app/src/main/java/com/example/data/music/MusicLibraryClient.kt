@@ -87,9 +87,32 @@ class MusicLibraryClient(
         title: String,
         artist: String
     ): MusicTrack {
-        val detectedMime = resolver.getType(uri)?.substringBefore(';')?.lowercase() ?: "application/octet-stream"
-        // Android reports MP4 containers as video/mp4 even when they contain a playable audio track.
-        val mime = if (detectedMime == "video/mp4" || detectedMime == "application/mp4") "audio/mp4" else detectedMime
+        val extension = fileName.substringAfterLast('.', "").lowercase()
+        val detectedMime = resolver.getType(uri)?.substringBefore(';')?.trim()?.lowercase()
+            ?: "application/octet-stream"
+        val extensionMime = when (extension) {
+            "mp3" -> "audio/mpeg"
+            "m4a", "mp4" -> "audio/mp4"
+            "aac" -> "audio/aac"
+            "ogg", "oga", "opus" -> "audio/ogg"
+            "wav" -> "audio/wav"
+            "flac" -> "audio/flac"
+            else -> ""
+        }
+        // Providers disagree on MIME aliases; normalize common audio types and use the
+        // actual filename extension only when the provider reports a generic/unknown type.
+        val mime = when (detectedMime) {
+            "video/mp4", "application/mp4", "audio/m4a", "audio/x-m4a" -> "audio/mp4"
+            "audio/x-wav", "audio/wave", "audio/vnd.wave" -> "audio/wav"
+            "audio/x-flac" -> "audio/flac"
+            "audio/x-aac" -> "audio/aac"
+            "application/ogg", "audio/opus", "audio/x-opus+ogg" -> "audio/ogg"
+            "application/octet-stream", "application/x-unknown", "" -> extensionMime
+            else -> detectedMime
+        }
+        if (mime !in setOf("audio/mpeg", "audio/mp4", "audio/aac", "audio/ogg", "audio/wav", "audio/flac")) {
+            throw IllegalArgumentException("Unsupported audio format. Choose MP3, M4A, AAC, OGG, WAV or FLAC.")
+        }
         val maxBytes = 15 * 1024 * 1024
         val declaredSize = withContext(Dispatchers.IO) {
             resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->

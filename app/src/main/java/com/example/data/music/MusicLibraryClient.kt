@@ -156,16 +156,6 @@ class MusicLibraryClient(
             } ?: throw IOException("Could not read the selected audio file.")
         }
         if (bytes.isEmpty()) throw IllegalArgumentException("Selected audio file is empty.")
-        val fileName = withContext(Dispatchers.IO) {
-            resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val nameColumn = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (nameColumn >= 0) cursor.getString(nameColumn) else null
-                } else null
-            }
-        }?.take(120)?.takeIf { it.isNotBlank() }
-            ?: uri.lastPathSegment?.substringAfterLast('/')?.take(120)
-            ?: "audio"
         // Preserve the exact source-device filename, including its extension, as the library title.
         // The optional panel title must not overwrite the original filename.
         val originalFileName = fileName

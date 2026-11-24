@@ -172,6 +172,7 @@ class RoomRepository(
 
     suspend fun enqueueTrackToRoomMusicQueue(roomId: String, trackId: String): Result<Unit> = runCatching {
         require(trackId.isNotBlank() && trackId.length <= 512) { "Invalid track ID." }
+        val uid = requireUserId()
         val stateRef = db.collection("rooms").document(roomId).collection("music").document("state")
         db.runTransaction { tx ->
             val snapshot = tx.get(stateRef)
@@ -184,13 +185,17 @@ class RoomRepository(
             val nextQueue = if (trackId == currentTrackId || trackId in queue) queue
                 else (queue + trackId).distinct().take(100)
             val state = if (snapshot.exists()) {
-                snapshot.data.orEmpty().toMutableMap().apply { put("queueTrackIds", nextQueue) }
+                snapshot.data.orEmpty().toMutableMap().apply {
+                    put("queueTrackIds", nextQueue)
+                    put("updatedBy", uid)
+                    put("updatedAt", FieldValue.serverTimestamp())
+                }
             } else {
                 mapOf(
                     "trackId" to "",
                     "status" to "STOPPED",
                     "positionMs" to 0L,
-                    "updatedBy" to requireUserId(),
+                    "updatedBy" to uid,
                     "updatedAt" to FieldValue.serverTimestamp(),
                     "queueTrackIds" to nextQueue
                 )

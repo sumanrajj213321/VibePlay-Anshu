@@ -1174,7 +1174,8 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
         if (videoGift && videoUrl != null && exoPlayer != null) {
             videoReady = false
             videoLoadFailed = false
-            exoPlayer.setMediaItem(MediaItem.fromUri(videoUrl))
+            val activeVideoUrl = videoUrl ?: return@LaunchedEffect
+            exoPlayer.setMediaItem(MediaItem.fromUri(activeVideoUrl))
             exoPlayer.prepare()
             exoPlayer.playWhenReady = true
         }

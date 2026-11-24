@@ -35,7 +35,7 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
-import androidx.compose.material.icons.filled.MonetizationOn
+import com.example.ui.components.VibeCoinIcon
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.PersonRemove
@@ -153,7 +153,7 @@ fun RoomGiftStoreSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(Icons.Filled.MonetizationOn, contentDescription = null, tint = VibeGold, modifier = Modifier.size(16.dp))
+                        VibeCoinIcon(modifier = Modifier.size(22.dp))
                         Text("${currentUser.coinBalance} Coins", style = MaterialTheme.typography.labelMedium, color = VibeGold, fontWeight = FontWeight.Bold)
                     }
                 }

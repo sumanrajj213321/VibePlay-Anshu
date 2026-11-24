@@ -377,6 +377,7 @@ private fun AuthenticatedVibePlayApp(
 
             var selectedConversationId by remember { mutableStateOf<String?>(null) }
             var activeRoomId by remember { mutableStateOf<String?>(null) }
+            var leaveActiveRoomForSwitch by remember { mutableStateOf<(() -> Unit)?>(null) }
             var inspectedUser by remember { mutableStateOf<UserProfile?>(null) }
             var showNotificationsSheet by remember { mutableStateOf(false) }
             var passwordPromptRoom by remember { mutableStateOf<VoiceRoom?>(null) }
@@ -392,6 +393,14 @@ private fun AuthenticatedVibePlayApp(
             val followingIds = remember(followingList) { followingList.map { it.peerId }.toSet() }
 
             val openRoomDirect: (VoiceRoom) -> Unit = { room ->
+                val previousRoomId = activeRoomId
+                if (!previousRoomId.isNullOrBlank() && previousRoomId != room.id) {
+                    // A room kept in the back stack must not keep this user seated
+                    // while they enter a different room from the floating mini-room.
+                    leaveActiveRoomForSwitch?.invoke()
+                    leaveActiveRoomForSwitch = null
+                    navController.popBackStack("room/$previousRoomId", inclusive = true)
+                }
                 activeRoomId = room.id
                 viewModel.recordRoomVisited(room.id)
                 navController.navigate("room/${room.id}") {
@@ -774,6 +783,7 @@ private fun AuthenticatedVibePlayApp(
                                         }
                                         SideEffect {
                                             (context as? MainActivity)?.setVoiceRoomActive(true)
+                                            leaveActiveRoomForSwitch = { roomVm.leaveRoom {} }
                                         }
                                         VoiceRoomScreen(
                                             roomViewModel = roomVm,
@@ -796,6 +806,7 @@ private fun AuthenticatedVibePlayApp(
                                                 RoomMusicPlayback.release()
                                                 (context as? MainActivity)?.setVoiceRoomActive(false)
                                                 activeRoomId = null
+                                                leaveActiveRoomForSwitch = null
                                                 navController.popBackStack()
                                             },
                                             onSubmitReport = { type, id, name, reason, details ->

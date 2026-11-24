@@ -800,6 +800,20 @@ service cloud.firestore {
         (isRoomAdminUser(existing()) && (!('ownerOnline' in existing()) || existing().ownerOnline == false))
       );
 
+      match /cover/{coverDocId} {
+        allow get: if isSignedIn() && coverDocId == 'image' &&
+                     get(/databases/$(database)/documents/rooms/$(roomId)).data.status == 'LIVE';
+        allow list: if false;
+        allow create, update: if isSignedIn() && coverDocId == 'image' &&
+                     get(/databases/$(database)/documents/rooms/$(roomId)).data.status == 'LIVE' &&
+                     isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data) &&
+                     incoming().keys().hasOnly(['data', 'contentType', 'updatedAt']) &&
+                     incoming().data is string && incoming().data.size() <= 900000 &&
+                     incoming().contentType == 'image/jpeg' && isValidTs(incoming().updatedAt);
+        allow delete: if isSignedIn() && coverDocId == 'image' &&
+                     isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data);
+      }
+
       // Strict 9-Seat Stage: 0 = Host, 1..8 = 8 Regular Speaker Seats
       match /seats/{seatIndex} {
         allow get: if isSignedIn() && seatIndex in ['0', '1', '2', '3', '4', '5', '6', '7', '8'];

@@ -1019,19 +1019,51 @@ fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
             "gift_ocean_palace" -> { drawRoundRect(Color(0xFFB6F8FF),Offset(c.x-u*1.35f,c.y-u*0.2f),androidx.compose.ui.geometry.Size(u*2.7f,u*1.35f),androidx.compose.ui.geometry.CornerRadius(u*0.12f));for(i in -1..1){val x=c.x+i*u*0.9f;val p=Path().apply{moveTo(x-u*0.42f,c.y-u*0.2f);lineTo(x,c.y-u*1.15f);lineTo(x+u*0.42f,c.y-u*0.2f);close()};drawPath(p,gold)} }
             "gift_vibe_universe" -> { drawCircle(white,u*0.48f,c);drawCircle(gold,u,c,style=Stroke(3.dp.toPx()));drawOval(white,Offset(c.x-u*1.5f,c.y-u*0.48f),androidx.compose.ui.geometry.Size(u*3f,u*0.95f),style=Stroke(3.dp.toPx())) }
             "gift_royal_ride" -> {
-                // Custom portrait-style icon: crowned prince riding a white horse.
-                val horseY = c.y + u * 0.48f
-                drawOval(Color(0xFFF7F2E8), Offset(c.x-u*1.45f,horseY-u*0.35f), androidx.compose.ui.geometry.Size(u*2.35f,u*0.92f))
-                drawCircle(Color(0xFFF7F2E8),u*0.42f,Offset(c.x+u*0.95f,horseY-u*0.55f))
-                drawLine(Color(0xFFF7F2E8),Offset(c.x+u*0.62f,horseY-u*0.55f),Offset(c.x+u*0.38f,horseY-u*1.12f),u*0.16f,cap=androidx.compose.ui.graphics.StrokeCap.Round)
-                drawLine(Color(0xFFF7F2E8),Offset(c.x-u*0.95f,horseY+u*0.18f),Offset(c.x-u*1.08f,horseY+u*1.0f),u*0.13f,cap=androidx.compose.ui.graphics.StrokeCap.Round)
-                drawLine(Color(0xFFF7F2E8),Offset(c.x+u*0.35f,horseY+u*0.18f),Offset(c.x+u*0.48f,horseY+u*1.0f),u*0.13f,cap=androidx.compose.ui.graphics.StrokeCap.Round)
-                drawPath(Path().apply { moveTo(c.x-u*0.5f,c.y+u*0.05f); lineTo(c.x-u*0.25f,c.y-u*1.05f); lineTo(c.x+u*0.42f,c.y-u*1.05f); lineTo(c.x+u*0.72f,c.y+u*0.25f); close() },Color(0xFF244A78))
-                drawCircle(Color(0xFFE8B995),u*0.3f,Offset(c.x+u*0.08f,c.y-u*1.15f))
-                val crown=Path().apply { moveTo(c.x-u*0.3f,c.y-u*1.4f); lineTo(c.x-u*0.25f,c.y-u*1.85f); lineTo(c.x,c.y-u*1.58f); lineTo(c.x+u*0.2f,c.y-u*1.88f); lineTo(c.x+u*0.34f,c.y-u*1.4f); close() }
-                drawPath(crown,gold); drawPath(crown,white.copy(alpha=0.8f),style=Stroke(1.5.dp.toPx()))
-                drawLine(gold,Offset(c.x-u*1.1f,horseY-u*0.35f),Offset(c.x+u*1.15f,horseY-u*0.35f),2.dp.toPx())
-                for(i in 0..5) drawCircle(gold.copy(alpha=0.9f),2.dp.toPx(),Offset(c.x-u*1.35f+i*u*0.52f,c.y-u*1.9f-(i%2)*u*0.15f))
+                // Static preview mirrors the Royal Ride overlay: twilight forest,
+                // white horse, blue-and-crimson royal outfit, gold crown and sparks.
+                val forest = Color(0xFF071C22)
+                for (i in 0..4) {
+                    val tx = c.x - u * 1.9f + i * u * 0.95f
+                    val top = c.y + u * 0.05f - (i % 2) * u * 0.35f
+                    drawPath(Path().apply {
+                        moveTo(tx, c.y + u * 1.55f)
+                        lineTo(tx - u * 0.42f, top)
+                        lineTo(tx + u * 0.42f, top)
+                        close()
+                    }, forest.copy(alpha = 0.92f))
+                }
+                val horseColor = Color(0xFFF4F0E7)
+                val horseY = c.y + u * 0.55f
+                // Horse body, neck, head, mane and four legs follow the side profile
+                // used by the full-screen Royal Ride animation.
+                drawOval(Color.Black.copy(alpha = 0.22f), Offset(c.x-u*1.25f,horseY+u*0.48f), androidx.compose.ui.geometry.Size(u*2.45f,u*0.28f))
+                drawOval(horseColor, Offset(c.x-u*1.15f,horseY-u*0.32f), androidx.compose.ui.geometry.Size(u*1.75f,u*0.78f))
+                drawLine(horseColor,Offset(c.x+u*0.38f,horseY-u*0.02f),Offset(c.x+u*0.72f,horseY-u*0.9f),u*0.27f,cap=androidx.compose.ui.graphics.StrokeCap.Round)
+                drawCircle(horseColor,u*0.27f,Offset(c.x+u*0.82f,horseY-u*0.91f))
+                drawLine(Color(0xFFB9C6D5),Offset(c.x+u*0.66f,horseY-u*1.04f),Offset(c.x+u*0.4f,horseY-u*0.64f),u*0.1f,cap=androidx.compose.ui.graphics.StrokeCap.Round)
+                drawPath(Path().apply { moveTo(c.x-u*1.12f,horseY-u*0.1f); cubicTo(c.x-u*1.55f,horseY-u*0.65f,c.x-u*1.5f,horseY+u*0.35f,c.x-u*1.28f,horseY+u*0.45f) },Color(0xFFDFE8F0),style=Stroke(u*0.12f))
+                for (i in 0..3) {
+                    val lx = c.x-u*0.78f+i*u*0.47f
+                    drawLine(horseColor,Offset(lx,horseY+u*0.2f),Offset(lx+(if(i%2==0)-u*0.08f else u*0.08f),horseY+u*0.92f),u*0.12f,cap=androidx.compose.ui.graphics.StrokeCap.Round)
+                }
+                // Royal rider in the same navy-blue and crimson colors as the overlay.
+                val riderX = c.x-u*0.1f
+                drawRoundRect(Color(0xFF263B68),Offset(riderX-u*0.28f,horseY-u*1.0f),androidx.compose.ui.geometry.Size(u*0.56f,u*0.72f),androidx.compose.ui.geometry.CornerRadius(u*0.12f))
+                drawPath(Path().apply {
+                    moveTo(riderX-u*0.24f,horseY-u*0.38f)
+                    lineTo(riderX+u*0.34f,horseY-u*0.38f)
+                    lineTo(riderX+u*0.72f,horseY+u*0.42f)
+                    lineTo(riderX-u*0.52f,horseY+u*0.42f)
+                    close()
+                },Color(0xFF7D3152))
+                drawCircle(Color(0xFFF0C9A7),u*0.2f,Offset(riderX,horseY-u*1.15f))
+                drawArc(gold,205f,130f,false,Offset(riderX-u*0.22f,horseY-u*1.42f),androidx.compose.ui.geometry.Size(u*0.44f,u*0.3f),style=Stroke(u*0.075f))
+                drawLine(gold,Offset(riderX+u*0.16f,horseY-u*0.5f),Offset(c.x+u*0.9f,horseY-u*0.82f),u*0.045f,cap=androidx.compose.ui.graphics.StrokeCap.Round)
+                for(i in 0..8) {
+                    val px=c.x-u*1.45f+(i%5)*u*0.68f
+                    val py=c.y-u*1.7f+(i/5)*u*0.35f
+                    drawCircle(gold.copy(alpha=0.9f),2.dp.toPx(),Offset(px,py))
+                }
             }
             "gift_royal_vows" -> { drawCircle(gold,u*1.05f,Offset(c.x-u*0.48f,c.y)); drawCircle(Color(0xFF8B1E3F),u*0.82f,Offset(c.x+u*0.48f,c.y)); drawCircle(Color(0xFFFFE6A3),u*0.2f,Offset(c.x,c.y-u*0.92f)); diamond(c.x,c.y-u*1.35f,u*0.42f,white) }
             else -> diamond(c.x,c.y,u,white)

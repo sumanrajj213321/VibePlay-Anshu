@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
@@ -58,6 +58,7 @@ internal fun RoomMusicPanel(
     visible: Boolean,
     roomMusic: RoomMusicState?,
     canControl: Boolean,
+    canUpload: Boolean,
     onUpdateRoomMusic: (trackId: String, status: String, positionMs: Long, queueTrackIds: List<String>) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -93,11 +94,14 @@ internal fun RoomMusicPanel(
         }
     }
 
+    // Every room member loads the shared catalogue on room entry, not only when opening the panel.
+    LaunchedEffect(Unit) {
+        if (client.isConfigured) refreshLibrary()
+        else error = "Music storage setup pending: Worker deployment is required."
+    }
+
     LaunchedEffect(visible) {
-        if (visible) {
-            if (client.isConfigured) refreshLibrary()
-            else error = "Music storage setup pending: Worker deployment is required."
-        }
+        if (visible && client.isConfigured) refreshLibrary()
     }
 
     LaunchedEffect(
@@ -167,7 +171,10 @@ internal fun RoomMusicPanel(
         onDismissRequest = onDismiss,
         title = { Text("Room Music") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Text(
                     text = when {
                         roomMusic?.status == "PLAYING" -> "Now playing"
@@ -249,13 +256,13 @@ internal fun RoomMusicPanel(
                     enabled = !loading && client.isConfigured
                 ) { Text("Refresh shared library") }
                 if (loading) CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 190.dp),
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    items(tracks.filter {
+                    tracks.filter {
                         it.title.contains(search, true) || it.artist.contains(search, true)
-                    }, key = { it.id }) { track ->
+                    }.forEach { track ->
                         Surface(
                             shape = RoundedCornerShape(10.dp),
                             color = if (track.id == roomMusic?.trackId)
@@ -285,25 +292,33 @@ internal fun RoomMusicPanel(
                         }
                     }
                 }
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it.take(80) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("Track title (optional)") }
-                )
-                OutlinedTextField(
-                    value = artist,
-                    onValueChange = { artist = it.take(80) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("Artist (optional)") }
-                )
-                Button(
-                    onClick = { picker.launch(arrayOf("audio/*")) },
-                    enabled = !loading && client.isConfigured,
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("Upload audio") }
+                if (canUpload) {
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it.take(80) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Track title (optional)") }
+                    )
+                    OutlinedTextField(
+                        value = artist,
+                        onValueChange = { artist = it.take(80) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Artist (optional)") }
+                    )
+                    Button(
+                        onClick = { picker.launch(arrayOf("audio/*")) },
+                        enabled = !loading && client.isConfigured,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Upload audio") }
+                } else {
+                    Text(
+                        "Only users sitting on a speaker seat can upload songs.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 error?.let {
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }

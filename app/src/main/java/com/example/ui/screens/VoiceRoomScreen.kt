@@ -216,6 +216,7 @@ fun VoiceRoomScreen(
             roomViewModel.updateRoomMusic(trackId, status, positionMs, queueTrackIds)
         },
         onAddTrackToQueue = { trackId -> roomViewModel.addTrackToRoomMusicQueue(trackId) },
+        onAdvanceRoomMusicQueue = { trackId -> roomViewModel.advanceRoomMusicQueue(trackId) },
         onClearError = { roomViewModel.clearError() },
         activeGifts = activeGifts,
         blockedUserIds = blockedUserIds,
@@ -292,6 +293,7 @@ internal fun VoiceRoomStageContent(
     roomMusic: RoomMusicState? = null,
     onUpdateRoomMusic: (trackId: String, status: String, positionMs: Long, queueTrackIds: List<String>) -> Unit = { _, _, _, _ -> },
     onAddTrackToQueue: (trackId: String) -> Unit = {},
+    onAdvanceRoomMusicQueue: (expectedTrackId: String) -> Unit = {},
     onClearError: () -> Unit,
     activeGifts: List<GiftCatalogItem>,
     blockedUserIds: List<String>,
@@ -1119,7 +1121,7 @@ internal fun VoiceRoomStageContent(
         canUpload = isManager || mySeat != null,
         onUpdateRoomMusic = onUpdateRoomMusic,
         onAddTrackToQueue = onAddTrackToQueue,
-        onAdvanceQueue = { trackId -> roomViewModel.advanceRoomMusicQueue(trackId) },
+        onAdvanceQueue = onAdvanceRoomMusicQueue,
         onDismiss = { showRoomMusic = false }
     )
 

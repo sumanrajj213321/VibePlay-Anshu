@@ -1052,8 +1052,8 @@ fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
     val videoGiftThumbnail by produceState<android.graphics.Bitmap?>(initialValue = null, gift.id) {
         val thumbnailUrl = when (gift.id) {
             "gift_royal_vows" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/From%20Klickpin.com-%20Discover%20Simple%20family%20dinner%20ideas%20that%20are%20trending%20right%20now%20across%20Pinterest%20boards%20for%20ideas%20worth%20saving%20right%20now-pin-id%20%28online-video-cutter.com%29.mp4"
-            "gift_sunlit_dream" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Save%20Modern%20weekend%20getaway%20inspiration%20that%20make%20your%20next%20project%20look%20polished%20and%20expensive%20for%20your%20next%20inspiration%20board%20(online-video-cutter.com).mp4"
-            "gift_prism_muse" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Try%20this%20cozy%20easy%20makeup%20roundup%20that%20make%20everything%20look%20instantly%20polished%20with%20smart%20steps%20cute%20details%20and%20cozy%20vibes%20and.mp4"
+            "gift_sunlit_dream" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/5134.mp4"
+            "gift_prism_muse" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/5132.mp4"
             else -> null
         }
         value = if (thumbnailUrl == null) null else withContext(Dispatchers.IO) {
@@ -1277,9 +1277,9 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                     "gift_enchanted_heart" ->
                         "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/enchanted_heart_gift.mp4"
                     "gift_sunlit_dream" ->
-                        "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Save%20Modern%20weekend%20getaway%20inspiration%20that%20make%20your%20next%20project%20look%20polished%20and%20expensive%20for%20your%20next%20inspiration%20board%20(online-video-cutter.com).mp4"
+                        "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/5134.mp4"
                     "gift_prism_muse" ->
-                        "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Try%20this%20cozy%20easy%20makeup%20roundup%20that%20make%20everything%20look%20instantly%20polished%20with%20smart%20steps%20cute%20details%20and%20cozy%20vibes%20and.mp4"
+                        "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/5132.mp4"
                     else ->
                         "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/sunset_love_gift.mp4"
                 }

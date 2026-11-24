@@ -1,5 +1,8 @@
 package com.example.ui.screens
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.Base64
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.animation.core.tween
@@ -89,6 +92,7 @@ import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
@@ -122,6 +126,33 @@ fun ProfileScreen(
     var socialInitialTab by remember { mutableStateOf(0) }
     var showSetupGuide by remember { mutableStateOf(false) }
     var coverLoadFailed by remember(profile.coverUrl) { mutableStateOf(false) }
+    var firestoreCoverBitmap by remember(profile.userId, profile.coverUrl) { mutableStateOf<Bitmap?>(null) }
+    val isFirestoreCover = profile.coverUrl.startsWith("firestore-cover://")
+
+    DisposableEffect(profile.userId, profile.coverUrl) {
+        if (!isFirestoreCover) {
+            firestoreCoverBitmap = null
+            onDispose { }
+        } else {
+            val registration = FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(profile.userId)
+                .collection("cover")
+                .document("image")
+                .addSnapshotListener { snapshot, _ ->
+                    val encoded = snapshot?.getString("data")
+                    firestoreCoverBitmap = try {
+                        encoded?.let { value ->
+                            val bytes = android.util.Base64.decode(value, android.util.Base64.DEFAULT)
+                            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                        }
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+            onDispose { registration.remove() }
+        }
+    }
 
     val (xpInLevel, xpNeededForNextLevel) = LevelProgression.progressInLevel(profile.xp)
     val giftCoinsIn = giftHistory.filter { it.recipientId == profile.userId }.sumOf { it.coinCost }
@@ -358,7 +389,16 @@ fun ProfileScreen(
                     .fillMaxWidth()
                     .height(215.dp)
             ) {
-                if (profile.coverUrl.isNotBlank() && !coverLoadFailed) {
+                if (isFirestoreCover && firestoreCoverBitmap != null) {
+                    AsyncImage(
+                        model = firestoreCoverBitmap,
+                        contentDescription = "Profile cover image",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(165.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                } else if (!isFirestoreCover && profile.coverUrl.isNotBlank() && !coverLoadFailed) {
                     AsyncImage(
                         model = profile.coverUrl,
                         contentDescription = "Profile cover image",

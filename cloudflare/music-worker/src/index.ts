@@ -75,7 +75,7 @@ async function listFiles(env: Env): Promise<any[]> {
   const all: any[] = [];
   let cursor = "";
   do {
-    const query = cursor ? "&cursor=" + encodeURIComponent(cursor) : "";
+    const query = "&prefix=music_" + (cursor ? "&cursor=" + encodeURIComponent(cursor) : "");
     const response = await dbbyte(env, "/list?limit=1000" + query);
     if (!response.ok) throw new Error("Music library could not be listed (" + response.status + ").");
     const data = await response.json() as { files?: any[]; nextCursor?: string | null; hasMore?: boolean };
@@ -96,15 +96,16 @@ export default {
 
       if (url.pathname === "/v1/music" && request.method === "GET") {
         const files = await listFiles(env);
-        const tracks = files.filter(f => typeof f.name === "string" && f.name.startsWith("music/"))
-          .map(f => ({
-            id: f.name,
-            title: f.name.split("/").pop()?.replace(/^[^_]+_/, "").replace(/\.[^.]+$/, "") || "Untitled",
-            artist: "VibePlay user",
-            size: Number(f.size || 0),
-            contentType: f.mimeType || "audio/mpeg",
-            uploadedBy: f.name.split("/")[1]?.split("_")[0] || ""
-          }));
+        const tracks = files.filter(f => typeof f.name === "string" && f.name.startsWith("music_"))
+          .map(f => {
+            const parts = f.name.replace(/\.[^.]+$/, "").split("_");
+            const extension = f.name.split(".").pop()?.toLowerCase();
+            const title = parts.slice(3).join("_") || "Untitled";
+            const contentType = extension === "mp3" ? "audio/mpeg" : extension === "m4a" ? "audio/mp4" :
+              extension === "aac" ? "audio/aac" : extension === "ogg" ? "audio/ogg" :
+              extension === "flac" ? "audio/flac" : "audio/wav";
+            return { id: f.name, title, artist: parts[2] || "Unknown artist", size: Number(f.size || 0), contentType, uploadedBy: parts[1] || "" };
+          });
         return reply({ tracks, truncated: false }, 200, h);
       }
 
@@ -125,7 +126,8 @@ export default {
           type === "audio/aac" ? "aac" : type === "audio/ogg" || type === "audio/opus" ? "ogg" :
           type === "audio/flac" ? "flac" : "wav";
         const title = safeName(String(incoming.get("title") || file.name.replace(/\.[^.]+$/, "")).trim() || "Untitled");
-        const storedName = "music/" + uid.slice(0, 32) + "_" + crypto.randomUUID() + "_" + title + "." + ext;
+        const artist = safeName(String(incoming.get("artist") || "Unknown_artist").trim() || "Unknown_artist");
+        const storedName = "music_" + uid.slice(0, 32) + "_" + crypto.randomUUID() + "_" + artist + "_" + title + "." + ext;
         const uploadFile = new File([file], storedName, { type });
         const body = new FormData();
         body.set("file", uploadFile);
@@ -144,7 +146,7 @@ export default {
 
       if (url.pathname.startsWith("/v1/music/") && request.method === "GET") {
         const name = decodeURIComponent(url.pathname.slice("/v1/music/".length));
-        if (!name.startsWith("music/") || name.includes("..")) return reply({ error: "Invalid track." }, 400, h);
+        if (!/^music_[A-Za-z0-9_-]{1,32}_[A-Fa-f0-9-]{36}_[A-Za-z0-9._-]+_[A-Za-z0-9._-]+\.(mp3|m4a|aac|ogg|flac|wav)$/i.test(name) || name.includes("..")) return reply({ error: "Invalid track." }, 400, h);
         const response = await dbbyte(env, "/download/" + encodeURIComponent(name), {
           method: "GET",
           headers: request.headers.has("Range") ? { Range: request.headers.get("Range")! } : {}
@@ -160,7 +162,7 @@ export default {
 
       if (url.pathname.startsWith("/v1/music/") && request.method === "DELETE") {
         const name = decodeURIComponent(url.pathname.slice("/v1/music/".length));
-        if (!name.startsWith("music/" + uid.slice(0, 32) + "_") || name.includes("..")) {
+        if (!name.startsWith("music_" + uid.slice(0, 32) + "_") || name.includes("..") || name.includes("/")) {
           return reply({ error: "Only the uploader can remove this track." }, 403, h);
         }
         const deleted = await dbbyte(env, "/delete/" + encodeURIComponent(name), { method: "DELETE" });

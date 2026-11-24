@@ -106,11 +106,13 @@ class RoomRepository(
         roomId: String,
         trackId: String,
         status: String,
-        positionMs: Long
+        positionMs: Long,
+        queueTrackIds: List<String> = emptyList()
     ): Result<Unit> = runCatching {
         require(status in setOf("PLAYING", "PAUSED", "STOPPED")) { "Invalid music status." }
         require(trackId.length <= 512) { "Invalid track ID." }
         require(positionMs in 0L..86_400_000L) { "Invalid playback position." }
+        require(queueTrackIds.size <= 100 && queueTrackIds.all { it.isNotBlank() && it.length <= 512 }) { "Invalid music queue." }
         val uid = requireUserId()
         db.collection("rooms").document(roomId).collection("music").document("state").set(
             mapOf(
@@ -118,7 +120,8 @@ class RoomRepository(
                 "status" to status,
                 "positionMs" to positionMs,
                 "updatedBy" to uid,
-                "updatedAt" to FieldValue.serverTimestamp()
+                "updatedAt" to FieldValue.serverTimestamp(),
+                "queueTrackIds" to queueTrackIds.distinct()
             )
         ).await()
     }

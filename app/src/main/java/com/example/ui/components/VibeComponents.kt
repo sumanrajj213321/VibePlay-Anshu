@@ -60,6 +60,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.media3.ui.PlayerView
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.Player
+import androidx.media3.common.MediaItem
+import androidx.media3.common.C
+import androidx.media3.common.AudioAttributes
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -1128,6 +1136,49 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
     var videoReady by remember(event?.id) { mutableStateOf(false) }
     var videoLoadFailed by remember(event?.id) { mutableStateOf(false) }
     val progress = remember { Animatable(0f) }
+    val currentOnFinished by rememberUpdatedState(onFinished)
+    val exoPlayer = remember(event?.id) {
+        if (videoGift) {
+            ExoPlayer.Builder(context).build().apply {
+                val giftAudioAttributes = AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build()
+                // Do not request audio focus: the room's shared song must continue underneath.
+                setAudioAttributes(giftAudioAttributes, false)
+                volume = 1f
+            }
+        } else null
+    }
+
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onRenderedFirstFrame() {
+                videoReady = true
+            }
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                videoLoadFailed = true
+            }
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) currentOnFinished()
+            }
+        }
+        exoPlayer?.addListener(listener)
+        onDispose {
+            exoPlayer?.removeListener(listener)
+            exoPlayer?.release()
+        }
+    }
+
+    LaunchedEffect(event?.id, videoUrl, exoPlayer) {
+        if (videoGift && videoUrl != null && exoPlayer != null) {
+            videoReady = false
+            videoLoadFailed = false
+            exoPlayer.setMediaItem(MediaItem.fromUri(videoUrl))
+            exoPlayer.prepare()
+            exoPlayer.playWhenReady = true
+        }
+    }
 
     LaunchedEffect(event?.id) {
         if (event == null) {
@@ -1159,26 +1210,6 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                 // keep the shared room song uninterrupted while the animation runs.
                 delay(if (active.giftId == "gift_royal_ride") 8500L else 5000L)
                 onFinished()
-            }
-        }
-    }
-
-    // Never leave a gift overlay stuck on a black VideoView surface.
-    // If the remote clip does not prepare promptly, reveal the built-in animated fallback.
-    LaunchedEffect(event?.id, videoUrl, videoReady, videoLoadFailed) {
-        if (videoGift && event != null && videoUrl != null && !videoReady && !videoLoadFailed) {
-            // Give slower connections time to load the original gift video and its embedded audio.
-            // Keep the animated fallback visible underneath while buffering.
-            delay(12_000L)
-            if (!videoReady) videoLoadFailed = true
-        }
-    }
-
-    LaunchedEffect(event?.id, videoReady, videoLoadFailed) {
-        if (videoGift && event != null) {
-            when {
-                videoReady -> { delay(6900L); onFinished() }
-                videoLoadFailed -> { delay(5000L); onFinished() }
             }
         }
     }
@@ -1229,41 +1260,22 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                         )
                     }
                 }
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { ctx ->
-                        VideoView(ctx).apply {
-                            tag = event?.id
-                            // Keep the SurfaceView hidden while buffering so it cannot cover the fallback animation.
-                            visibility = View.INVISIBLE
-                            setVideoURI(Uri.parse(videoUrl))
-                            setOnPreparedListener { player ->
-                                // Play the gift clip's own sound without pausing shared room music.
-                                player.setVolume(1f, 1f)
-                                visibility = View.VISIBLE
-                                videoReady = true
-                                start()
+                if (exoPlayer != null) {
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
+                        factory = { ctx ->
+                            PlayerView(ctx).apply {
+                                useController = false
+                                player = exoPlayer
+                                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
                             }
-                            setOnErrorListener { _, _, _ ->
-                                visibility = View.INVISIBLE
-                                videoLoadFailed = true
-                                true
-                            }
-                        }
-                    },
-                    update = { view ->
-                        // Each successful gift transaction must replay its animation,
-                        // even when the same animated gift is sent again.
-                        if (view.tag != event.id) {
-                            view.stopPlayback()
-                            view.tag = event.id
-                            view.visibility = View.INVISIBLE
-                            videoReady = false
-                            view.setVideoURI(Uri.parse(videoUrl))
-                        }
-                    },
-                    onRelease = { it.stopPlayback() }
-                )
+                        },
+                        update = { view ->
+                            if (view.player !== exoPlayer) view.player = exoPlayer
+                        },
+                        onRelease = { view -> view.player = null }
+                    )
+                }
             } else if (royalRide) {
                 Canvas(Modifier.fillMaxSize()) {
                     val w = size.width

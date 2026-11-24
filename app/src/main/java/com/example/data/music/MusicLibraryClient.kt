@@ -87,6 +87,16 @@ class MusicLibraryClient(
         title: String,
         artist: String
     ): MusicTrack {
+        val fileName = withContext(Dispatchers.IO) {
+            resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameColumn = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (nameColumn >= 0) cursor.getString(nameColumn) else null
+                } else null
+            }
+        }?.take(120)?.takeIf { it.isNotBlank() }
+            ?: uri.lastPathSegment?.substringAfterLast('/')?.take(120)
+            ?: "audio"
         val extension = fileName.substringAfterLast('.', "").lowercase()
         val detectedMime = resolver.getType(uri)?.substringBefore(';')?.trim()?.lowercase()
             ?: "application/octet-stream"

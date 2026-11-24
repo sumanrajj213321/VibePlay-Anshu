@@ -456,6 +456,13 @@ class RoomViewModel(
         }
     }
 
+    fun kickRoomMember(targetUserId: String) {
+        viewModelScope.launch {
+            roomRepository.kickRoomMember(roomId, targetUserId)
+                .onFailure { _roomError.value = it.localizedMessage ?: "Could not remove this member." }
+        }
+    }
+
     fun leaveRoom(onLeft: () -> Unit) {
         val currentRoom = room.value
         val seats = rawSeats.value

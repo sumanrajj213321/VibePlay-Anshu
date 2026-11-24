@@ -287,22 +287,46 @@ class UserRepository(
         if (resized !== original) resized.recycle()
         original.recycle()
     }
-    private suspend fun saveCoverToStorage(uid: String, uri: Uri): String {
-        // Use the bucket configured in google-services.json so upload and URL lookup
-        // always address the same Firebase Storage bucket.
-        val coverRef = FirebaseStorage.getInstance().reference
-            .child("profile-covers/$uid/cover_${System.currentTimeMillis()}.jpg")
-        val metadata = com.google.firebase.storage.StorageMetadata.Builder()
-            .setContentType("image/jpeg")
-            .build()
-
-        // Wait for the upload task itself to complete, then resolve the URL from
-        // that exact completed task snapshot. Avoid a separate metadata lookup,
-        // which can report object-not-found and prevent an otherwise valid save.
-        val uploadTask = coverRef.putFile(uri, metadata)
-        uploadTask.await()
-        val completedRef = uploadTask.snapshot.storage
-        return completedRef.downloadUrl.await().toString()
+    private suspend fun saveCoverToFirestore(uid: String, uri: Uri) {
+        val resolver = FirebaseApp.getInstance().applicationContext.contentResolver
+        val input = resolver.openInputStream(uri)
+            ?: throw IllegalArgumentException("Could not read the selected cover photo.")
+        val original = input.use { BitmapFactory.decodeStream(it) }
+            ?: throw IllegalArgumentException("Selected cover photo is not a supported image.")
+        val maxSide = 1280
+        val scale = minOf(1f, maxSide.toFloat() / maxOf(original.width, original.height))
+        val resized = if (scale < 1f) {
+            Bitmap.createScaledBitmap(
+                original,
+                (original.width * scale).toInt().coerceAtLeast(1),
+                (original.height * scale).toInt().coerceAtLeast(1),
+                true
+            )
+        } else original
+        try {
+            var quality = 82
+            var bytes: ByteArray
+            do {
+                val output = ByteArrayOutputStream()
+                resized.compress(Bitmap.CompressFormat.JPEG, quality, output)
+                bytes = output.toByteArray()
+                quality -= 7
+            } while (bytes.size > 650 * 1024 && quality >= 40)
+            require(bytes.size <= 650 * 1024) {
+                "Cover photo is too large. Please choose a smaller image."
+            }
+            val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
+            db.collection("users").document(uid).collection("cover").document("image").set(
+                mapOf(
+                    "data" to encoded,
+                    "contentType" to "image/jpeg",
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+        } finally {
+            if (resized !== original) resized.recycle()
+            original.recycle()
+        }
     }
 
     suspend fun updateProfile(
@@ -331,7 +355,8 @@ class UserRepository(
                 avatarUrl
             }
             val savedCoverUrl = if (coverUrl.startsWith("content://") || coverUrl.startsWith("file://")) {
-                saveCoverToStorage(currentUid, Uri.parse(coverUrl))
+                saveCoverToFirestore(currentUid, Uri.parse(coverUrl))
+                "firestore-cover://$currentUid?updated=${System.currentTimeMillis()}"
             } else {
                 coverUrl
             }

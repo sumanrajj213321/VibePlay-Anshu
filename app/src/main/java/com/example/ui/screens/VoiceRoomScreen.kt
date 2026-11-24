@@ -50,6 +50,7 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.MusicNote
@@ -225,6 +226,7 @@ fun VoiceRoomScreen(
         followingIds = followingIds,
         onInviteUserToRoom = onInviteUserToRoom,
         onOpenUserProfile = onOpenUserProfile,
+        onMinimizeToPip = onMinimizeToPip,
         onBack = onBack,
         onLeaveRoom = { roomViewModel.leaveRoom(onBack) },
         onSendRoomMessage = { text -> roomViewModel.sendRoomMessage(currentUser, text) },
@@ -302,6 +304,7 @@ internal fun VoiceRoomStageContent(
     followingIds: Set<String> = emptySet(),
     onInviteUserToRoom: (userId: String, room: VoiceRoom) -> Unit = { _, _ -> },
     onOpenUserProfile: ((String) -> Unit)? = null,
+    onMinimizeToPip: () -> Unit = {},
     onBack: () -> Unit,
     onLeaveRoom: () -> Unit,
     onSendRoomMessage: (String) -> Unit,

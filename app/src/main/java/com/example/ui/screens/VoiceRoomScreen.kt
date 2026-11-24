@@ -163,6 +163,11 @@ fun VoiceRoomScreen(
     val vipEntrance by roomViewModel.vipEntrance.collectAsStateWithLifecycle()
     val roomError by roomViewModel.roomError.collectAsStateWithLifecycle()
     val roomMusic by roomViewModel.roomMusic.collectAsStateWithLifecycle()
+    val roomSessionRemoved by roomViewModel.roomSessionRemoved.collectAsStateWithLifecycle()
+
+    LaunchedEffect(roomSessionRemoved) {
+        if (roomSessionRemoved) onBack()
+    }
 
     BackHandler {
         roomViewModel.leaveRoom(onBack)

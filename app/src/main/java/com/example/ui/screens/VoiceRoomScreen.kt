@@ -266,7 +266,8 @@ fun VoiceRoomScreen(
             roomViewModel.hostRemoveSpeaker(seatIndex)
         },
         onSubmitReport = onSubmitReport,
-        onBlockUser = onBlockUser
+        onBlockUser = onBlockUser,
+        onKickMember = { targetId -> roomViewModel.kickRoomMember(targetId) }
     )
 }
 
@@ -1062,6 +1063,7 @@ internal fun VoiceRoomStageContent(
             onBlockListener = { listener ->
                 onBlockUser(listener.userId)
             },
+            onKickMember = onKickMember,
             onDismiss = { showOnlineMembers = false }
         )
     }

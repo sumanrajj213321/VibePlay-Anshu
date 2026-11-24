@@ -992,7 +992,7 @@ fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
 @Composable
 fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val couple = event?.giftId == "gift_couple_kiss"
+    val couple = event?.giftId == "gift_couple_kiss" || event?.giftId == "gift_royal_vows"
     val videoGift = event?.giftId == "gift_sunset_love"
     var videoUrl by remember(event?.id) { mutableStateOf<String?>(null) }
     var videoReady by remember(event?.id) { mutableStateOf(false) }

@@ -787,6 +787,61 @@ fun BiologicalGenderBadge(
     }
 }
 
+
+@Composable
+fun RoomCoverImage(
+    roomId: String,
+    coverUrl: String,
+    fallbackCoverKey: String,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop
+) {
+    val context = LocalContext.current
+    val isFirestoreCover = coverUrl.startsWith("firestore-room-cover://")
+    val bitmap by produceState<android.graphics.Bitmap?>(initialValue = null, roomId, coverUrl) {
+        value = null
+        if (isFirestoreCover) {
+            value = withContext(Dispatchers.IO) {
+                runCatching {
+                    val databaseId = context.getString(R.string.firestore_database_id)
+                    val snapshot = FirebaseFirestore.getInstance(databaseId)
+                        .collection("rooms").document(roomId)
+                        .collection("cover").document("image").get().await()
+                    val encoded = snapshot.getString("data") ?: return@runCatching null
+                    val bytes = Base64.decode(encoded, Base64.DEFAULT)
+                    android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                }.getOrNull()
+            }
+        }
+    }
+    when {
+        isFirestoreCover && bitmap != null -> Image(
+            bitmap = bitmap!!.asImageBitmap(),
+            contentDescription = "Room cover",
+            modifier = modifier,
+            contentScale = contentScale
+        )
+        isFirestoreCover -> Image(
+            painter = painterResource(id = coverDrawableRes(fallbackCoverKey)),
+            contentDescription = "Room cover",
+            modifier = modifier,
+            contentScale = contentScale
+        )
+        coverUrl.isNotBlank() -> AsyncImage(
+            model = coverUrl,
+            contentDescription = "Room cover",
+            modifier = modifier,
+            contentScale = contentScale
+        )
+        else -> Image(
+            painter = painterResource(id = coverDrawableRes(fallbackCoverKey)),
+            contentDescription = "Room cover",
+            modifier = modifier,
+            contentScale = contentScale
+        )
+    }
+}
+
 @Composable
 fun VoiceRoomCard(
     room: VoiceRoom,
@@ -813,21 +868,13 @@ fun VoiceRoomCard(
                     .fillMaxWidth()
                     .height(126.dp)
             ) {
-                if (room.coverUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = room.coverUrl,
-                        contentDescription = "${room.title} room cover",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(id = coverDrawableRes(room.coverKey)),
-                        contentDescription = "${room.title} room cover",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                }
+                RoomCoverImage(
+                    roomId = room.id,
+                    coverUrl = room.coverUrl,
+                    fallbackCoverKey = room.coverKey,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
                 Box(
                     modifier = Modifier
                         .fillMaxSize()

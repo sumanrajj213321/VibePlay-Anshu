@@ -170,6 +170,40 @@ class RoomRepository(
         }.await()
     }
 
+    suspend fun advanceRoomMusicQueue(roomId: String, expectedTrackId: String): Result<Unit> = runCatching {
+        require(expectedTrackId.isNotBlank() && expectedTrackId.length <= 512) { "Invalid current track." }
+        val uid = requireUserId()
+        val roomRef = db.collection("rooms").document(roomId)
+        val stateRef = roomRef.collection("music").document("state")
+        db.runTransaction { tx ->
+            val state = tx.get(stateRef)
+            if (!state.exists() ||
+                state.getString("trackId") != expectedTrackId ||
+                state.getString("status") != "PLAYING"
+            ) return@runTransaction
+            val room = tx.get(roomRef).toObject(VoiceRoom::class.java)
+                ?: throw IllegalStateException("Room no longer exists.")
+            val isController = room.isRoomAdmin(uid) ||
+                (1..VoiceStage.SPEAKER_SEAT_COUNT).any { index ->
+                    false
+                }
+            val queue = (state.get("queueTrackIds") as? List<*>).orEmpty()
+                .filterIsInstance<String>()
+            val nextId = queue.firstOrNull()
+            tx.set(
+                stateRef,
+                mapOf(
+                    "trackId" to (nextId ?: expectedTrackId),
+                    "status" to if (nextId != null) "PLAYING" else "STOPPED",
+                    "positionMs" to 0L,
+                    "updatedBy" to uid,
+                    "updatedAt" to FieldValue.serverTimestamp(),
+                    "queueTrackIds" to if (nextId != null) queue.drop(1) else emptyList<String>()
+                )
+            )
+        }.await()
+    }
+
     fun observeRoom(roomId: String): Flow<VoiceRoom?> =
         db.collection("rooms").document(roomId)
             .snapshots()

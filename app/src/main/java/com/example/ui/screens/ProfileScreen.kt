@@ -74,6 +74,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.R
 import com.example.data.model.FollowEdge
+import com.example.data.model.CharmProgression
 import com.example.data.model.GiftTransaction
 import com.example.data.model.LevelProgression
 import com.example.data.model.UserProfile
@@ -605,30 +606,25 @@ fun ProfileScreen(
                     }
                 }
 
-                // Compact gifting highlight directly beside the profile identity.
+                // Neon Charms earned from received gifts (10 gift coins = 1 charm).
+                val charms = CharmProgression.fromReceivedGiftCoins(profile.totalGiftCoinsReceived)
+                val charmLevel = CharmProgression.levelFor(charms)
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = VibePink.copy(alpha = 0.12f),
-                    border = BorderStroke(1.dp, VibePink.copy(alpha = 0.48f))
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF102B3A).copy(alpha = 0.96f),
+                    border = BorderStroke(1.dp, Brush.linearGradient(listOf(Color(0xFF35F4E5), Color(0xFF8B72FF), Color(0xFFFF78D6)))),
+                    modifier = Modifier.testTag("profile_charms_card")
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            "GIFTING",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = VibePink,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            formatGiftCount(profile.totalGiftsReceived),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.ExtraBold
-                        )
+                        Icon(Icons.Filled.AutoAwesome, contentDescription = "Charms", tint = Color(0xFF65FFF0), modifier = Modifier.size(20.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                            Text("CHARMS", style = MaterialTheme.typography.labelSmall, color = Color(0xFF65FFF0), fontWeight = FontWeight.Black, letterSpacing = 1.4.sp)
+                            Text("$charms  ·  Charm Level $charmLevel", style = MaterialTheme.typography.titleSmall, color = Color(0xFFE9FFFF), fontWeight = FontWeight.ExtraBold)
+                        }
                     }
                 }
 
@@ -696,7 +692,7 @@ fun ProfileScreen(
                     ) {
                         VibeCoinIcon(modifier = Modifier.size(32.dp))
                         Text("${profile.coinBalance}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = VibeGold)
-                        Text("Tap to claim daily +150", style = MaterialTheme.typography.labelSmall)
+                        Text("10 coins = 1 charm", style = MaterialTheme.typography.labelSmall, color = VibeGold)
                     }
                 }
 

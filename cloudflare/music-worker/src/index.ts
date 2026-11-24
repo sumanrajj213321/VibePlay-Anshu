@@ -9,7 +9,7 @@ export interface Env {
 
 const DEFAULT_MAX_STORAGE = 4.5 * 1024 * 1024 * 1024;
 const DEFAULT_MAX_UPLOAD = 15 * 1024 * 1024;
-const TYPES = new Set(["audio/mpeg","audio/mp4","audio/aac","audio/ogg","audio/wav","audio/x-wav","audio/wave","audio/vnd.wave","audio/flac","audio/x-flac","audio/x-aac","audio/m4a","audio/x-m4a","audio/opus","audio/x-opus+ogg","application/ogg","video/mp4","application/mp4","application/octet-stream"]);
+const TYPES = new Set(["audio/mpeg","audio/mp3","audio/x-mp3","audio/mp4","audio/aac","audio/ogg","audio/wav","audio/x-wav","audio/wave","audio/vnd.wave","audio/flac","audio/x-flac","audio/x-aac","audio/m4a","audio/x-m4a","audio/opus","audio/x-opus+ogg","application/ogg","video/mp4","application/mp4","application/octet-stream"]);
 
 function cors(request: Request, env: Env): Headers {
   const origin = request.headers.get("Origin") || "";
@@ -115,7 +115,7 @@ export default {
             const title = decodeName(parts.slice(4).join("_")) || "Untitled";
             const artist = decodeName(parts[3] || "") || "Unknown artist";
             const contentType = extension === "mp3" ? "audio/mpeg" : extension === "m4a" ? "audio/mp4" :
-              extension === "aac" ? "audio/aac" : extension === "ogg" ? "audio/ogg" :
+              extension === "aac" ? "audio/aac" : ["ogg", "oga", "opus"].includes(extension || "") ? "audio/ogg" :
               extension === "flac" ? "audio/flac" : extension === "mp4" ? "audio/mp4" : "audio/wav";
             return { id: f.name, title, artist, size: Number(f.size || 0), contentType, uploadedBy: parts[1] || "" };
           });
@@ -134,7 +134,7 @@ export default {
           ["ogg", "oga", "opus"].includes(extension) ? "audio/ogg" :
           extension === "flac" ? "audio/flac" : extension === "wav" ? "audio/wav" : "";
         const aliases: Record<string, string> = {
-          "video/mp4": "audio/mp4", "application/mp4": "audio/mp4",
+          "video/mp4": "audio/mp4", "application/mp4": "audio/mp4", "audio/mp3": "audio/mpeg", "audio/x-mp3": "audio/mpeg",
           "audio/m4a": "audio/mp4", "audio/x-m4a": "audio/mp4",
           "audio/x-wav": "audio/wav", "audio/wave": "audio/wav", "audio/vnd.wave": "audio/wav",
           "audio/x-flac": "audio/flac", "audio/x-aac": "audio/aac",

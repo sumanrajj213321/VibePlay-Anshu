@@ -664,8 +664,7 @@ object VibeShopCatalog {
 object VibeCatalogDefaults {
     val defaultGifts = listOf(
         GiftCatalogItem(id = "gift_sunset_love", name = "Sunset Love", category = "Love", coinCost = 19999L, accentColorHex = "#F9A8D4"),
-        GiftCatalogItem(id = "gift_royal_vows", name = "Royal Vows", category = "Love", coinCost = 99999L, accentColorHex = "#D4AF37"),
-        GiftCatalogItem(id = "gift_royal_ride", name = "Royal Ride", category = "Premium", coinCost = 99999L, emoji = "🐎", accentColorHex = "#D6B66A")
+        GiftCatalogItem(id = "gift_royal_vows", name = "Royal Vows", category = "Love", coinCost = 99999L, accentColorHex = "#D4AF37")
     )
 
     val vipTiers = listOf(

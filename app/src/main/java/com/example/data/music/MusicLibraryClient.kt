@@ -130,10 +130,13 @@ class MusicLibraryClient(
         }?.take(120)?.takeIf { it.isNotBlank() }
             ?: uri.lastPathSegment?.substringAfterLast('/')?.take(120)
             ?: "audio"
+        // Preserve the exact source-device filename, including its extension, as the library title.
+        // The optional panel title must not overwrite the original filename.
+        val originalFileName = fileName
         val fileBody = bytes.toRequestBody(mime.toMediaTypeOrNull())
         val multipart = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart("title", title.take(80))
+            .addFormDataPart("title", originalFileName.take(120))
             .addFormDataPart("artist", artist.take(80))
             .addFormDataPart("file", fileName, fileBody)
             .build()

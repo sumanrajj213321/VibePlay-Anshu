@@ -887,6 +887,7 @@ private fun AuthenticatedVibePlayApp(
                     isFollowing = isFollowing,
                     followersList = if (target.userId == currentUser.userId) followersList else targetFollowers,
                     followingList = if (target.userId == currentUser.userId) followingList else targetFollowing,
+                    giftHistory = giftHistory,
                     myHostedRoom = myHostedRoom,
                     onDismiss = {
                         inspectedUser = null

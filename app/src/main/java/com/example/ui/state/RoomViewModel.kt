@@ -66,6 +66,8 @@ class RoomViewModel(
 
     private val _giftBurst = MutableStateFlow<GiftBurstEvent?>(null)
     val giftBurst: StateFlow<GiftBurstEvent?> = _giftBurst.asStateFlow()
+    private val pendingGiftBursts = ArrayDeque<GiftBurstEvent>()
+    private val seenGiftMessageIds = mutableSetOf<String>()
 
     private val _vipEntrance = MutableStateFlow<UserProfile?>(null)
     val vipEntrance: StateFlow<UserProfile?> = _vipEntrance.asStateFlow()
@@ -144,18 +146,18 @@ class RoomViewModel(
         }
         viewModelScope.launch {
             messages.collect { msgs ->
-                val latestGift = msgs.lastOrNull { it.type == "GIFT" }
-                if (latestGift != null && latestGift.id != lastShownGiftMsgId && latestGift.id.isNotBlank()) {
-                    lastShownGiftMsgId = latestGift.id
-                    _giftBurst.value = GiftBurstEvent(
-                        id = latestGift.id,
-                        senderName = latestGift.senderName,
-                        recipientName = latestGift.recipientName,
-                        giftName = latestGift.giftName,
-                        coinCost = latestGift.giftCoins,
-                        giftId = latestGift.giftId,
-                        quantity = latestGift.giftQuantity.coerceIn(1L, 999L)
+                val unseen = msgs.filter { it.type == "GIFT" && it.id.isNotBlank() && seenGiftMessageIds.add(it.id) }
+                unseen.forEach { giftMessage ->
+                    val event = GiftBurstEvent(
+                        id = giftMessage.id,
+                        senderName = giftMessage.senderName,
+                        recipientName = giftMessage.recipientName,
+                        giftName = giftMessage.giftName,
+                        coinCost = giftMessage.giftCoins,
+                        giftId = giftMessage.giftId,
+                        quantity = giftMessage.giftQuantity.coerceIn(1L, 999L)
                     )
+                    if (_giftBurst.value == null) _giftBurst.value = event else pendingGiftBursts.addLast(event)
                 }
             }
         }
@@ -208,6 +210,8 @@ class RoomViewModel(
         roomJoinInProgress = true
         _messages.value = emptyList()
         _giftBurst.value = null
+        pendingGiftBursts.clear()
+        seenGiftMessageIds.clear()
         roomMessagesJob?.cancel()
         roomMessagesJob = null
 
@@ -224,6 +228,8 @@ class RoomViewModel(
                                 roomMessagesJob?.cancel()
                                 roomGiftTransactionsJob?.cancel()
                                 _messages.value = emptyList()
+                                _giftBurst.value = null
+                                pendingGiftBursts.clear()
                                 _roomGiftTransactions.value = emptyList()
                             }
                         }
@@ -266,7 +272,7 @@ class RoomViewModel(
     }
 
     fun clearGiftBurst() {
-        _giftBurst.value = null
+        _giftBurst.value = if (pendingGiftBursts.isEmpty()) null else pendingGiftBursts.removeFirst()
     }
 
     fun clearVipEntrance() {
@@ -477,6 +483,8 @@ class RoomViewModel(
         roomSessionJob?.cancel()
         roomSessionJob = null
         voiceEngine.disconnect()
+        _giftBurst.value = null
+        pendingGiftBursts.clear()
         roomMessagesJob?.cancel()
         roomMessagesJob = null
         roomGiftTransactionsJob?.cancel()

@@ -1181,6 +1181,14 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
         }
     }
 
+    // A failed remote video must not leave the gift overlay stuck on screen.
+    LaunchedEffect(event?.id, videoLoadFailed) {
+        if (videoGift && event != null && videoLoadFailed) {
+            delay(1800L)
+            currentOnFinished()
+        }
+    }
+
     LaunchedEffect(event?.id) {
         if (event == null) {
             progress.snapTo(0f)

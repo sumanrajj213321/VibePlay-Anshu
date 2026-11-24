@@ -87,7 +87,9 @@ class MusicLibraryClient(
         title: String,
         artist: String
     ): MusicTrack {
-        val mime = resolver.getType(uri)?.substringBefore(';') ?: "application/octet-stream"
+        val detectedMime = resolver.getType(uri)?.substringBefore(';')?.lowercase() ?: "application/octet-stream"
+        // Android reports MP4 containers as video/mp4 even when they contain a playable audio track.
+        val mime = if (detectedMime == "video/mp4" || detectedMime == "application/mp4") "audio/mp4" else detectedMime
         val maxBytes = 15 * 1024 * 1024
         val declaredSize = withContext(Dispatchers.IO) {
             resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->

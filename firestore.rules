@@ -276,6 +276,8 @@ service cloud.firestore {
              giftId == 'gift_couple_kiss' ? 360 :
              giftId == 'gift_sunset_love' ? 19999 :
              giftId == 'gift_royal_vows' ? 99999 :
+             giftId == 'gift_sunlit_dream' ? 29999 :
+             giftId == 'gift_prism_muse' ? 49999 :
              giftId == 'gift_royal_ride' ? 99999 :
              giftId == 'gift_enchanted_heart' ? 50000 :
              giftId == 'gift_moonlight_dance' ? 520 :
@@ -291,8 +293,12 @@ service cloud.firestore {
       let catalogPath = /databases/$(database)/documents/gifts_catalog/$(data.giftId);
       return data.giftId == 'gift_sunset_love'
         ? data.coinCost == 19999 * data.quantity
-        : data.giftId == 'gift_royal_vows'
-          ? data.coinCost == 99999 * data.quantity
+        : data.giftId == 'gift_sunlit_dream'
+          ? data.coinCost == 29999 * data.quantity
+          : data.giftId == 'gift_prism_muse'
+            ? data.coinCost == 49999 * data.quantity
+            : data.giftId == 'gift_royal_vows'
+              ? data.coinCost == 99999 * data.quantity
           : data.giftId == 'gift_royal_ride'
             ? data.coinCost == 99999 * data.quantity
             : data.giftId == 'gift_enchanted_heart'

@@ -747,7 +747,7 @@ private fun AuthenticatedVibePlayApp(
                 GlobalGiftAnnouncementTicker(
                     announcement = latestGlobalGiftAnnouncement,
                     onJoinRoom = { roomId ->
-                        roomsState.firstOrNull { it.id == roomId }?.let { room ->
+                        liveRoomsList.firstOrNull { it.id == roomId }?.let { room ->
                             tryOpenRoom(room)
                         } ?: run {
                             navController.navigate("room/$roomId") {

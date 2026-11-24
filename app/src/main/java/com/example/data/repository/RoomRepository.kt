@@ -74,7 +74,11 @@ class RoomRepository(
                     val roomCountFlows = rooms.map { room ->
                         val roomRef = db.collection("rooms").document(room.id)
                         val sessionsFlow = roomRef.collection("room_sessions").snapshots()
-                            .map { it.documents.map { doc -> doc.id }.toSet() }
+                            .map { snapshot -> snapshot.documents.filter { doc ->
+                                val seenAt = doc.getTimestamp("lastSeenAt")?.toDate()?.time ?: 0L
+                                val age = System.currentTimeMillis() - seenAt
+                                seenAt > 0L && age <= ROOM_SESSION_STALE_AFTER_MS && age >= -30_000L
+                            }.map { it.id }.toSet() }
                             .onStart { emit(emptySet()) }
                         val seatsFlow = roomRef.collection("seats").snapshots()
                             .map { snap -> snap.documents.mapNotNull { it.getString("occupantId") }.filter { it.isNotBlank() }.toSet() }
@@ -97,6 +101,16 @@ class RoomRepository(
                 }
             }
 
+
+    suspend fun heartbeatRoomSession(roomId: String, userId: String): Result<Unit> = runCatching {
+        require(userId.isNotBlank() && FirebaseAuth.getInstance().currentUser?.uid == userId) {
+            "Room presence belongs to the signed-in user."
+        }
+        db.collection("rooms").document(roomId)
+            .collection("room_sessions").document(userId)
+            .update("lastSeenAt", FieldValue.serverTimestamp())
+            .await()
+    }
 
     fun observeRoomSession(roomId: String, userId: String): Flow<Boolean?> =
         db.collection("rooms").document(roomId)
@@ -247,7 +261,11 @@ class RoomRepository(
                 snapshot.toObjects(VoiceSeat::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
             }
         val sessionsFlow = roomRef.collection("room_sessions").snapshots()
-            .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
+            .map { snapshot -> snapshot.documents.filter { doc ->
+                val seenAt = doc.getTimestamp("lastSeenAt")?.toDate()?.time ?: 0L
+                val age = System.currentTimeMillis() - seenAt
+                seenAt > 0L && age <= ROOM_SESSION_STALE_AFTER_MS && age >= -30_000L
+            }.map { it.id }.toSet() }
         // Seat presence comes from room_sessions; load frame cosmetics for all active
         // profiles so a delayed global online heartbeat cannot hide an equipped frame.
         val onlineUsersFlow = db.collection("users")
@@ -354,7 +372,11 @@ class RoomRepository(
         // Do not hide valid room members merely because their global users/{uid}.online flag is stale.
         val sessionsFlow = roomRef.collection("room_sessions")
             .snapshots()
-            .map { snapshot -> snapshot.documents.map { it.id }.toSet() }
+            .map { snapshot -> snapshot.documents.filter { doc ->
+                val seenAt = doc.getTimestamp("lastSeenAt")?.toDate()?.time ?: 0L
+                val age = System.currentTimeMillis() - seenAt
+                seenAt > 0L && age <= ROOM_SESSION_STALE_AFTER_MS && age >= -30_000L
+            }.map { it.id }.toSet() }
         // Listener membership is validated against room_sessions below. Do not gate
         // equipped frame cosmetics on the separate global online heartbeat.
         val onlineFrameColorsFlow = db.collection("users")
@@ -649,7 +671,8 @@ class RoomRepository(
                     roomRef.collection("room_sessions").document(uid),
                     mapOf(
                         "userId" to uid,
-                        "joinedAt" to FieldValue.serverTimestamp()
+                        "joinedAt" to FieldValue.serverTimestamp(),
+                        "lastSeenAt" to FieldValue.serverTimestamp()
                     )
                 )
 
@@ -721,7 +744,8 @@ class RoomRepository(
                     sessionRef,
                     mapOf(
                         "userId" to uid,
-                        "joinedAt" to FieldValue.serverTimestamp()
+                        "joinedAt" to FieldValue.serverTimestamp(),
+                        "lastSeenAt" to FieldValue.serverTimestamp()
                     )
                 )
 
@@ -773,7 +797,8 @@ class RoomRepository(
                                 "vipLevel" to safeVipLevel,
                                 "gender" to user.gender,
                                 "role" to "LISTENER",
-                                "joinedAt" to FieldValue.serverTimestamp()
+                                "joinedAt" to FieldValue.serverTimestamp(),
+                        "lastSeenAt" to FieldValue.serverTimestamp()
                             )
                         )
                         if (!listenerSnap.exists()) {
@@ -1355,7 +1380,8 @@ class RoomRepository(
                         "vipLevel" to user.vipLevel,
                         "gender" to user.gender,
                         "role" to "LISTENER",
-                        "joinedAt" to FieldValue.serverTimestamp()
+                        "joinedAt" to FieldValue.serverTimestamp(),
+                        "lastSeenAt" to FieldValue.serverTimestamp()
                     )
                 )
 
@@ -2043,3 +2069,8 @@ class RoomRepository(
             "You have already used your one-time room creation privilege. Each account can create only one room permanently."
     }
 }
+
+    private companion object {
+        const val ROOM_SESSION_STALE_AFTER_MS = 90_000L
+    }
+

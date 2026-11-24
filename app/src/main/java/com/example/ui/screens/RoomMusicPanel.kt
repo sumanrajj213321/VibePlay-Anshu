@@ -73,7 +73,14 @@ internal fun RoomMusicPanel(
     val client = remember { MusicLibraryClient() }
     val player = remember {
         ExoPlayer.Builder(context).build().apply {
-            setAudioAttributes(androidx.media3.common.AudioAttributes.DEFAULT, false)
+            setAudioAttributes(
+                androidx.media3.common.AudioAttributes.Builder()
+                    .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                    .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build(),
+                true
+            )
+            setHandleAudioBecomingNoisy(true)
         }
     }
     var tracks by remember { mutableStateOf<List<MusicTrack>>(emptyList()) }

@@ -657,3 +657,14 @@ object VibeCatalogDefaults {
         VipTier(8, "VIP 8 · Stellar", 28000L, 0xFFD81B60, "Stellar Burst", listOf("VIP 8 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect"))
     )
 }
+
+
+@Keep
+@IgnoreExtraProperties
+data class RoomMusicState(
+    val trackId: String = "",
+    val status: String = "STOPPED",
+    val positionMs: Long = 0L,
+    val updatedBy: String = "",
+    val updatedAt: Timestamp? = null
+)

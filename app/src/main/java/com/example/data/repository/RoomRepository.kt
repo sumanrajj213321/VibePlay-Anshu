@@ -1,6 +1,10 @@
 package com.example.data.repository
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.Base64
+import java.io.ByteArrayOutputStream
 import com.example.R
 import com.example.data.firebase.OperationType
 import com.example.data.firebase.handleFirestoreError
@@ -1716,16 +1720,59 @@ class RoomRepository(
         }
     }
 
-    suspend fun updateRoomCoverUrl(roomId: String, coverUrl: String): Result<Unit> {
+    suspend fun saveRoomCover(roomId: String, uri: android.net.Uri): Result<Unit> {
         val path = "rooms/$roomId"
         return try {
-            require(coverUrl.isNotBlank() && coverUrl.length <= 1000) { "Invalid room cover URL." }
-            db.collection("rooms").document(roomId).update(
-                mapOf(
-                    "coverUrl" to coverUrl,
-                    "updatedAt" to FieldValue.serverTimestamp()
-                )
-            ).await()
+            val uid = requireUserId()
+            val roomRef = db.collection("rooms").document(roomId)
+            val roomSnapshot = roomRef.get().await()
+            check(roomSnapshot.exists()) { "Room not found." }
+            val ownerId = roomSnapshot.getString("ownerId").orEmpty().ifBlank {
+                roomSnapshot.getString("hostId").orEmpty()
+            }
+            val hostId = roomSnapshot.getString("hostId").orEmpty()
+            val admins = roomSnapshot.get("adminIds") as? List<*> ?: emptyList<Any>()
+            check(uid == ownerId || uid == hostId || uid in admins) {
+                "Only the room owner or an authorized room admin can change the cover."
+            }
+            val resolver = db.app.applicationContext.contentResolver
+            val input = resolver.openInputStream(uri)
+                ?: throw IllegalArgumentException("Could not read the selected room cover.")
+            val original = input.use { BitmapFactory.decodeStream(it) }
+                ?: throw IllegalArgumentException("Selected room cover is not a supported image.")
+            val maxSide = 1280
+            val scale = minOf(1f, maxSide.toFloat() / maxOf(original.width, original.height))
+            val resized = if (scale < 1f) Bitmap.createScaledBitmap(
+                original, (original.width * scale).toInt().coerceAtLeast(1),
+                (original.height * scale).toInt().coerceAtLeast(1), true
+            ) else original
+            try {
+                var quality = 82
+                var bytes: ByteArray
+                do {
+                    val output = ByteArrayOutputStream()
+                    resized.compress(Bitmap.CompressFormat.JPEG, quality, output)
+                    bytes = output.toByteArray()
+                    quality -= 7
+                } while (bytes.size > 650 * 1024 && quality >= 40)
+                require(bytes.size <= 650 * 1024) {
+                    "Room cover is too large. Please choose a smaller image."
+                }
+                val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                roomRef.collection("cover").document("image").set(
+                    mapOf("data" to encoded, "contentType" to "image/jpeg",
+                          "updatedAt" to FieldValue.serverTimestamp())
+                ).await()
+                roomRef.update(
+                    mapOf(
+                        "coverUrl" to "firestore-room-cover://$roomId?updated=${System.currentTimeMillis()}",
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                ).await()
+            } finally {
+                if (resized !== original) resized.recycle()
+                original.recycle()
+            }
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e

@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.CharmProgression
+import com.example.ui.components.CharmEmblem
 import com.example.data.model.UserProfile
 
 private val CharmPurple = Color(0xFF8955F6)
@@ -62,7 +63,6 @@ fun CharmLevelsScreen(
     val previousGoal = CharmProgression.previousMilestone(charms)
     val progress = if (nextGoal == null) 1f else
         ((charms - previousGoal).toFloat() / (nextGoal - previousGoal).toFloat()).coerceIn(0f, 1f)
-    val icons = listOf("⭐", "💎", "👑", "👑", "♛", "🌟", "🌟", "👑", "👑", "👑", "👑", "👑", "♛", "♛", "♛", "🌟", "🌟", "🌟", "🌟", "🌟", "🌟")
 
     Column(
         modifier = Modifier.fillMaxSize().background(Color.White)
@@ -132,7 +132,11 @@ fun CharmLevelsScreen(
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("Need ${(nextGoal - charms).coerceAtLeast(0)} to Upgrade Charm to ${icons.getOrElse(level.toInt()) { "✨" }}", color = Color(0xFF6255B5), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                            Text("Need ${(nextGoal - charms).coerceAtLeast(0)} to Upgrade Charm to", color = Color(0xFF6255B5), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Spacer(Modifier.width(5.dp))
+                            CharmEmblem(level = (level + 1L).toInt(), size = 19.dp)
+                        }
                         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(top = 7.dp).height(4.dp).clip(CircleShape), color = CharmPurple, trackColor = Color.White)
                     }
                 }
@@ -157,7 +161,7 @@ fun CharmLevelsScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        icons.take(7).forEach { Text(it, fontSize = 27.sp) }
+                        (1..7).forEach { CharmEmblem(level = it, size = 31.dp) }
                     }
                     Spacer(Modifier.height(22.dp))
                     Text("How to Increase Charm", fontSize = 21.sp, color = Color.Black, fontWeight = FontWeight.Bold)
@@ -188,7 +192,7 @@ fun CharmLevelsScreen(
                     ) {
                         Text(formatCharmGoal(milestone), color = CharmMuted, fontSize = 18.sp)
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(icons.getOrElse(index) { "✨" }, fontSize = 25.sp)
+                            CharmEmblem(level = index + 1, size = 29.dp)
                             Text("${index + 1}", color = Color(0xFFE49A38), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
@@ -209,7 +213,7 @@ fun CharmLevelsScreen(
                         modifier = Modifier.fillMaxWidth().background(Color(0xFFF6F4FA), RoundedCornerShape(14.dp)).padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(icons.getOrElse(CharmProgression.milestones.indexOf(milestone)) { "✨" }, fontSize = 28.sp)
+                        CharmEmblem(level = CharmProgression.milestones.indexOf(milestone) + 1, size = 32.dp)
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
                             Text("Charm Level ${CharmProgression.milestones.indexOf(milestone) + 1}", fontWeight = FontWeight.Bold, color = CharmInk)

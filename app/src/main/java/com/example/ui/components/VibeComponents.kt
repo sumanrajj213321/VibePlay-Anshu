@@ -1049,8 +1049,27 @@ fun VoiceRoomCard(
 
 @Composable
 fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
-    val royalVowsThumbnail by produceState<android.graphics.Bitmap?>(initialValue = null, gift.id) {
-        if (gift.id == "gift_royal_vows") {
+    val videoGiftThumbnail by produceState<android.graphics.Bitmap?>(initialValue = null, gift.id) {
+        val thumbnailUrl = when (gift.id) {
+            "gift_royal_vows" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/From%20Klickpin.com-%20Discover%20Simple%20family%20dinner%20ideas%20that%20are%20trending%20right%20now%20across%20Pinterest%20boards%20for%20ideas%20worth%20saving%20right%20now-pin-id%20%28online-video-cutter.com%29.mp4"
+            "gift_sunlit_dream" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Save%20Modern%20weekend%20getaway%20inspiration%20that%20make%20your%20next%20project%20look%20polished%20and%20expensive%20for%20your%20next%20inspiration%20board%20(online-video-cutter.com).mp4"
+            "gift_prism_muse" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Try%20this%20cozy%20easy%20makeup%20roundup%20that%20make%20everything%20look%20instantly%20polished%20with%20smart%20steps%20cute%20details%20and%20cozy%20vibes%20and.mp4"
+            else -> null
+        }
+        value = if (thumbnailUrl == null) null else withContext(Dispatchers.IO) {
+            runCatching {
+                MediaMetadataRetriever().let { retriever ->
+                    try {
+                        retriever.setDataSource(thumbnailUrl, HashMap())
+                        retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    } finally {
+                        retriever.release()
+                    }
+                }
+            }.getOrNull()
+        }
+    }
+    if (gift.id == "gift_royal_vows") {
             value = withContext(Dispatchers.IO) {
                 runCatching {
                     MediaMetadataRetriever().let { retriever ->
@@ -1070,9 +1089,9 @@ fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
             value = null
         }
     }
-    if (gift.id == "gift_royal_vows" && royalVowsThumbnail != null) {
+    if (gift.id in setOf("gift_royal_vows", "gift_sunlit_dream", "gift_prism_muse") && videoGiftThumbnail != null) {
         Image(
-            bitmap = royalVowsThumbnail!!.asImageBitmap(),
+            bitmap = videoGiftThumbnail!!.asImageBitmap(),
             contentDescription = gift.name,
             modifier = modifier.clip(RoundedCornerShape(12.dp)),
             contentScale = ContentScale.Crop
@@ -1177,8 +1196,8 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
     val context = LocalContext.current
     val couple = event?.giftId == "gift_couple_kiss"
     val royalRide = event?.giftId == "gift_royal_ride"
-    // Royal Vows plays the exact video uploaded by the user (4866.mp4).
-    val videoGift = event?.giftId == "gift_sunset_love" || event?.giftId == "gift_royal_vows" || event?.giftId == "gift_enchanted_heart"
+    // Video gifts play their exact uploaded source videos.
+    val videoGift = event?.giftId in setOf("gift_sunset_love", "gift_royal_vows", "gift_enchanted_heart", "gift_sunlit_dream", "gift_prism_muse")
     var videoUrl by remember(event?.id) { mutableStateOf<String?>(null) }
     var videoReady by remember(event?.id) { mutableStateOf(false) }
     var videoLoadFailed by remember(event?.id) { mutableStateOf(false) }
@@ -1251,12 +1270,16 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
     LaunchedEffect(event?.id) {
         val active = event
         if (active != null) {
-            if (active.giftId == "gift_sunset_love" || active.giftId == "gift_royal_vows" || active.giftId == "gift_enchanted_heart") {
+            if (active.giftId in setOf("gift_sunset_love", "gift_royal_vows", "gift_enchanted_heart", "gift_sunlit_dream", "gift_prism_muse")) {
                 videoUrl = when (active.giftId) {
                     "gift_royal_vows" ->
                         "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/From%20Klickpin.com-%20Discover%20Simple%20family%20dinner%20ideas%20that%20are%20trending%20right%20now%20across%20Pinterest%20boards%20for%20ideas%20worth%20saving%20right%20now-pin-id%20%28online-video-cutter.com%29.mp4"
                     "gift_enchanted_heart" ->
                         "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/enchanted_heart_gift.mp4"
+                    "gift_sunlit_dream" ->
+                        "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Save%20Modern%20weekend%20getaway%20inspiration%20that%20make%20your%20next%20project%20look%20polished%20and%20expensive%20for%20your%20next%20inspiration%20board%20(online-video-cutter.com).mp4"
+                    "gift_prism_muse" ->
+                        "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Try%20this%20cozy%20easy%20makeup%20roundup%20that%20make%20everything%20look%20instantly%20polished%20with%20smart%20steps%20cute%20details%20and%20cozy%20vibes%20and.mp4"
                     else ->
                         "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/sunset_love_gift.mp4"
                 }

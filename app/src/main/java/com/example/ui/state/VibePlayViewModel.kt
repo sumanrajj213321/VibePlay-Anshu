@@ -217,10 +217,10 @@ class VibePlayViewModel(
                 val curatedById = remote.filter { gift -> VibeCatalogDefaults.defaultGifts.any { it.id == gift.id } }.associateBy { it.id }
                 VibeCatalogDefaults.defaultGifts.map { defaultGift ->
                     val remoteGift = curatedById[defaultGift.id]
-                    if (defaultGift.id == "gift_sunset_love") {
-                        (remoteGift ?: defaultGift).copy(coinCost = 19999L)
-                    } else {
-                        remoteGift ?: defaultGift
+                    when (defaultGift.id) {
+                        "gift_sunset_love" -> (remoteGift ?: defaultGift).copy(coinCost = 19999L)
+                        "gift_royal_vows" -> (remoteGift ?: defaultGift).copy(coinCost = 99999L)
+                        else -> remoteGift ?: defaultGift
                     }
                 }
             }

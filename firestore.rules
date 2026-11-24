@@ -663,6 +663,28 @@ service cloud.firestore {
            ))
         );
 
+      // Allow an authenticated user to update only their own following counter
+      // when the matching following edge is atomically created or removed.
+      // This also supports legacy profiles missing userId/createdAt fields.
+      allow update: if isSignedIn() && isValidId(userId) &&
+        request.auth.uid == userId &&
+        (!('userId' in existing()) || incoming().userId == existing().userId) &&
+        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+        (!('coinBalance' in existing()) || incoming().coinBalance == existing().coinBalance) &&
+        (!('vipLevel' in existing()) || incoming().vipLevel == existing().vipLevel) &&
+        isValidTs(incoming().updatedAt) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['followingCount', 'updatedAt']) &&
+        (
+          (incoming().followingCount == (('followingCount' in existing()) ? existing().followingCount : 0) + 1 &&
+           !exists(/databases/$(database)/documents/users/$(userId)/following/$(targetId)) &&
+           existsAfter(/databases/$(database)/documents/users/$(userId)/following/$(targetId)) &&
+           getAfter(/databases/$(database)/documents/users/$(userId)/following/$(targetId)).data.peerId == $(targetId)) ||
+          (incoming().followingCount == (('followingCount' in existing()) ? existing().followingCount : 0) - 1 &&
+           incoming().followingCount >= 0 &&
+           exists(/databases/$(database)/documents/users/$(userId)/following/$(targetId)) &&
+           !existsAfter(/databases/$(database)/documents/users/$(userId)/following/$(targetId)))
+        );
+
       match /avatar/{avatarDocId} {
         allow get: if isSignedIn() && avatarDocId == 'image';
         allow list: if false;

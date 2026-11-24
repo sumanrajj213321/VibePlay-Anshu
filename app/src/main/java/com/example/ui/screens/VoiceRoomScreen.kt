@@ -122,6 +122,7 @@ import com.example.data.model.VoiceStage
 import com.example.ui.components.GiftBurstOverlay
 import com.example.ui.components.ReportUserOrRoomDialog
 import com.example.ui.components.VibeAvatar
+import com.example.ui.components.VibeCoinIcon
 import com.example.ui.components.VipBadgePill
 import com.example.ui.components.VipShiningNameText
 import com.example.ui.components.VipEntranceOverlay
@@ -1646,7 +1647,13 @@ private fun RoomGiftRankingStrip(
                                 Row(Modifier.fillMaxWidth().padding(horizontal = 11.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Text("#${index + 1}", color = if (index == 0) VibeGold else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
                                     Text(row.username, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
-                                    Text("%,d coins".format(row.coins), color = VibeGold, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            VibeCoinIcon(modifier = Modifier.size(18.dp))
+                                            Text("%,d".format(row.coins), fontWeight = FontWeight.Bold)
+                                        }
+                                        Text("Gift coins", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
                                 }
                             }
                         }

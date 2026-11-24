@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 
 class RoomViewModel(
@@ -152,6 +153,7 @@ class RoomViewModel(
     private var roomMessagesJob: Job? = null
     private var roomJoinJob: Job? = null
     private var roomSessionJob: Job? = null
+    private var roomHeartbeatJob: Job? = null
     private var joinedListenerDone = false
     private var roomJoinInProgress = false
     private var lastShownGiftMsgId: String? = null
@@ -239,11 +241,22 @@ class RoomViewModel(
             roomRepository.joinAsListener(loadedRoom, currentUser)
                 .onSuccess {
                     joinedListenerDone = true
+                    roomHeartbeatJob?.cancel()
+                    roomHeartbeatJob = launch {
+                        while (joinedListenerDone) {
+                            roomRepository.heartbeatRoomSession(roomId, currentUserId)
+                                .onFailure { error ->
+                                    Log.w(TAG, "Room presence heartbeat failed", unwrapFirestoreError(error))
+                                }
+                            delay(25_000L)
+                        }
+                    }
                     roomSessionJob?.cancel()
                     roomSessionJob = launch {
                         roomRepository.observeRoomSession(roomId, currentUserId).collect { exists ->
                             if (exists == false && joinedListenerDone) {
                                 _roomSessionRemoved.value = true
+                                roomHeartbeatJob?.cancel()
                                 voiceEngine.disconnect()
                                 roomMessagesJob?.cancel()
                                 roomGiftTransactionsJob?.cancel()
@@ -508,6 +521,8 @@ class RoomViewModel(
         roomJoinJob = null
         roomSessionJob?.cancel()
         roomSessionJob = null
+        roomHeartbeatJob?.cancel()
+        roomHeartbeatJob = null
         voiceEngine.disconnect()
         _giftBurst.value = null
         roomMessagesJob?.cancel()
@@ -534,6 +549,7 @@ class RoomViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        roomHeartbeatJob?.cancel()
         voiceEngine.disconnect()
     }
 

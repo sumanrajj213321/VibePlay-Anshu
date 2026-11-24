@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -154,7 +155,10 @@ fun RoomGiftStoreSheet(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         VibeCoinIcon(modifier = Modifier.size(22.dp))
-                        Text("${currentUser.coinBalance}", style = MaterialTheme.typography.titleMedium, color = VibeGold, fontWeight = FontWeight.Bold)
+                        Column {
+                            Text("${currentUser.coinBalance}", style = MaterialTheme.typography.titleMedium, color = VibeGold, fontWeight = FontWeight.Bold)
+                            Text("10 coins = 1 charm", style = MaterialTheme.typography.labelSmall, color = VibeGold)
+                        }
                     }
                 }
             }
@@ -252,6 +256,27 @@ fun RoomGiftStoreSheet(
             val recipientToSend = selectedRecipient
             val totalCost = (giftToSend?.coinCost ?: 0L) * selectedQuantity
             val canAfford = giftToSend != null && currentUser.coinBalance >= totalCost
+
+            if (giftToSend != null) {
+                val previewCharms = totalCost / com.example.data.model.CharmProgression.COINS_PER_CHARM
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF102B3A),
+                    border = BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF35F4E5), Color(0xFF8B72FF))))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(7.dp)
+                    ) {
+                        Icon(Icons.Filled.AutoAwesome, contentDescription = "Charm preview", tint = Color(0xFF65FFF0), modifier = Modifier.size(17.dp))
+                        Text("+$previewCharms Charms", color = Color(0xFF65FFF0), fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleSmall)
+                        Spacer(Modifier.weight(1f))
+                        Text("Recipient earns", color = Color(0xFFB7D7DF), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
 
             Button(
                 onClick = {

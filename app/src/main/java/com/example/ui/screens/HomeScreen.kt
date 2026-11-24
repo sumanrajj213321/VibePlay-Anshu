@@ -27,7 +27,6 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -208,12 +207,7 @@ fun HomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.MonetizationOn,
-                                contentDescription = "Coin balance",
-                                tint = VibeGold,
-                                modifier = Modifier.size(16.dp)
-                            )
+                            VibeCoinIcon(modifier = Modifier.size(20.dp))
                             Text(
                                 text = "${currentUser.coinBalance}",
                                 style = MaterialTheme.typography.labelMedium,

@@ -10,6 +10,7 @@ import com.example.data.model.LevelProgression
 import com.example.data.model.RoomCreationLock
 import com.example.data.model.RoomListener
 import com.example.data.model.RoomMessage
+import com.example.data.model.RoomMusicState
 import com.example.data.model.SpeakerRequest
 import com.example.data.model.UserProfile
 import com.example.data.model.VibeShopCatalog
@@ -131,6 +132,34 @@ class RoomRepository(
                 "queueTrackIds" to queueTrackIds.distinct()
             )
         ).await()
+    }
+
+    suspend fun addTrackToRoomMusicQueue(roomId: String, trackId: String): Result<Unit> = runCatching {
+        require(trackId.isNotBlank() && trackId.length <= 512) { "Invalid track ID." }
+        val uid = requireUserId()
+        val stateRef = db.collection("rooms").document(roomId).collection("music").document("state")
+        db.runTransaction { tx ->
+            val snapshot = tx.get(stateRef)
+            val currentTrackId = snapshot.getString("trackId").orEmpty()
+            val currentStatus = snapshot.getString("status") ?: "STOPPED"
+            val currentPosition = snapshot.getLong("positionMs") ?: 0L
+            val currentQueue = (snapshot.get("queueTrackIds") as? List<*>)
+                .orEmpty().filterIsInstance<String>()
+            require(trackId != currentTrackId) { "This song is already playing." }
+            require(trackId !in currentQueue) { "This song is already in the queue." }
+            require(currentQueue.size < 100) { "The room queue is full." }
+            tx.set(
+                stateRef,
+                mapOf(
+                    "trackId" to currentTrackId,
+                    "status" to currentStatus,
+                    "positionMs" to currentPosition.coerceIn(0L, 86_400_000L),
+                    "updatedBy" to uid,
+                    "updatedAt" to FieldValue.serverTimestamp(),
+                    "queueTrackIds" to (currentQueue + trackId)
+                )
+            )
+        }.await()
     }
 
     fun observeRoom(roomId: String): Flow<VoiceRoom?> =

@@ -293,7 +293,8 @@ fun HostSettingsSheet(
     onUploadCover: (Uri) -> Unit = {},
     onMuteAllSpeakers: () -> Unit = {},
     onTransferOwnership: (VoiceSeat) -> Unit,
-    onEndRoom: () -> Unit
+    onEndRoom: () -> Unit,
+    onUnblockRoomMember: (String) -> Unit = {}
 ) {
     var title by remember(room.title) { mutableStateOf(room.title) }
     var announcement by remember(room.announcement) { mutableStateOf(room.announcement) }
@@ -484,6 +485,40 @@ fun HostSettingsSheet(
                     Text("Save Stage Settings", fontWeight = FontWeight.Bold)
                 }
             }
+            if (isOwner && room.bannedUserIds.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Banned from this room (${room.bannedUserIds.size})",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = VibeCoral
+                    )
+                }
+                items(room.bannedUserIds, key = { "banned_room_user_$it" }) { bannedId ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = bannedId,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        OutlinedButton(
+                            onClick = { onUnblockRoomMember(bannedId) },
+                            modifier = Modifier.testTag("unblock_room_member_$bannedId")
+                        ) {
+                            Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Unblock")
+                        }
+                    }
+                }
+            }
+
             if (eligibleSpeakers.isNotEmpty()) {
                 item {
                     OutlinedButton(
@@ -767,12 +802,12 @@ fun RoomOnlineMembersSheet(
                                         Icon(Icons.Filled.Block, contentDescription = "Block user", tint = VibeCoral, modifier = Modifier.size(18.dp))
                                     }
                                 }
-                                if (isHost && member.stageRole != "HOST") {
+                                if (isOwner && member.stageRole != "HOST") {
                                     IconButton(
                                         onClick = { onKickMember(member.userId) },
                                         modifier = Modifier.testTag("kick_room_member_${member.userId}")
                                     ) {
-                                        Icon(Icons.Filled.PersonRemove, contentDescription = "Remove from room", tint = VibeCoral, modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Filled.PersonRemove, contentDescription = "Kick and ban from room", tint = VibeCoral, modifier = Modifier.size(18.dp))
                                     }
                                 }
                             }

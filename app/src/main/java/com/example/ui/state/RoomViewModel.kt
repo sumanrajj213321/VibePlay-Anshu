@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -42,6 +43,9 @@ class RoomViewModel(
     private val voiceEngine: AgoraVoiceEngine = AgoraVoiceEngine()
 ) : ViewModel() {
 
+
+    private val _roomSessionRemoved = MutableStateFlow(false)
+    val roomSessionRemoved: StateFlow<Boolean> = _roomSessionRemoved.asStateFlow()
 
     val roomMusic: StateFlow<RoomMusicState?> = roomRepository.observeRoomMusic(roomId)
         .catch { error ->
@@ -130,6 +134,18 @@ class RoomViewModel(
     private var lastShownGiftMsgId: String? = null
 
     init {
+        viewModelScope.launch {
+            roomRepository.observeRoomSession(roomId, currentUserId).collect { exists ->
+                if (exists == false && joinedListenerDone) {
+                    _roomSessionRemoved.value = true
+                    voiceEngine.disconnect()
+                    roomMessagesJob?.cancel()
+                    roomGiftTransactionsJob?.cancel()
+                    _messages.value = emptyList()
+                    _roomGiftTransactions.value = emptyList()
+                }
+            }
+        }
         viewModelScope.launch {
             rawSeats.collect { seats ->
                 val mySeat = seats.firstOrNull { it.occupantId == currentUserId }

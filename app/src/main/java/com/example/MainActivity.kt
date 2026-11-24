@@ -874,19 +874,12 @@ private fun AuthenticatedVibePlayApp(
 
             inspectedUser?.let { target ->
                 val isFollowing = followingList.any { it.peerId == target.userId }
-                val targetFollowers by remember(target.userId) {
-                    viewModel.observeFollowersFor(target.userId)
-                }.collectAsStateWithLifecycle(initialValue = emptyList())
-                val targetFollowing by remember(target.userId) {
-                    viewModel.observeFollowingFor(target.userId)
-                }.collectAsStateWithLifecycle(initialValue = emptyList())
-
                 PublicProfileSheet(
                     targetUser = target,
                     currentUserId = currentUser.userId,
                     isFollowing = isFollowing,
-                    followersList = if (target.userId == currentUser.userId) followersList else targetFollowers,
-                    followingList = if (target.userId == currentUser.userId) followingList else targetFollowing,
+                    followersList = if (target.userId == currentUser.userId) followersList else emptyList(),
+                    followingList = if (target.userId == currentUser.userId) followingList else emptyList(),
                     giftHistory = giftHistory,
                     myHostedRoom = myHostedRoom,
                     onDismiss = {

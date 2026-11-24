@@ -135,6 +135,8 @@ internal fun RoomMusicPanel(
         roomMusic?.trackId,
         roomMusic?.status,
         roomMusic?.positionMs,
+        roomMusic?.updatedAt,
+        roomMusic?.updatedBy,
         tracks
     ) {
         val state = roomMusic ?: return@LaunchedEffect

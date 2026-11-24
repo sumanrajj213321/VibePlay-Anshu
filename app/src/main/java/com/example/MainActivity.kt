@@ -831,7 +831,7 @@ private fun AuthenticatedVibePlayApp(
                                             modifier = Modifier.size(23.dp)
                                         )
                                     }
-                                }              }
+                                }
                             }
                         }
                     }

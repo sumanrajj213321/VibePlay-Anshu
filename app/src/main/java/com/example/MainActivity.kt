@@ -780,9 +780,6 @@ private fun AuthenticatedVibePlayApp(
                                                 viewModel.inviteFriendToRoom(currentUser, targetId, targetRoom)
                                             },
                                             onOpenUserProfile = inspectUserById,
-                                            onMinimizeToPip = {
-                                                (context as? MainActivity)?.minimizeVoiceRoomToPictureInPicture()
-                                            },
                                             onBack = { navController.popBackStack() },
                                             onSubmitReport = { type, id, name, reason, details ->
                                                 viewModel.submitReport(currentUser, type, id, name, reason, details)

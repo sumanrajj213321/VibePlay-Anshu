@@ -777,7 +777,9 @@ private fun AuthenticatedVibePlayApp(
                                         VoiceRoomScreen(
                                             roomViewModel = roomVm,
                                             onMinimizeToPip = {
-                                                (context as? MainActivity)?.minimizeVoiceRoomToPictureInPicture()
+                                                // Back/minimize inside VibePlay should reveal
+                                                // the app tabs and keep this room on the back stack.
+                                                switchTab(MainTab.Home)
                                             },
                                             currentUser = currentUser,
                                             activeGifts = activeGifts,

@@ -37,6 +37,7 @@ import com.example.data.model.UserProfile
 import com.example.data.model.VibeCatalogDefaults
 import com.example.data.model.VibeShopCatalog
 import com.example.data.model.ShopCosmeticItem
+import com.example.ui.components.VibeCoinIcon
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.VipBadgePill
 import com.example.ui.theme.VibeGold
@@ -63,7 +64,7 @@ fun ShopScreen(
                 }
                 Text("VibePlay Shop", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             }
-            Text("${profile.coinBalance} Coins", color = VibeGold, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) { VibeCoinIcon(modifier = Modifier.size(20.dp)); Text("${profile.coinBalance} Coins", color = VibeGold, fontWeight = FontWeight.Bold) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             listOf("VIP", "Frames").forEachIndexed { index, label ->
@@ -172,7 +173,7 @@ private fun ShopCard(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, color = accent, fontWeight = FontWeight.ExtraBold)
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("$price Coins", style = MaterialTheme.typography.labelLarge, color = VibeGold, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) { VibeCoinIcon(modifier = Modifier.size(18.dp)); Text("$price Coins", style = MaterialTheme.typography.labelLarge, color = VibeGold, fontWeight = FontWeight.Bold) }
             }
             Button(
                 onClick = onClick,

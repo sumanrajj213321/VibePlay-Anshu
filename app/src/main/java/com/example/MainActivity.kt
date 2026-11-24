@@ -1,6 +1,9 @@
 package com.example
 
 import android.os.Bundle
+import android.os.Build
+import android.app.PictureInPictureParams
+import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -138,6 +141,39 @@ private sealed class MainTab(
 private const val ROUTE_VOICE_ROOM = "room/{roomId}"
 
 class MainActivity : ComponentActivity() {
+    private var voiceRoomActive: Boolean = false
+
+    fun setVoiceRoomActive(active: Boolean) {
+        voiceRoomActive = active
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            setPictureInPictureParams(
+                PictureInPictureParams.Builder()
+                    .setAspectRatio(Rational(16, 9))
+                    .setAutoEnterEnabled(active)
+                    .build()
+            )
+        }
+    }
+
+    fun minimizeVoiceRoomToPictureInPicture(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || !voiceRoomActive) return false
+        return try {
+            val params = PictureInPictureParams.Builder()
+                .setAspectRatio(Rational(16, 9))
+                .build()
+            enterPictureInPictureMode(params)
+        } catch (_: IllegalStateException) {
+            false
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (voiceRoomActive && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            minimizeVoiceRoomToPictureInPicture()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -720,8 +756,19 @@ private fun AuthenticatedVibePlayApp(
                                                         )
                                                 }
                                         }
+                                        SideEffect {
+                                            (context as? MainActivity)?.setVoiceRoomActive(true)
+                                        }
+                                        DisposableEffect(context) {
+                                            onDispose {
+                                                (context as? MainActivity)?.setVoiceRoomActive(false)
+                                            }
+                                        }
                                         VoiceRoomScreen(
                                             roomViewModel = roomVm,
+                                            onMinimizeToPip = {
+                                                (context as? MainActivity)?.minimizeVoiceRoomToPictureInPicture()
+                                            },
                                             currentUser = currentUser,
                                             activeGifts = activeGifts,
                                             blockedUserIds = blockedIds,

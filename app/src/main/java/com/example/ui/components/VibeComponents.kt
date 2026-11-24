@@ -994,7 +994,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
     val context = LocalContext.current
     val couple = event?.giftId == "gift_couple_kiss"
     // Royal Vows plays the exact video uploaded by the user (4866.mp4).
-    val videoGift = event?.giftId == "gift_sunset_love" || event?.giftId == "gift_royal_vows"
+    val videoGift = event?.giftId == "gift_sunset_love" || event?.giftId == "gift_royal_vows" || event?.giftId == "gift_enchanted_heart"
     var videoUrl by remember(event?.id) { mutableStateOf<String?>(null) }
     var videoReady by remember(event?.id) { mutableStateOf(false) }
     var videoLoadFailed by remember(event?.id) { mutableStateOf(false) }
@@ -1007,11 +1007,14 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
     LaunchedEffect(event?.id) {
         val active = event
         if (active != null) {
-            if (active.giftId == "gift_sunset_love" || active.giftId == "gift_royal_vows") {
-                videoUrl = if (active.giftId == "gift_royal_vows") {
-                    "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/From%20Klickpin.com-%20Discover%20Simple%20family%20dinner%20ideas%20that%20are%20trending%20right%20now%20across%20Pinterest%20boards%20for%20ideas%20worth%20saving%20right%20now-pin-id%20%28online-video-cutter.com%29.mp4"
-                } else {
-                    "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/sunset_love_gift.mp4"
+            if (active.giftId == "gift_sunset_love" || active.giftId == "gift_royal_vows" || active.giftId == "gift_enchanted_heart") {
+                videoUrl = when (active.giftId) {
+                    "gift_royal_vows" ->
+                        "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/From%20Klickpin.com-%20Discover%20Simple%20family%20dinner%20ideas%20that%20are%20trending%20right%20now%20across%20Pinterest%20boards%20for%20ideas%20worth%20saving%20right%20now-pin-id%20%28online-video-cutter.com%29.mp4"
+                    "gift_enchanted_heart" ->
+                        "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/enchanted_heart_gift.mp4"
+                    else ->
+                        "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/sunset_love_gift.mp4"
                 }
                 if (videoUrl.isNullOrBlank()) videoLoadFailed = true
             } else {

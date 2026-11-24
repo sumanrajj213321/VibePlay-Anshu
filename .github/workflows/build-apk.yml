@@ -53,8 +53,21 @@ jobs:
       - name: Validate Cloud Functions JavaScript syntax
         run: node --check functions/index.js
 
+  music-worker-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate music Worker bundle without deploying
+        working-directory: cloudflare/music-worker
+        run: npx --yes wrangler@4 deploy --dry-run
+
   build-debug-apk:
-    needs: [firestore-rules-tests, functions-validation]
+    needs: [firestore-rules-tests, functions-validation, music-worker-validation]
     runs-on: ubuntu-latest
     env:
       DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}

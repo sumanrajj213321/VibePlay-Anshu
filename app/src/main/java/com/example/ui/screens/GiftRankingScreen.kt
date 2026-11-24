@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -18,7 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,8 +37,8 @@ import androidx.compose.ui.unit.dp
 import com.example.data.model.UserProfile
 import com.example.data.model.VibeShopCatalog
 import com.example.ui.components.VibeAvatar
+import com.example.ui.components.VibeCoinIcon
 import com.example.ui.theme.VibeGold
-import com.example.ui.theme.VibePink
 
 @Composable
 fun GiftRankingScreen(
@@ -112,7 +110,7 @@ fun GiftRankingScreen(
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(Icons.Filled.CardGiftcard, contentDescription = null, tint = if (selectedTab == 0) VibePink else VibeGold, modifier = Modifier.size(16.dp))
+                                    VibeCoinIcon(modifier = Modifier.size(18.dp))
                                     Text("%,d".format(total), fontWeight = FontWeight.Bold)
                                 }
                                 Text("Gift coins", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

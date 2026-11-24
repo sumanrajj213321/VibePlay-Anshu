@@ -1119,6 +1119,7 @@ internal fun VoiceRoomStageContent(
         canUpload = isManager || mySeat != null,
         onUpdateRoomMusic = onUpdateRoomMusic,
         onAddTrackToQueue = onAddTrackToQueue,
+        onAdvanceQueue = { trackId -> roomViewModel.advanceRoomMusicQueue(trackId) },
         onDismiss = { showRoomMusic = false }
     )
 

@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Lock
@@ -349,6 +350,7 @@ internal fun VoiceRoomStageContent(
     var showHostSettings by remember { mutableStateOf(false) }
     var showRoomMusic by remember { mutableStateOf(false) }
     var showOnlineMembers by remember { mutableStateOf(false) }
+    var showRoomInfo by remember { mutableStateOf(false) }
     var showInvitationDialog by remember { mutableStateOf(false) }
     LaunchedEffect(mySeatInvitation?.id, mySeatInvitation?.status) {
         if (mySeatInvitation?.status == "INVITED") showInvitationDialog = true
@@ -642,6 +644,19 @@ internal fun VoiceRoomStageContent(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+                            IconButton(
+                                onClick = { showRoomInfo = true },
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .testTag("room_info_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = "Room information",
+                                    tint = VibeCyan,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
                             if (currentRoom.locked) {
                                 Icon(Icons.Filled.Lock, contentDescription = "Locked", tint = VibePink, modifier = Modifier.size(16.dp))
                             }
@@ -1050,6 +1065,27 @@ internal fun VoiceRoomStageContent(
                 onDismiss = { showInvitationDialog = false }
             )
         }
+    }
+
+    if (showRoomInfo) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showRoomInfo = false },
+            title = { Text("Room information") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Name: ${currentRoom.title}")
+                    Text("Category: ${currentRoom.category}")
+                    Text("Room ID: ${currentRoom.publicRoomId.ifBlank { currentRoom.id }}")
+                    if (currentRoom.announcement.isNotBlank()) {
+                        Text("Announcement: ${currentRoom.announcement}")
+                    }
+                    Text("Online users: ${computedOnlineUsers.size}")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showRoomInfo = false }) { Text("Close") }
+            }
+        )
     }
 
     if (showOnlineMembers) {

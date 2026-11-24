@@ -275,7 +275,7 @@ internal fun RoomMusicPanel(
                             Column(Modifier.fillMaxWidth().padding(9.dp)) {
                                 Text(track.title, style = MaterialTheme.typography.bodyMedium)
                                 Text(track.artist, style = MaterialTheme.typography.labelSmall)
-                                if (canControl) {
+                                if (canUpload) {
                                     TextButton(onClick = {
                                         val queue = roomMusic?.queueTrackIds.orEmpty()
                                         if (track.id != roomMusic?.trackId && track.id !in queue) {

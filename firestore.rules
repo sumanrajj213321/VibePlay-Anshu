@@ -845,11 +845,12 @@ service cloud.firestore {
         allow get: if musicDocId == 'state' && roomMusicMember();
         allow list: if false;
         allow create, update: if musicDocId == 'state' && roomMusicController() &&
-          incoming().keys().hasOnly(['trackId', 'status', 'positionMs', 'updatedBy', 'updatedAt']) &&
+          incoming().keys().hasOnly(['trackId', 'status', 'positionMs', 'updatedBy', 'updatedAt', 'queueTrackIds']) &&
           incoming().trackId is string && incoming().trackId.size() <= 512 &&
           incoming().status in ['PLAYING', 'PAUSED', 'STOPPED'] &&
           incoming().positionMs is int && incoming().positionMs >= 0 && incoming().positionMs <= 86400000 &&
-          incoming().updatedBy == request.auth.uid && incoming().updatedAt == request.time;
+          incoming().updatedBy == request.auth.uid && incoming().updatedAt == request.time &&
+          (!('queueTrackIds' in incoming()) || (incoming().queueTrackIds is list && incoming().queueTrackIds.size() <= 100 && (incoming().queueTrackIds.size() == 0 || (incoming().queueTrackIds[0] is string && incoming().queueTrackIds[0].size() <= 512))));
         allow delete: if false;
       }
 

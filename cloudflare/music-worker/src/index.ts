@@ -63,6 +63,21 @@ async function verify(request: Request, env: Env): Promise<string> {
 function safeName(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100);
 }
+function encodeName(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+function decodeName(value: string): string {
+  try {
+    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+    const binary = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "="));
+    return new TextDecoder().decode(Uint8Array.from(binary, char => char.charCodeAt(0)));
+  } catch {
+    return value || "Untitled";
+  }
+}
 function apiUrl(env: Env, path: string): string {
   return "https://api.dbbyte.com/storage/" + encodeURIComponent(env.DBBYTE_BUCKET) + path;
 }
@@ -100,11 +115,12 @@ export default {
           .map(f => {
             const parts = f.name.replace(/\.[^.]+$/, "").split("_");
             const extension = f.name.split(".").pop()?.toLowerCase();
-            const title = parts.slice(4).join("_") || "Untitled";
+            const title = decodeName(parts.slice(4).join("_")) || "Untitled";
+            const artist = decodeName(parts[3] || "") || "Unknown artist";
             const contentType = extension === "mp3" ? "audio/mpeg" : extension === "m4a" ? "audio/mp4" :
               extension === "aac" ? "audio/aac" : extension === "ogg" ? "audio/ogg" :
               extension === "flac" ? "audio/flac" : "audio/wav";
-            return { id: f.name, title, artist: parts[3] || "Unknown artist", size: Number(f.size || 0), contentType, uploadedBy: parts[1] || "" };
+            return { id: f.name, title, artist, size: Number(f.size || 0), contentType, uploadedBy: parts[1] || "" };
           });
         return reply({ tracks, truncated: false }, 200, h);
       }
@@ -125,9 +141,9 @@ export default {
         const ext = type === "audio/mpeg" ? "mp3" : type === "audio/mp4" ? "m4a" :
           type === "audio/aac" ? "aac" : type === "audio/ogg" || type === "audio/opus" ? "ogg" :
           type === "audio/flac" ? "flac" : "wav";
-        const title = safeName(String(incoming.get("title") || file.name.replace(/\.[^.]+$/, "")).trim() || "Untitled");
-        const artist = safeName(String(incoming.get("artist") || "Unknown_artist").trim() || "Unknown_artist");
-        const storedName = "music_" + uid.slice(0, 32) + "_" + crypto.randomUUID() + "_" + artist + "_" + title + "." + ext;
+        const title = String(incoming.get("title") || file.name).trim().slice(0, 120) || "Untitled";
+        const artist = String(incoming.get("artist") || "Unknown artist").trim().slice(0, 80) || "Unknown artist";
+        const storedName = "music_" + uid.slice(0, 32) + "_" + crypto.randomUUID() + "_" + encodeName(artist) + "_" + encodeName(title) + "." + ext;
         const uploadFile = new File([file], storedName, { type });
         const body = new FormData();
         body.set("file", uploadFile);
@@ -137,7 +153,7 @@ export default {
         return reply({
           id: result.name || storedName,
           title: title,
-          artist: String(incoming.get("artist") || "Unknown artist").slice(0, 80),
+          artist,
           size: Number(result.size || file.size),
           contentType: result.mimeType || type,
           uploadedBy: uid

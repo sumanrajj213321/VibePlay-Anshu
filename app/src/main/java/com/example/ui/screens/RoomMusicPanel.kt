@@ -146,8 +146,14 @@ internal fun RoomMusicPanel(
         tracks
     ) {
         val state = roomMusic ?: return@LaunchedEffect
-        val track = tracks.firstOrNull { it.id == state.trackId } ?: return@LaunchedEffect
         if (!client.isConfigured) return@LaunchedEffect
+        val track = tracks.firstOrNull { it.id == state.trackId }
+        if (track == null) {
+            // A different device may have uploaded this track after this device
+            // loaded its catalogue. Refresh before giving up on shared playback.
+            if (state.trackId.isNotBlank()) refreshLibrary()
+            return@LaunchedEffect
+        }
         try {
             val token = FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token
                 ?: throw IllegalStateException("Please sign in again.")

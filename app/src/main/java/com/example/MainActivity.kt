@@ -111,6 +111,7 @@ import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.InboxScreen
 import com.example.ui.screens.NotificationsCenterSheet
 import com.example.ui.screens.ProfileScreen
+import com.example.ui.screens.CharmLevelsScreen
 import com.example.ui.screens.ShopScreen
 import com.example.ui.screens.RelationshipScreen
 import com.example.ui.screens.PublicProfileSheet
@@ -728,7 +729,15 @@ private fun AuthenticatedVibePlayApp(
                                         onOpenNotifications = { showNotificationsSheet = true },
                                         onSignOut = signOutAction,
                                         onOpenShop = { navController.navigate("shop") },
-                                        onOpenRelationships = { navController.navigate("relationships") }
+                                        onOpenRelationships = { navController.navigate("relationships") },
+                                        onOpenCharmLevels = { navController.navigate("charm-levels") }
+                                    )
+                                }
+
+                                composable("charm-levels") {
+                                    CharmLevelsScreen(
+                                        profile = currentUser,
+                                        onBack = { navController.popBackStack() }
                                     )
                                 }
 

@@ -1351,6 +1351,65 @@ class RoomRepository(
         }
     }
 
+    suspend fun kickRoomMember(roomId: String, targetUserId: String): Result<Unit> {
+        val path = "rooms/$roomId"
+        return try {
+            val uid = requireUserId()
+            require(targetUserId.isNotBlank() && targetUserId != uid) { "Select another room member." }
+            val roomRef = db.collection("rooms").document(roomId)
+            val listenerRef = roomRef.collection("listeners").document(targetUserId)
+            val sessionRef = roomRef.collection("room_sessions").document(targetUserId)
+            db.runTransaction { tx ->
+                val roomSnap = tx.get(roomRef)
+                val loadedRoom = roomSnap.toObject(VoiceRoom::class.java)
+                    ?: throw IllegalStateException("Room not found.")
+                check(loadedRoom.isManager(uid)) { "Only the Room Owner or a Room Admin can kick members." }
+                check(!loadedRoom.isOwner(targetUserId)) { "The Room Owner cannot be kicked." }
+                val listenerSnap = tx.get(listenerRef)
+                val sessionSnap = tx.get(sessionRef)
+                val seatRefs = (1..VoiceStage.SPEAKER_SEAT_COUNT).map {
+                    roomRef.collection("seats").document(it.toString())
+                }
+                val seatSnaps = seatRefs.map { tx.get(it) }
+                val targetSeat = seatSnaps.indexOfFirst { it.getString("occupantId") == targetUserId }
+                check(listenerSnap.exists() || sessionSnap.exists() || targetSeat >= 0) {
+                    "This user is no longer in the room."
+                }
+                if (listenerSnap.exists()) tx.delete(listenerRef)
+                if (sessionSnap.exists()) tx.delete(sessionRef)
+                if (targetSeat >= 0) {
+                    val seatRef = seatRefs[targetSeat]
+                    tx.update(seatRef, mapOf(
+                        "occupantId" to "",
+                        "occupantName" to "",
+                        "occupantAvatarUrl" to "",
+                        "occupantVipLevel" to 0L,
+                        "occupantGender" to "UNSPECIFIED",
+                        "muted" to true,
+                        "speaking" to false,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    ))
+                }
+                val remainingSpeakers = seatSnaps.count {
+                    it.getString("occupantId").orEmpty().isNotBlank() && it.getString("occupantId") != targetUserId
+                }
+                val nextActiveAdmins = loadedRoom.activeAdminIds.filter { it != targetUserId }
+                tx.update(roomRef, mapOf(
+                    "listenerCount" to (loadedRoom.listenerCount - if (listenerSnap.exists()) 1L else 0L).coerceAtLeast(0L),
+                    "activeSpeakersCount" to ((if (loadedRoom.effectiveOwnerOnline) 1 else 0) + remainingSpeakers).coerceIn(0, 9).toLong(),
+                    "activeAdminIds" to nextActiveAdmins,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ))
+            }.await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, path)
+            Result.failure(e)
+        }
+    }
+
     suspend fun hostRemoveSpeaker(roomId: String, seatIndex: Int): Result<Unit> {
         val path = "rooms/$roomId/seats/$seatIndex"
         return try {

@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -50,11 +51,11 @@ import com.example.data.music.MusicTrack
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import java.util.concurrent.TimeUnit
 
 @OptIn(UnstableApi::class)
 @Composable
 internal fun RoomMusicPanel(
+    visible: Boolean,
     roomMusic: RoomMusicState?,
     canControl: Boolean,
     onUpdateRoomMusic: (trackId: String, status: String, positionMs: Long) -> Unit,
@@ -75,7 +76,6 @@ internal fun RoomMusicPanel(
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var volume by remember { mutableFloatStateOf(1f) }
-    var playerTrackId by remember { mutableStateOf("") }
 
     DisposableEffect(player) {
         onDispose { player.release() }
@@ -103,7 +103,8 @@ internal fun RoomMusicPanel(
         roomMusic?.status,
         roomMusic?.positionMs,
         roomMusic?.updatedAt?.seconds,
-        tracks
+        tracks,
+        roomMusic?.updatedAt?.nanoseconds
     ) {
         val state = roomMusic ?: return@LaunchedEffect
         val track = tracks.firstOrNull { it.id == state.trackId } ?: return@LaunchedEffect
@@ -124,7 +125,6 @@ internal fun RoomMusicPanel(
             player.seekTo((state.positionMs + elapsed).coerceAtLeast(0L))
             if (state.status == "PLAYING") player.play() else player.pause()
             if (state.status == "STOPPED") player.seekTo(0L)
-            playerTrackId = track.id
         } catch (e: Exception) {
             error = e.localizedMessage ?: "Could not start room music."
         }
@@ -158,6 +158,8 @@ internal fun RoomMusicPanel(
             }
         }
     }
+
+    if (!visible) return
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -238,7 +240,7 @@ internal fun RoomMusicPanel(
                             color = if (track.id == roomMusic?.trackId)
                                 MaterialTheme.colorScheme.secondaryContainer
                             else MaterialTheme.colorScheme.surfaceVariant,
-                            onClick = {
+                            modifier = Modifier.clickable {
                                 if (canControl) onUpdateRoomMusic(track.id, "PLAYING", 0L)
                             }
                         ) {

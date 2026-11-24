@@ -186,7 +186,7 @@ internal fun RoomMusicPanel(
         title = { Text("Room Music") },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
@@ -281,6 +281,19 @@ internal fun RoomMusicPanel(
                     singleLine = true,
                     label = { Text("Search music") }
                 )
+                if (canUpload) {
+                    Button(
+                        onClick = { picker.launch(arrayOf("audio/*")) },
+                        enabled = !loading && client.isConfigured,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Upload audio") }
+                } else {
+                    Text(
+                        "Only users sitting on a speaker seat can upload songs.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 TextButton(
                     onClick = { scope.launch { refreshLibrary() } },
                     enabled = !loading && client.isConfigured
@@ -338,19 +351,6 @@ internal fun RoomMusicPanel(
                             }
                         }
                     }
-                }
-                if (canUpload) {
-                    Button(
-                        onClick = { picker.launch(arrayOf("audio/*")) },
-                        enabled = !loading && client.isConfigured,
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("Upload audio") }
-                } else {
-                    Text(
-                        "Only users sitting on a speaker seat can upload songs.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
                 error?.let {
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)

@@ -27,6 +27,9 @@ The key is used only by this server-side Worker. Do not paste the key into chat 
 
 Cloudflare Workers has a free usage tier, but check the dashboard and do not add a payment method or enable billing. If Cloudflare blocks deployment until billing is enabled, stop; do not upgrade.
 
+## DBByte API behavior
+The Worker uses DBByte's documented REST object routes: multipart `POST /storage/{bucket}/upload`, paginated `GET /storage/{bucket}/list`, `GET /storage/{bucket}/download/{name}`, and `DELETE /storage/{bucket}/delete/{name}`. DBByte returns a storage-generated `key` and the uploaded filename as `name`; the Worker stores and addresses tracks by that returned filename. Listing is paginated and filters the filename prefix in the Worker because DBByte's list prefix filter applies to its generated key, not the uploaded filename.
+
 ## API
 All library endpoints except health require a valid Firebase ID token:
 - GET `/v1/music` — list tracks

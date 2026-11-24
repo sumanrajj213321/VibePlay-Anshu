@@ -72,10 +72,17 @@ async function dbbyte(env: Env, path: string, init: RequestInit = {}): Promise<R
   return fetch(apiUrl(env, path), { ...init, headers });
 }
 async function listFiles(env: Env): Promise<any[]> {
-  const response = await dbbyte(env, "/list?prefix=music%2F&limit=1000");
-  if (!response.ok) throw new Error("Music library could not be listed (" + response.status + ").");
-  const data = await response.json() as { files?: any[] };
-  return Array.isArray(data.files) ? data.files : [];
+  const all: any[] = [];
+  let cursor = "";
+  do {
+    const query = cursor ? "&cursor=" + encodeURIComponent(cursor) : "";
+    const response = await dbbyte(env, "/list?limit=1000" + query);
+    if (!response.ok) throw new Error("Music library could not be listed (" + response.status + ").");
+    const data = await response.json() as { files?: any[]; nextCursor?: string | null; hasMore?: boolean };
+    if (Array.isArray(data.files)) all.push(...data.files);
+    cursor = data.hasMore && data.nextCursor ? data.nextCursor : "";
+  } while (cursor);
+  return all;
 }
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -119,8 +126,9 @@ export default {
           type === "audio/flac" ? "flac" : "wav";
         const title = safeName(String(incoming.get("title") || file.name.replace(/\.[^.]+$/, "")).trim() || "Untitled");
         const storedName = "music/" + uid.slice(0, 32) + "_" + crypto.randomUUID() + "_" + title + "." + ext;
+        const uploadFile = new File([file], storedName, { type });
         const body = new FormData();
-        body.set("file", file, storedName);
+        body.set("file", uploadFile);
         const uploaded = await dbbyte(env, "/upload", { method: "POST", body });
         const result = await uploaded.json().catch(() => ({})) as any;
         if (!uploaded.ok) return reply({ error: result.error || "Upload failed (" + uploaded.status + ")." }, uploaded.status, h);

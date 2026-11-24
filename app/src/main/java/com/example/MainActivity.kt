@@ -746,6 +746,15 @@ private fun AuthenticatedVibePlayApp(
                 }
                 GlobalGiftAnnouncementTicker(
                     announcement = latestGlobalGiftAnnouncement,
+                    onJoinRoom = { roomId ->
+                        roomsState.firstOrNull { it.id == roomId }?.let { room ->
+                            tryOpenRoom(room)
+                        } ?: run {
+                            navController.navigate("room/$roomId") {
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                     modifier = Modifier.align(Alignment.TopStart).fillMaxWidth()
                 )
             }
@@ -858,7 +867,11 @@ private fun AuthenticatedVibePlayApp(
 }
 
 @Composable
-private fun GlobalGiftAnnouncementTicker(announcement: GlobalGiftAnnouncement?, modifier: Modifier = Modifier) {
+private fun GlobalGiftAnnouncementTicker(
+    announcement: GlobalGiftAnnouncement?,
+    onJoinRoom: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     var displayed by remember { mutableStateOf<GlobalGiftAnnouncement?>(null) }
     var lastId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(announcement?.id) {
@@ -868,19 +881,19 @@ private fun GlobalGiftAnnouncementTicker(announcement: GlobalGiftAnnouncement?, 
             lastId = item.id
             if (fresh) {
                 displayed = item
-                delay(5_200L)
+                delay(9_500L)
                 if (displayed?.id == item.id) displayed = null
             }
         } else if (item.id != lastId) {
             lastId = item.id
             displayed = item
-            delay(5_200L)
+            delay(9_500L)
             if (displayed?.id == item.id) displayed = null
         }
     }
     BoxWithConstraints(modifier = modifier) {
         val item = displayed
-        val x by animateDpAsState(if (item == null) maxWidth else -maxWidth, tween(5_000), label = "gift_ticker")
+        val x by animateDpAsState(if (item == null) maxWidth else -maxWidth, tween(9_000), label = "gift_ticker")
         if (item != null) {
             Surface(
                 modifier = Modifier.align(Alignment.TopStart).padding(top = 8.dp).offset(x = x)
@@ -898,14 +911,32 @@ private fun GlobalGiftAnnouncementTicker(announcement: GlobalGiftAnnouncement?, 
                     ))).padding(horizontal = 12.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "★ ${item.senderName} ne ${item.recipientName} ko ${item.giftName} bheja • ${item.totalCoins} coins!",
-                        color = androidx.compose.ui.graphics.Color.White,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        maxLines = 1,
-                        textAlign = TextAlign.Center
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "★ ${item.senderName} sent ${item.giftName} to ${item.recipientName} • ${item.totalCoins} Coins • Go to see",
+                            modifier = Modifier.weight(1f),
+                            color = androidx.compose.ui.graphics.Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            maxLines = 1,
+                            textAlign = TextAlign.Start
+                        )
+                        Button(
+                            onClick = { onJoinRoom(item.roomId) },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.height(30.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = VibeGold,
+                                contentColor = androidx.compose.ui.graphics.Color(0xFF1A1428)
+                            )
+                        ) {
+                            Text("Join", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black)
+                        }
+                    }
                 }
             }
         }

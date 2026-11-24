@@ -116,6 +116,7 @@ import com.example.ui.state.RoomViewModel
 import com.example.ui.state.UiState
 import com.example.ui.state.VibePlayViewModel
 import com.example.ui.theme.VibeCoral
+import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibePlayTheme
 import com.example.ui.theme.VibeViolet
 import com.google.firebase.Firebase

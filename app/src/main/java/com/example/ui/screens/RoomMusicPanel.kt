@@ -355,7 +355,7 @@ internal fun RoomMusicPanel(
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     if (canUpload) {
                                         TextButton(
-                                            onClick = { onEnqueueTrackToQueue(track.id) },
+                                            onClick = { onAddTrackToQueue(track.id) },
                                             enabled = canControl
                                         ) { Text("Add to queue") }
                                         TextButton(

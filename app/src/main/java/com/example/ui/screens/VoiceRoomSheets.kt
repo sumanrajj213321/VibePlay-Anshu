@@ -230,7 +230,7 @@ fun RoomGiftStoreSheet(
             ) {
                 Text("Combo Quantity", style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(1L, 5L, 10L).forEach { qty ->
+                    listOf(1L, 5L, 10L, 50L, 99L).forEach { qty ->
                         FilterChip(
                             selected = selectedQuantity == qty,
                             onClick = { selectedQuantity = qty },

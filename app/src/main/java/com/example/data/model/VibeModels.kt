@@ -415,7 +415,8 @@ data class RoomMessage(
     val giftName: String = "",
     val giftCoins: Long = 0L,
     val recipientName: String = "",
-    val createdAt: Timestamp? = null
+    val createdAt: Timestamp? = null,
+    val giftQuantity: Long = 1L
 )
 
 @Keep
@@ -569,7 +570,8 @@ data class GiftBurstEvent(
     val recipientName: String,
     val giftName: String,
     val coinCost: Long,
-    val giftId: String = ""
+    val giftId: String = "",
+    val quantity: Long = 1L
 )
 
 object LevelProgression {

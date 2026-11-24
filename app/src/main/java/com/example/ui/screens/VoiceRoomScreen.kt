@@ -206,8 +206,8 @@ fun VoiceRoomScreen(
         roomEffectsEnabled = roomEffectsEnabled,
         roomError = roomError,
         roomMusic = roomMusic,
-        onUpdateRoomMusic = { trackId, status, positionMs ->
-            roomViewModel.updateRoomMusic(trackId, status, positionMs)
+        onUpdateRoomMusic = { trackId, status, positionMs, queueTrackIds ->
+            roomViewModel.updateRoomMusic(trackId, status, positionMs, queueTrackIds)
         },
         onClearError = { roomViewModel.clearError() },
         activeGifts = activeGifts,
@@ -281,7 +281,7 @@ internal fun VoiceRoomStageContent(
     roomEffectsEnabled: Boolean = true,
     roomError: String?,
     roomMusic: RoomMusicState? = null,
-    onUpdateRoomMusic: (trackId: String, status: String, positionMs: Long) -> Unit = { _, _, _ -> },
+    onUpdateRoomMusic: (trackId: String, status: String, positionMs: Long, queueTrackIds: List<String>) -> Unit = { _, _, _ -> },
     onClearError: () -> Unit,
     activeGifts: List<GiftCatalogItem>,
     blockedUserIds: List<String>,

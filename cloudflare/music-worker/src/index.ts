@@ -9,7 +9,7 @@ export interface Env {
 
 const DEFAULT_MAX_STORAGE = 4.5 * 1024 * 1024 * 1024;
 const DEFAULT_MAX_UPLOAD = 15 * 1024 * 1024;
-const TYPES = new Set(["audio/mpeg","audio/mp4","audio/aac","audio/ogg","audio/wav","audio/x-wav","audio/flac","audio/opus"]);
+const TYPES = new Set(["audio/mpeg","audio/mp4","audio/aac","audio/ogg","audio/wav","audio/x-wav","audio/flac","audio/opus","video/mp4","application/mp4"]);
 
 function cors(request: Request, env: Env): Headers {
   const origin = request.headers.get("Origin") || "";
@@ -116,7 +116,7 @@ export default {
             const artist = decodeName(parts[3] || "") || "Unknown artist";
             const contentType = extension === "mp3" ? "audio/mpeg" : extension === "m4a" ? "audio/mp4" :
               extension === "aac" ? "audio/aac" : extension === "ogg" ? "audio/ogg" :
-              extension === "flac" ? "audio/flac" : "audio/wav";
+              extension === "flac" ? "audio/flac" : extension === "mp4" ? "audio/mp4" : "audio/wav";
             return { id: f.name, title, artist, size: Number(f.size || 0), contentType, uploadedBy: parts[1] || "" };
           });
         return reply({ tracks, truncated: false }, 200, h);
@@ -159,7 +159,7 @@ export default {
 
       if (url.pathname.startsWith("/v1/music/") && request.method === "GET") {
         const name = decodeURIComponent(url.pathname.slice("/v1/music/".length));
-        if (!/^music_[A-Za-z0-9_-]{1,32}_[A-Fa-f0-9-]{36}_[A-Za-z0-9._-]+_[A-Za-z0-9._-]+\.(mp3|m4a|aac|ogg|flac|wav)$/i.test(name) || name.includes("..")) return reply({ error: "Invalid track." }, 400, h);
+        if (!/^music_[A-Za-z0-9_-]{1,32}_[A-Fa-f0-9-]{36}_[A-Za-z0-9._-]+_[A-Za-z0-9._-]+\.(mp3|m4a|mp4|aac|ogg|flac|wav)$/i.test(name) || name.includes("..")) return reply({ error: "Invalid track." }, 400, h);
         const response = await dbbyte(env, "/download/" + encodeURIComponent(name), {
           method: "GET",
           headers: request.headers.has("Range") ? { Range: request.headers.get("Range")! } : {}

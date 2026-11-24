@@ -155,7 +155,6 @@ internal fun RoomMusicPanel(
                     title = ""
                     artist = ""
                     refreshLibrary()
-                    onUpdateRoomMusic(uploaded.id, "PLAYING", 0L, roomMusic?.queueTrackIds.orEmpty())
                 } catch (e: Exception) {
                     error = e.localizedMessage ?: "Upload failed."
                 } finally {

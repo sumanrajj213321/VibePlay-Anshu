@@ -129,23 +129,12 @@ class RoomViewModel(
     private var roomGiftTransactionsJob: Job? = null
     private var roomMessagesJob: Job? = null
     private var roomJoinJob: Job? = null
+    private var roomSessionJob: Job? = null
     private var joinedListenerDone = false
     private var roomJoinInProgress = false
     private var lastShownGiftMsgId: String? = null
 
     init {
-        viewModelScope.launch {
-            roomRepository.observeRoomSession(roomId, currentUserId).collect { exists ->
-                if (exists == false && joinedListenerDone) {
-                    _roomSessionRemoved.value = true
-                    voiceEngine.disconnect()
-                    roomMessagesJob?.cancel()
-                    roomGiftTransactionsJob?.cancel()
-                    _messages.value = emptyList()
-                    _roomGiftTransactions.value = emptyList()
-                }
-            }
-        }
         viewModelScope.launch {
             rawSeats.collect { seats ->
                 val mySeat = seats.firstOrNull { it.occupantId == currentUserId }
@@ -226,6 +215,19 @@ class RoomViewModel(
             roomRepository.joinAsListener(loadedRoom, currentUser)
                 .onSuccess {
                     joinedListenerDone = true
+                    roomSessionJob?.cancel()
+                    roomSessionJob = launch {
+                        roomRepository.observeRoomSession(roomId, currentUserId).collect { exists ->
+                            if (exists == false && joinedListenerDone) {
+                                _roomSessionRemoved.value = true
+                                voiceEngine.disconnect()
+                                roomMessagesJob?.cancel()
+                                roomGiftTransactionsJob?.cancel()
+                                _messages.value = emptyList()
+                                _roomGiftTransactions.value = emptyList()
+                            }
+                        }
+                    }
                     roomGiftTransactionsJob?.cancel()
                     roomGiftTransactionsJob = launch {
                         roomRepository.observeRoomGiftTransactions(roomId)
@@ -472,6 +474,8 @@ class RoomViewModel(
         roomJoinInProgress = false
         roomJoinJob?.cancel()
         roomJoinJob = null
+        roomSessionJob?.cancel()
+        roomSessionJob = null
         voiceEngine.disconnect()
         roomMessagesJob?.cancel()
         roomMessagesJob = null

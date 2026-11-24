@@ -63,6 +63,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -77,6 +78,7 @@ import kotlin.math.sin
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -98,6 +100,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import android.content.Context
 import android.media.AudioManager
+import android.media.MediaMetadataRetriever
 import android.media.ToneGenerator
 import android.util.Base64
 import com.example.BuildConfig
@@ -114,7 +117,9 @@ import com.example.ui.theme.VibeMaleBlue
 import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
 import com.example.ui.theme.VibeVioletBright
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.tasks.await
 
 @DrawableRes
@@ -944,6 +949,36 @@ fun VoiceRoomCard(
 
 @Composable
 fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
+    val royalVowsThumbnail by produceState<android.graphics.Bitmap?>(initialValue = null, gift.id) {
+        if (gift.id == "gift_royal_vows") {
+            value = withContext(Dispatchers.IO) {
+                runCatching {
+                    MediaMetadataRetriever().let { retriever ->
+                        try {
+                            retriever.setDataSource(
+                                "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/From%20Klickpin.com-%20Discover%20Simple%20family%20dinner%20ideas%20that%20are%20trending%20right%20now%20across%20Pinterest%20boards%20for%20ideas%20worth%20saving%20right%20now-pin-id%20%28online-video-cutter.com%29.mp4",
+                                HashMap()
+                            )
+                            retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        } finally {
+                            retriever.release()
+                        }
+                    }
+                }.getOrNull()
+            }
+        } else {
+            value = null
+        }
+    }
+    if (gift.id == "gift_royal_vows" && royalVowsThumbnail != null) {
+        Image(
+            bitmap = royalVowsThumbnail!!.asImageBitmap(),
+            contentDescription = gift.name,
+            modifier = modifier.clip(RoundedCornerShape(12.dp)),
+            contentScale = ContentScale.Crop
+        )
+        return
+    }
     if (gift.id == "gift_sunset_love") {
         Image(painter = painterResource(R.drawable.couple_kiss_thumbnail), contentDescription = gift.name,
             modifier = modifier.clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)

@@ -961,7 +961,7 @@ service cloud.firestore {
                                  listenerId == request.auth.uid &&
                                  incoming().userId == request.auth.uid &&
                                  isValidRoomListener(incoming()) &&
-                                 existsAfter(/databases/$(database)/documents/rooms/$(roomId)/room_sessions/$(request.auth.uid)) &&
+                                 !isRoomMemberBanned(roomId) &&
                                  isValidTs(incoming().joinedAt);
         allow delete: if isSignedIn() && (listenerId == request.auth.uid || isRoomManager(get(/databases/$(database)/documents/rooms/$(roomId)).data));
       }

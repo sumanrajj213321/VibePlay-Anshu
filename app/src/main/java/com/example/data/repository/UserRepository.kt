@@ -580,7 +580,7 @@ class UserRepository(
             val myFollowingRef = myUserRef.collection("following").document(targetUser.userId)
             val theirFollowerRef = targetUserRef.collection("followers").document(uid)
 
-            db.runTransaction { tx ->
+            val didFollow = db.runTransaction { tx ->
                 val mySnap = tx.get(myUserRef)
                 val targetSnap = tx.get(targetUserRef)
                 val myFollowingSnap = tx.get(myFollowingRef)
@@ -639,16 +639,27 @@ class UserRepository(
                             "updatedAt" to FieldValue.serverTimestamp()
                         )
                     )
-                    tx.update(
-                        targetUserRef,
-                        mapOf(
-                            "followersCount" to targetFollowersCount + 1L,
-                            "updatedAt" to FieldValue.serverTimestamp()
+                    // A stale follower edge can exist without the matching following edge.
+                    // Only increment the target counter when this transaction creates that edge.
+                    if (!theirFollowerSnap.exists()) {
+                        tx.update(
+                            targetUserRef,
+                            mapOf(
+                                "followersCount" to targetFollowersCount + 1L,
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            )
                         )
-                    )
-                    val notifRef = db.collection("notifications").document()
-                    tx.set(
-                        notifRef,
+                    }
+                    true
+                } else {
+                    false
+                }
+            }.await()
+
+            // Notifications are best-effort and must never roll back a successful follow.
+            if (didFollow) {
+                try {
+                    db.collection("notifications").add(
                         mapOf(
                             "recipientId" to targetUser.userId,
                             "senderId" to uid,
@@ -660,9 +671,11 @@ class UserRepository(
                             "read" to false,
                             "createdAt" to FieldValue.serverTimestamp()
                         )
-                    )
+                    ).await()
+                } catch (_: Exception) {
+                    // Follow state is already committed; notification failure is non-fatal.
                 }
-            }.await()
+            }
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e

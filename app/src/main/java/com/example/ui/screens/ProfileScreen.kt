@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -671,6 +673,73 @@ fun ProfileScreen(
             }
         }
 
+        // Gift Wall: distinct gifts received by this profile with their combined quantities.
+        item {
+            val receivedGiftWall = remember(giftHistory, profile.userId) {
+                giftHistory
+                    .filter { it.recipientId == profile.userId && it.giftName.isNotBlank() }
+                    .groupBy { it.giftId.ifBlank { it.giftName.trim().lowercase() } }
+                    .map { (_, transactions) ->
+                        transactions.first().giftName to transactions.sumOf { it.quantity.coerceAtLeast(1L) }
+                    }
+                    .sortedByDescending { it.second }
+            }
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Gift Wall", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                    Text("${receivedGiftWall.size} gifts", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (receivedGiftWall.isEmpty()) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                    ) {
+                        Text("Gifts received will appear here", modifier = Modifier.padding(horizontal = 16.dp, vertical = 22.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        receivedGiftWall.forEach { (giftName, quantity) ->
+                            Surface(
+                                modifier = Modifier.width(112.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+                                border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.20f))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier.size(66.dp).background(
+                                            Brush.linearGradient(listOf(VibeViolet.copy(alpha = 0.18f), VibeCyan.copy(alpha = 0.12f))),
+                                            RoundedCornerShape(15.dp)
+                                        ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(giftWallThumbnail(giftName), fontSize = 38.sp)
+                                    }
+                                    Text(giftName, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("×$quantity", style = MaterialTheme.typography.labelSmall, color = VibeCyan, fontWeight = FontWeight.ExtraBold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Coin Wallet & VIP Quick Cards
         item {
             Row(
@@ -972,5 +1041,26 @@ private fun ProfileActionRow(
                 Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+}
+
+private fun giftWallThumbnail(giftName: String): String {
+    val name = giftName.lowercase()
+    return when {
+        "mojito" in name || "cocktail" in name || "drink" in name -> "🍹"
+        "star box" in name || "lucky box" in name || "gift box" in name -> "🎁"
+        "bloom" in name || "flower" in name -> "🌸"
+        "firework" in name || "2026" in name -> "🎆"
+        "vr" in name || "glass" in name -> "🥽"
+        "beer" in name -> "🍻"
+        "garage" in name || "car" in name || "ride" in name -> "🏎️"
+        "cherry" in name -> "🍒"
+        "balloon" in name -> "🎈"
+        "dragon" in name || "egg" in name -> "🥚"
+        "finger heart" in name || "heart" in name || "love" in name -> "💗"
+        "necklace" in name || "pearl" in name -> "📿"
+        "ice cream" in name -> "🍦"
+        "planet" in name || "universe" in name -> "🪐"
+        else -> "🎁"
     }
 }

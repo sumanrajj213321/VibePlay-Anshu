@@ -156,9 +156,9 @@ service cloud.firestore {
 
     function isRoomMemberBanned(roomId) {
       let roomPath = /databases/$(database)/documents/rooms/$(roomId);
-      return exists(roomPath) &&
-             ('bannedUserIds' in get(roomPath).data) &&
-             request.auth.uid in get(roomPath).data.bannedUserIds;
+      return existsAfter(roomPath) &&
+             ('bannedUserIds' in getAfter(roomPath).data) &&
+             request.auth.uid in getAfter(roomPath).data.bannedUserIds;
     }
 
     function isValidRoom(data) {

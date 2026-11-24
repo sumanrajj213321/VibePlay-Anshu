@@ -273,7 +273,7 @@ fun RoomGiftStoreSheet(
                         CharmEmblem(level = 1, size = 22.dp)
                         Text("Get +$previewCharms ${if (previewCharms == 1L) "Charm" else "Charms"}", color = Color(0xFF65FFF0), fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleSmall)
                         Spacer(Modifier.weight(1f))
-                        Text("10 Coins = 1 Charm", color = Color(0xFFB7D7DF), style = MaterialTheme.typography.labelSmall)
+                        Text("10 Gold Coins = 1 Charm", color = Color(0xFFB7D7DF), style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }

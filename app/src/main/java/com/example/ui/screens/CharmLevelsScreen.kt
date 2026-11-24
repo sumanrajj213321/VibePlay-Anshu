@@ -165,7 +165,7 @@ fun CharmLevelsScreen(
                     Spacer(Modifier.height(22.dp))
                     Row(Modifier.fillMaxWidth().background(Color(0xFFF5F3F8), RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)).padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                         Text("Charm", color = Color.Black, fontWeight = FontWeight.SemiBold)
-                        Text("Icon", color = Color.Black, fontWeight = FontWeight.SemiBold)
+                        Text("Charm Icon", color = Color.Black, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 itemsIndexed(CharmProgression.milestones) { index, milestone ->
@@ -175,7 +175,7 @@ fun CharmLevelsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(formatCharmGoal(milestone), color = CharmMuted, fontSize = 18.sp)
-                        CharmEmblem(level = index + 1, size = 38.dp, showLevel = true)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.dp)) { CharmEmblem(level = index + 1, size = 38.dp, showLevel = false); Text((index + 1).toString(), color = CharmInk, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold) }
                     }
                 }
             }
@@ -186,15 +186,14 @@ fun CharmLevelsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
-                    Text("Active Levels", fontSize = 21.sp, color = Color.Black, fontWeight = FontWeight.Bold)
-                    Text("Charm icons you have unlocked", color = CharmMuted, modifier = Modifier.padding(top = 6.dp, bottom = 8.dp))
+                    Text("Active Charms", fontSize = 21.sp, color = Color.Black, fontWeight = FontWeight.Bold)
                 }
                 itemsIndexed(CharmProgression.milestones.filter { charms >= it }) { index, milestone ->
                     Row(
                         modifier = Modifier.fillMaxWidth().background(Color(0xFFF6F4FA), RoundedCornerShape(14.dp)).padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CharmEmblem(level = CharmProgression.milestones.indexOf(milestone) + 1, size = 40.dp, showLevel = true)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.dp)) { val charmIndex = CharmProgression.milestones.indexOf(milestone) + 1; CharmEmblem(level = charmIndex, size = 40.dp, showLevel = false); Text(charmIndex.toString(), color = CharmInk, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold) }
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
                             Text("Charm", fontWeight = FontWeight.Bold, color = CharmInk)

@@ -85,6 +85,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import android.net.Uri
 import android.widget.VideoView
+import android.view.View
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -1166,7 +1167,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
     // If the remote clip does not prepare promptly, reveal the built-in animated fallback.
     LaunchedEffect(event?.id, videoUrl, videoReady, videoLoadFailed) {
         if (videoGift && event != null && videoUrl != null && !videoReady && !videoLoadFailed) {
-            delay(12_000L)
+            delay(3_000L)
             if (!videoReady) videoLoadFailed = true
         }
     }
@@ -1194,17 +1195,22 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
         ) {
             if (videoGift && videoUrl != null && !videoLoadFailed) {
                 AndroidView(
-                    modifier = Modifier.fillMaxSize().then(if (videoReady) Modifier else Modifier.alpha(0f)),
+                    modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->
                         VideoView(ctx).apply {
                             tag = event?.id
+                            // Keep the SurfaceView hidden while buffering so it cannot cover the fallback animation.
+                            visibility = View.INVISIBLE
                             setVideoURI(Uri.parse(videoUrl))
                             setOnPreparedListener { player ->
-                                player.setVolume(0f, 0f)
+                                // Play the gift clip's own sound without pausing shared room music.
+                                player.setVolume(1f, 1f)
+                                visibility = View.VISIBLE
                                 videoReady = true
                                 start()
                             }
                             setOnErrorListener { _, _, _ ->
+                                visibility = View.INVISIBLE
                                 videoLoadFailed = true
                                 true
                             }
@@ -1216,6 +1222,7 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                         if (view.tag != event.id) {
                             view.stopPlayback()
                             view.tag = event.id
+                            view.visibility = View.INVISIBLE
                             videoReady = false
                             view.setVideoURI(Uri.parse(videoUrl))
                         }

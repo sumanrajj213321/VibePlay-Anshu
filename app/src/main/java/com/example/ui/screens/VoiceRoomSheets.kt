@@ -270,10 +270,10 @@ fun RoomGiftStoreSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(7.dp)
                     ) {
-                        Icon(Icons.Filled.AutoAwesome, contentDescription = "Charm preview", tint = Color(0xFF65FFF0), modifier = Modifier.size(17.dp))
-                        Text("+$previewCharms Charms", color = Color(0xFF65FFF0), fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleSmall)
+                        CharmEmblem(level = 1, size = 22.dp)
+                        Text("Get +$previewCharms ${if (previewCharms == 1L) "Charm" else "Charms"}", color = Color(0xFF65FFF0), fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleSmall)
                         Spacer(Modifier.weight(1f))
-                        Text("Recipient earns", color = Color(0xFFB7D7DF), style = MaterialTheme.typography.labelSmall)
+                        Text("10 Coins = 1 Charm", color = Color(0xFFB7D7DF), style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }

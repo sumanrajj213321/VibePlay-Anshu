@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -915,6 +916,7 @@ fun PublicProfileSheet(
     onSubmitReport: (reason: String, details: String) -> Unit
 ) {
     var showReport by remember { mutableStateOf(false) }
+    var selectedGiftPrice by remember { mutableStateOf<GiftCatalogItem?>(null) }
     var followSheetTab by remember { mutableStateOf<Int?>(null) }
     val publicRelationshipTags = remember(targetUser.userId) {
         mutableStateListOf<Map<String, String>>()
@@ -1135,7 +1137,9 @@ fun PublicProfileSheet(
                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         publicGiftWall.forEach { (gift, quantity) ->
                             Surface(
-                                modifier = Modifier.width(104.dp),
+                                modifier = Modifier.width(104.dp).clickable {
+                                    selectedGiftPrice = VibeCatalogDefaults.defaultGifts.firstOrNull { it.id == gift.id }
+                                },
                                 shape = RoundedCornerShape(14.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
                                 border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.20f))
@@ -1290,6 +1294,17 @@ fun PublicProfileSheet(
             onSubmit = { reason, details ->
                 onSubmitReport(reason, details)
                 showReport = false
+            }
+        )
+    }
+
+    selectedGiftPrice?.let { gift ->
+        AlertDialog(
+            onDismissRequest = { selectedGiftPrice = null },
+            title = { Text(gift.name) },
+            text = { Text("${gift.coinCost} coins") },
+            confirmButton = {
+                TextButton(onClick = { selectedGiftPrice = null }) { Text("OK") }
             }
         )
     }

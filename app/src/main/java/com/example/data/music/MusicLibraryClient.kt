@@ -1,6 +1,7 @@
 package com.example.data.music
 
 import android.content.ContentResolver
+import android.provider.OpenableColumns
 import android.net.Uri
 import com.example.BuildConfig
 import com.google.firebase.auth.FirebaseAuth
@@ -13,6 +14,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
@@ -86,13 +88,35 @@ class MusicLibraryClient(
         artist: String
     ): MusicTrack {
         val mime = resolver.getType(uri)?.substringBefore(';') ?: "application/octet-stream"
+        val maxBytes = 15 * 1024 * 1024
+        val declaredSize = withContext(Dispatchers.IO) {
+            resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val sizeColumn = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    if (sizeColumn >= 0 && !cursor.isNull(sizeColumn)) cursor.getLong(sizeColumn) else -1L
+                } else -1L
+            } ?: -1L
+        }
+        if (declaredSize > maxBytes) {
+            throw IllegalArgumentException("Audio file must be 15 MB or smaller.")
+        }
         val bytes = withContext(Dispatchers.IO) {
             resolver.openInputStream(uri)?.use { input ->
-                val data = input.readBytes()
-                if (data.size > 15 * 1024 * 1024) {
-                    throw IllegalArgumentException("Audio file must be 15 MB or smaller.")
+                val output = ByteArrayOutputStream(
+                    if (declaredSize in 1..maxBytes.toLong()) declaredSize.toInt() else 8192
+                )
+                val buffer = ByteArray(8192)
+                var total = 0
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    total += count
+                    if (total > maxBytes) {
+                        throw IllegalArgumentException("Audio file must be 15 MB or smaller.")
+                    }
+                    output.write(buffer, 0, count)
                 }
-                data
+                output.toByteArray()
             } ?: throw IOException("Could not read the selected audio file.")
         }
         if (bytes.isEmpty()) throw IllegalArgumentException("Selected audio file is empty.")

@@ -29,5 +29,5 @@ jobs:
             echo "Required GitHub Actions secrets are missing. No deployment was attempted."
             exit 1
           fi
-          npx --yes wrangler@4 deploy
           printf '%s' "$DBBYTE_API_KEY" | npx --yes wrangler@4 secret put DBBYTE_API_KEY
+          npx --yes wrangler@4 deploy

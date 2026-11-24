@@ -43,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -83,6 +84,26 @@ internal fun RoomMusicPanel(
         onDispose { player.release() }
     }
 
+    // Advance the shared queue when the current track finishes. Only a room music
+    // controller writes the next shared state, so listeners do not race one another.
+    DisposableEffect(player, roomMusic?.trackId, roomMusic?.queueTrackIds, canControl) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED && canControl) {
+                    val queue = roomMusic?.queueTrackIds.orEmpty()
+                    val nextId = queue.firstOrNull() ?: return
+                    onUpdateRoomMusic(nextId, "PLAYING", 0L, queue.drop(1))
+                }
+            }
+
+            override fun onPlayerError(playbackError: androidx.media3.common.PlaybackException) {
+                error = playbackError.localizedMessage ?: "This audio file could not be played."
+            }
+        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
+    }
+
     suspend fun refreshLibrary() {
         loading = true
         error = null
@@ -121,8 +142,12 @@ internal fun RoomMusicPanel(
                 ?: throw IllegalStateException("Please sign in again.")
             val sourceFactory = DefaultHttpDataSource.Factory()
                 .setDefaultRequestProperties(mapOf("Authorization" to "Bearer $token"))
+            val mediaItem = MediaItem.Builder()
+                .setUri(client.streamUrl(track.id))
+                .setMimeType(track.contentType)
+                .build()
             val mediaSource = DefaultMediaSourceFactory(sourceFactory)
-                .createMediaSource(MediaItem.fromUri(client.streamUrl(track.id)))
+                .createMediaSource(mediaItem)
             player.setMediaSource(mediaSource)
             player.prepare()
             val updatedAtMs = state.updatedAt?.toDate()?.time ?: System.currentTimeMillis()

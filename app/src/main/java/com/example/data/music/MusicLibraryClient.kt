@@ -103,6 +103,7 @@ class MusicLibraryClient(
         // actual filename extension only when the provider reports a generic/unknown type.
         val mime = when (detectedMime) {
             "video/mp4", "application/mp4", "audio/m4a", "audio/x-m4a" -> "audio/mp4"
+            "audio/mp3", "audio/x-mp3" -> "audio/mpeg"
             "audio/x-wav", "audio/wave", "audio/vnd.wave" -> "audio/wav"
             "audio/x-flac" -> "audio/flac"
             "audio/x-aac" -> "audio/aac"

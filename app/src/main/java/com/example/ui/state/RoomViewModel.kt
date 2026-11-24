@@ -87,7 +87,6 @@ class RoomViewModel(
 
     private val _giftBurst = MutableStateFlow<GiftBurstEvent?>(null)
     val giftBurst: StateFlow<GiftBurstEvent?> = _giftBurst.asStateFlow()
-    private val pendingGiftBursts = ArrayDeque<GiftBurstEvent>()
     private val seenGiftMessageIds = mutableSetOf<String>()
 
     private val _vipEntrance = MutableStateFlow<UserProfile?>(null)
@@ -178,7 +177,8 @@ class RoomViewModel(
                         giftId = giftMessage.giftId,
                         quantity = giftMessage.giftQuantity.coerceIn(1L, 999L)
                     )
-                    if (_giftBurst.value == null) _giftBurst.value = event else pendingGiftBursts.addLast(event)
+                    // Replace any currently playing gift so this new gift starts without queue wait.
+                    _giftBurst.value = event
                 }
             }
         }
@@ -231,7 +231,6 @@ class RoomViewModel(
         roomJoinInProgress = true
         _messages.value = emptyList()
         _giftBurst.value = null
-        pendingGiftBursts.clear()
         seenGiftMessageIds.clear()
         roomMessagesJob?.cancel()
         roomMessagesJob = null
@@ -250,7 +249,6 @@ class RoomViewModel(
                                 roomGiftTransactionsJob?.cancel()
                                 _messages.value = emptyList()
                                 _giftBurst.value = null
-                                pendingGiftBursts.clear()
                                 _roomGiftTransactions.value = emptyList()
                             }
                         }
@@ -293,7 +291,7 @@ class RoomViewModel(
     }
 
     fun clearGiftBurst() {
-        _giftBurst.value = if (pendingGiftBursts.isEmpty()) null else pendingGiftBursts.removeFirst()
+        _giftBurst.value = null
     }
 
     fun clearVipEntrance() {
@@ -505,7 +503,6 @@ class RoomViewModel(
         roomSessionJob = null
         voiceEngine.disconnect()
         _giftBurst.value = null
-        pendingGiftBursts.clear()
         roomMessagesJob?.cancel()
         roomMessagesJob = null
         roomGiftTransactionsJob?.cancel()

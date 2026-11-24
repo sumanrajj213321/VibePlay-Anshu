@@ -1049,7 +1049,8 @@ fun VoiceRoomCard(
 
 @Composable
 fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
-    val videoGiftThumbnail by produceState<android.graphics.Bitmap?>(initialValue = null, gift.id) {
+    val context = LocalContext.current
+    val videoGiftThumbnail by produceState<android.graphics.Bitmap?>(initialValue = null, gift.id, context) {
         val thumbnailUrl = when (gift.id) {
             "gift_royal_vows" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/From%20Klickpin.com-%20Discover%20Simple%20family%20dinner%20ideas%20that%20are%20trending%20right%20now%20across%20Pinterest%20boards%20for%20ideas%20worth%20saving%20right%20now-pin-id%20%28online-video-cutter.com%29.mp4"
             "gift_sunlit_dream" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Save%20Modern%20weekend%20getaway%20inspiration%20that%20make%20your%20next%20project%20look%20polished%20and%20expensive%20for%20your%20next%20inspiration%20board%20%28online-video-cutter.com%29.mp4"
@@ -1057,16 +1058,44 @@ fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
             else -> null
         }
         value = if (thumbnailUrl == null) null else withContext(Dispatchers.IO) {
-            runCatching {
-                MediaMetadataRetriever().let { retriever ->
-                    try {
-                        retriever.setDataSource(thumbnailUrl, HashMap())
-                        retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                    } finally {
-                        retriever.release()
-                    }
+            val cacheFile = java.io.File(context.cacheDir, "gift-thumb-${gift.id}.mp4")
+            var bitmap: android.graphics.Bitmap? = null
+            repeat(3) { attempt ->
+                if (bitmap == null) {
+                    runCatching {
+                        if (!cacheFile.exists() || cacheFile.length() == 0L) {
+                            val connection = java.net.URL(thumbnailUrl).openConnection().apply {
+                                connectTimeout = 12_000
+                                readTimeout = 20_000
+                                useCaches = true
+                            }
+                            val tempFile = java.io.File(context.cacheDir, "gift-thumb-${gift.id}.tmp")
+                            connection.getInputStream().use { input ->
+                                tempFile.outputStream().use { output -> input.copyTo(output) }
+                            }
+                            if (tempFile.length() > 0L) {
+                                if (cacheFile.exists()) cacheFile.delete()
+                                tempFile.renameTo(cacheFile)
+                            } else {
+                                tempFile.delete()
+                            }
+                        }
+                        if (cacheFile.exists() && cacheFile.length() > 0L) {
+                            MediaMetadataRetriever().let { retriever ->
+                                try {
+                                    retriever.setDataSource(cacheFile.absolutePath)
+                                    retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                                        ?: retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                                } finally {
+                                    retriever.release()
+                                }
+                            }
+                        } else null
+                    }.onSuccess { bitmap = it }
                 }
-            }.getOrNull()
+                if (bitmap == null && attempt < 2) delay(700L * (attempt + 1))
+            }
+            bitmap
         }
     }
     if (gift.id in setOf("gift_royal_vows", "gift_sunlit_dream", "gift_prism_muse") && videoGiftThumbnail != null) {

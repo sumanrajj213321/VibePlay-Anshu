@@ -365,6 +365,11 @@ class VibePlayViewModel(
         }
     }
 
+    fun clearInspectedUser() {
+        inspectedUserProfileJob?.cancel()
+        inspectedUserProfileJob = null
+    }
+
     fun observeFollowingFor(userId: String): Flow<List<FollowEdge>> =
         userRepository.observeFollowing(userId)
             .catch { error ->

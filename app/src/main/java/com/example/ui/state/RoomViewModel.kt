@@ -490,6 +490,13 @@ class RoomViewModel(
         }
     }
 
+    fun unblockRoomMember(targetUserId: String) {
+        viewModelScope.launch {
+            roomRepository.unblockRoomMember(roomId, targetUserId)
+                .onFailure { _roomError.value = it.localizedMessage ?: "Could not unblock this member." }
+        }
+    }
+
     fun leaveRoom(onLeft: () -> Unit) {
         val currentRoom = room.value
         val seats = rawSeats.value

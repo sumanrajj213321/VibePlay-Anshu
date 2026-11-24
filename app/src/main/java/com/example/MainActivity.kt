@@ -775,10 +775,14 @@ private fun AuthenticatedVibePlayApp(
                     followersList = if (target.userId == currentUser.userId) followersList else targetFollowers,
                     followingList = if (target.userId == currentUser.userId) followingList else targetFollowing,
                     myHostedRoom = myHostedRoom,
-                    onDismiss = { inspectedUser = null },
+                    onDismiss = {
+                        inspectedUser = null
+                        viewModel.clearInspectedUser()
+                    },
                     onToggleFollow = { viewModel.toggleFollow(currentUser, target, isFollowing) },
                     onStartChat = {
                         inspectedUser = null
+                        viewModel.clearInspectedUser()
                         viewModel.openConversation(currentUser, target) { convId ->
                             selectedConversationId = convId
                             switchTab(MainTab.Inbox)

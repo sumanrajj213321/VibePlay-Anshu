@@ -1,6 +1,7 @@
 package com.example.data.repository
 
 import android.content.Context
+import android.net.Uri
 import com.example.R
 import com.example.data.firebase.OperationType
 import com.example.data.firebase.handleFirestoreError
@@ -16,6 +17,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.snapshots
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -23,7 +25,8 @@ import kotlinx.coroutines.tasks.await
 
 class InboxRepository(
     private val db: FirebaseFirestore,
-    private val auth: FirebaseAuth = Firebase.auth
+    private val auth: FirebaseAuth = Firebase.auth,
+    private val storage: FirebaseStorage = FirebaseStorage.getInstance()
 ) {
     constructor(context: Context) : this(
         FirebaseFirestore.getInstance(
@@ -198,9 +201,23 @@ class InboxRepository(
             require(cleanText.isNotEmpty() || isImage) { "Enter a message or pick an image." }
 
             val convRef = db.collection("conversations").document(conversation.id)
+            require(uid in conversation.participantIds) { "You are not a member of this conversation." }
             val msgRef = convRef.collection("messages").document()
             val preview = if (isImage && cleanText.isEmpty()) "[Photo]" else cleanText.take(120)
             val recipients = conversation.participantIds.filter { it != uid }.take(49)
+
+            // Persist the selected photo in Firebase Storage. A picker content:// URI
+            // is temporary and cannot reliably be reopened after logout or process death.
+            val storedImageUrl = imageUri?.takeIf { it.isNotBlank() }?.let { rawUri ->
+                if (rawUri.startsWith("https://") || rawUri.startsWith("http://")) {
+                    rawUri
+                } else {
+                    val imageRef = storage.reference
+                        .child("chat-images/${conversation.id}/${uid}/${msgRef.id}.jpg")
+                    imageRef.putFile(Uri.parse(rawUri)).await()
+                    imageRef.downloadUrl.await().toString()
+                }
+            }
 
             val updatedNames = conversation.participantNames.toMutableMap().apply {
                 put(uid, sender.username)
@@ -221,8 +238,8 @@ class InboxRepository(
                 "read" to false,
                 "createdAt" to FieldValue.serverTimestamp()
             )
-            if (!imageUri.isNullOrBlank()) {
-                msgPayload["imageUri"] = imageUri.take(600)
+            if (!storedImageUrl.isNullOrBlank()) {
+                msgPayload["imageUri"] = storedImageUrl.take(600)
             }
             batch.set(msgRef, msgPayload)
             batch.update(

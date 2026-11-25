@@ -641,74 +641,68 @@ internal fun VoiceRoomStageContent(
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // 1. Top Room Bar
-                Row(
+                // 1. Top Room Bar — keep the room title on its own full-width line.
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape((8 + (roomLevel % 4L).toInt() * 3).dp),
+                            color = Color.Black.copy(alpha = 0.22f),
+                            border = BorderStroke(
+                                (1.5f + ((roomLevel - 1L) % 4L).toFloat() * 0.45f).dp,
+                                Brush.linearGradient(roomLevelPalette(roomLevel))
+                            ),
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Surface(
-                                shape = RoundedCornerShape((8 + (roomLevel % 4L).toInt() * 3).dp),
-                                color = Color.Black.copy(alpha = 0.22f),
-                                border = BorderStroke(
-                                    (1.5f + ((roomLevel - 1L) % 4L).toFloat() * 0.45f).dp,
-                                    Brush.linearGradient(roomLevelPalette(roomLevel))
-                                ),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(
-                                    text = currentRoom.title.ifBlank { "Voice Room" },
-                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            RoomLevelBadge(
-                                level = roomLevel,
-                                modifier = Modifier
-                                    .clickable { showRoomExpDetails = true }
-                                    .testTag("room_level_exp_details")
+                            Text(
+                                text = currentRoom.title.ifBlank { "Voice Room" },
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
-                            IconButton(
-                                onClick = { showRoomInfo = true },
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .testTag("room_info_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Info,
-                                    contentDescription = "Room information",
-                                    tint = VibeCyan,
-                                    modifier = Modifier.size(19.dp)
-                                )
-                            }
-                            if (currentRoom.locked) {
-                                Icon(Icons.Filled.Lock, contentDescription = "Locked", tint = VibePink, modifier = Modifier.size(16.dp))
-                            }
                         }
-                        Text(
-                            text = currentRoom.category,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = VibeCyan,
-                            maxLines = 1
+                        RoomLevelBadge(
+                            level = roomLevel,
+                            modifier = Modifier
+                                .clickable { showRoomExpDetails = true }
+                                .testTag("room_level_exp_details")
                         )
+                        IconButton(
+                            onClick = { showRoomInfo = true },
+                            modifier = Modifier.size(32.dp).testTag("room_info_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Info,
+                                contentDescription = "Room information",
+                                tint = VibeCyan,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                        if (currentRoom.locked) {
+                            Icon(Icons.Filled.Lock, contentDescription = "Locked", tint = VibePink, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Text(
                             text = "ROOM ID · ${currentRoom.publicRoomId.ifBlank { currentRoom.id }}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.testTag("room_id_text")
+                            modifier = Modifier.weight(1f).testTag("room_id_text")
                         )
-                    }
-
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)

@@ -51,6 +51,18 @@ fun AnimatedRoomBackground(backgroundKey: String, modifier: Modifier = Modifier)
         animationSpec = infiniteRepeatable(tween(23000, easing = LinearEasing), RepeatMode.Reverse),
         label = "room_background_counter_drift"
     )
+    val particleTravel by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(14000, easing = LinearEasing), RepeatMode.Restart),
+        label = "room_particle_travel"
+    )
+    val wave by transition.animateFloat(
+        initialValue = -1f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "room_wave_motion"
+    )
     val shimmer by transition.animateFloat(
         initialValue = 0.72f,
         targetValue = 1f,
@@ -75,6 +87,33 @@ fun AnimatedRoomBackground(backgroundKey: String, modifier: Modifier = Modifier)
             )
             drawRect(glow1)
             drawRect(glow2)
+            // Broad moving light ribbons remain visible on both light and dark device themes.
+            for (i in 0..2) {
+                val bandY = h * (0.24f + i * 0.27f) + wave * h * 0.045f
+                drawLine(
+                    color = Color.White.copy(alpha = 0.10f + 0.035f * shimmer),
+                    start = Offset(-w * 0.1f, bandY),
+                    end = Offset(w * 1.1f, bandY + h * 0.10f),
+                    strokeWidth = max(7f, w * 0.025f)
+                )
+            }
+            // Floating luminous particles travel continuously through the room.
+            for (i in 0..17) {
+                val phase = (particleTravel + i * 0.071f) % 1f
+                val x = w * ((i * 0.173f + phase * (if (i % 2 == 0) 0.42f else -0.36f) + 1f) % 1f)
+                val y = h * ((i * 0.137f + phase * 0.72f) % 1f)
+                val radiusPx = max(2.2f, w * (0.003f + (i % 3) * 0.0012f))
+                drawCircle(
+                    color = Color.White.copy(alpha = (0.30f + 0.28f * shimmer) * (0.65f + 0.35f * (i % 2))),
+                    radius = radiusPx,
+                    center = Offset(x, y)
+                )
+                drawCircle(
+                    color = preset.colors[2].copy(alpha = 0.26f * shimmer),
+                    radius = radiusPx * 3.2f,
+                    center = Offset(x, y)
+                )
+            }
             // Soft floating light ribbons create a slow, premium ambient motion.
             val ribbonColor = preset.colors[2].copy(alpha = 0.11f * shimmer)
             for (i in 0..3) {

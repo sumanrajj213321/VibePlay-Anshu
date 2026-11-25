@@ -1030,10 +1030,18 @@ fun PublicProfileSheet(
             .addSnapshotListener { snapshot, error ->
                 if (error == null) {
                     publicGiftTransactions = snapshot?.documents.orEmpty().mapNotNull { doc ->
-                        // Only versioned projections created by new gift sends belong on the current wall.
+                        // Require both the current projection version and an explicitly approved gift ID.
+                        // This prevents older/retired gift records from appearing even if they carry wallVersion 2.
                         if (doc.getLong("wallVersion") != 2L) return@mapNotNull null
                         val recipient = doc.getString("recipientId").orEmpty()
                         val giftId = doc.getString("giftId").orEmpty()
+                        if (giftId !in setOf(
+                                "gift_sunset_love",
+                                "gift_royal_vows",
+                                "gift_sunlit_dream",
+                                "gift_prism_muse"
+                            )
+                        ) return@mapNotNull null
                         val giftName = doc.getString("giftName").orEmpty()
                         if (recipient.isBlank() || giftId.isBlank() || giftName.isBlank()) {
                             null

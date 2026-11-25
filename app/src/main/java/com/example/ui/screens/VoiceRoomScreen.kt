@@ -641,7 +641,7 @@ internal fun VoiceRoomStageContent(
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // 1. Top Room Bar — keep the room title on its own full-width line.
+                // 1. Top Room Bar — room category stays visible; the 9-seat label is removed.
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -690,6 +690,15 @@ internal fun VoiceRoomStageContent(
                             Icon(Icons.Filled.Lock, contentDescription = "Locked", tint = VibePink, modifier = Modifier.size(16.dp))
                         }
                     }
+
+                    Text(
+                        text = currentRoom.category.substringBefore("·").trim().ifBlank { currentRoom.category },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = VibeCyan,
+                        maxLines = 1,
+                        modifier = Modifier.testTag("room_category_text")
+                    )
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -703,83 +712,73 @@ internal fun VoiceRoomStageContent(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f).testTag("room_id_text")
                         )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
-                            modifier = Modifier
-                                .clickable { showOnlineMembers = true }
-                                .testTag("room_listeners_pill")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                                modifier = Modifier
+                                    .clickable { showOnlineMembers = true }
+                                    .testTag("room_listeners_pill")
                             ) {
-                                Icon(Icons.Filled.Headphones, contentDescription = "Online users", tint = VibeCyan, modifier = Modifier.size(15.dp))
-                                Text(
-                                    text = "${computedOnlineUsers.size}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.testTag("room_online_count_text")
-                                )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = { showRoomMusic = true },
-                            modifier = Modifier.testTag("room_music_button")
-                        ) {
-                            Icon(Icons.Filled.MusicNote, contentDescription = "Room music", tint = VibeCyan)
-                        }
-
-                        IconButton(
-                            onClick = {
-                                val sendIntent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    putExtra(
-                                        Intent.EXTRA_TEXT,
-                                        "Join my VibePlay voice room \"${currentRoom.title}\" (Room ID: ${currentRoom.id})!"
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(Icons.Filled.Headphones, contentDescription = "Online users", tint = VibeCyan, modifier = Modifier.size(15.dp))
+                                    Text(
+                                        text = "${computedOnlineUsers.size}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.testTag("room_online_count_text")
                                     )
-                                    type = "text/plain"
                                 }
-                                context.startActivity(Intent.createChooser(sendIntent, "Share Voice Room"))
-                            },
-                            modifier = Modifier.testTag("room_share_button")
-                        ) {
-                            Icon(Icons.Filled.Share, contentDescription = "Share room")
-                        }
-
-                        if (isManager) {
-                            IconButton(
-                                onClick = { showHostSettings = true },
-                                modifier = Modifier.testTag("host_settings_button")
-                            ) {
-                                Icon(Icons.Filled.AdminPanelSettings, contentDescription = "Stage controls", tint = VibeGold)
                             }
-                        } else {
                             IconButton(
-                                onClick = { reportTarget = Triple("ROOM", currentRoom.id, currentRoom.title) },
-                                modifier = Modifier.testTag("report_room_button")
-                            ) {
-                                Icon(Icons.Filled.Flag, contentDescription = "Report room")
-                            }
-                        }
+                                onClick = { showRoomMusic = true },
+                                modifier = Modifier.testTag("room_music_button")
+                            ) { Icon(Icons.Filled.MusicNote, contentDescription = "Room music", tint = VibeCyan) }
+                            IconButton(
+                                onClick = {
+                                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                        putExtra(
+                                            Intent.EXTRA_TEXT,
+                                            "Join my VibePlay voice room \"${currentRoom.title}\" (Room ID: ${currentRoom.id})!"
+                                        )
+                                        type = "text/plain"
+                                    }
+                                    context.startActivity(Intent.createChooser(sendIntent, "Share Voice Room"))
+                                },
+                                modifier = Modifier.testTag("room_share_button")
+                            ) { Icon(Icons.Filled.Share, contentDescription = "Share room") }
 
-                        IconButton(
-                            onClick = onMinimizeToPip,
-                            modifier = Modifier.testTag("minimize_room_button")
-                        ) {
-                            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Keep room floating")
-                        }
-                        IconButton(
-                            onClick = onLeaveRoom,
-                            modifier = Modifier.testTag("leave_room_button")
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Leave room", tint = VibeCoral)
+                            if (isManager) {
+                                IconButton(
+                                    onClick = { showHostSettings = true },
+                                    modifier = Modifier.testTag("host_settings_button")
+                                ) {
+                                    Icon(Icons.Filled.AdminPanelSettings, contentDescription = "Stage controls", tint = VibeGold)
+                                }
+                            } else {
+                                IconButton(
+                                    onClick = { reportTarget = Triple("ROOM", currentRoom.id, currentRoom.title) },
+                                    modifier = Modifier.testTag("report_room_button")
+                                ) { Icon(Icons.Filled.Flag, contentDescription = "Report room") }
+                            }
+
+                            IconButton(
+                                onClick = onMinimizeToPip,
+                                modifier = Modifier.testTag("minimize_room_button")
+                            ) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Keep room floating") }
+                            IconButton(
+                                onClick = onLeaveRoom,
+                                modifier = Modifier.testTag("leave_room_button")
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Leave room", tint = VibeCoral)
+                            }
                         }
                     }
                 }

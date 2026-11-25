@@ -25,6 +25,31 @@ object CharmProgression {
     fun previousMilestone(charms: Long): Long = milestones.lastOrNull { charms >= it } ?: 0L
 }
 
+/**
+ * Room progression is independent from UserProfile.xp / UserProfile.level.
+ * Room gift value converts at 10 coins = 1 room EXP; each level requires
+ * another 100,000 EXP, with progression capped at level 20.
+ */
+object RoomLevelProgression {
+    const val COINS_PER_EXP = 10L
+    const val EXP_PER_LEVEL = 100_000L
+    const val MAX_LEVEL = 20L
+
+    fun expFromGiftCoins(coins: Long): Long = coins.coerceAtLeast(0L) / COINS_PER_EXP
+    fun levelForExp(exp: Long): Long =
+        (exp.coerceAtLeast(0L) / EXP_PER_LEVEL + 1L).coerceAtMost(MAX_LEVEL)
+
+    fun expIntoLevel(exp: Long): Long =
+        if (levelForExp(exp) == MAX_LEVEL) exp.coerceAtLeast(0L) - (MAX_LEVEL - 1L) * EXP_PER_LEVEL
+        else exp.coerceAtLeast(0L) % EXP_PER_LEVEL
+
+    fun expForNextLevel(exp: Long): Long? =
+        if (levelForExp(exp) >= MAX_LEVEL) null else EXP_PER_LEVEL - expIntoLevel(exp)
+
+    fun totalExpForNextLevel(exp: Long): Long? =
+        if (levelForExp(exp) >= MAX_LEVEL) null else levelForExp(exp) * EXP_PER_LEVEL
+}
+
 enum class RoomCategory(val label: String) {
     ALL("All"),
     CHILL("Chill"),

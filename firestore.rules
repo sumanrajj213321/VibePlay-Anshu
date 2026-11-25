@@ -543,6 +543,40 @@ service cloud.firestore {
                        incoming().diff(existing()).affectedKeys().hasOnly(['followersCount', 'updatedAt']) &&
                        isValidTs(incoming().updatedAt);
 
+      // Profile edits for legacy accounts that predate userId/createdAt.
+      // Keep this limited to the same profile fields used by updateProfile; protected
+      // account, role, balance and entitlement fields cannot be changed by this branch.
+      allow update: if isSignedIn() && isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       (!('userId' in existing()) || !('createdAt' in existing())) &&
+                       incoming().username is string &&
+                       incoming().username.size() >= 2 && incoming().username.size() <= 30 &&
+                       incoming().bio is string && incoming().bio.size() <= 200 &&
+                       incoming().avatarUrl is string && incoming().avatarUrl.size() <= 500 &&
+                       incoming().coverUrl is string && incoming().coverUrl.size() <= 500 &&
+                       incoming().age is int && (incoming().age == 0 || (incoming().age >= 13 && incoming().age <= 120)) &&
+                       incoming().showAge is bool &&
+                       incoming().showGender is bool &&
+                       incoming().showOnlineStatus is bool &&
+                       incoming().genderChangeCount is int &&
+                       incoming().genderChangeCount >= 0 && incoming().genderChangeCount <= 1 &&
+                       (!('online' in incoming()) || incoming().online is bool) &&
+                       (!('gender' in incoming()) || incoming().gender in ['UNSPECIFIED', 'FEMALE', 'MALE', 'NON_BINARY']) &&
+                       isValidTs(incoming().updatedAt) &&
+                       ((('gender' in existing()) ? existing().gender : 'UNSPECIFIED') ==
+                          (('gender' in incoming()) ? incoming().gender : 'UNSPECIFIED') &&
+                         incoming().genderChangeCount == (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0) ||
+                        ((('gender' in existing()) ? existing().gender : 'UNSPECIFIED') == 'UNSPECIFIED' &&
+                         (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0) == 0 &&
+                         ('gender' in incoming()) &&
+                         incoming().gender in ['FEMALE', 'MALE', 'NON_BINARY'] &&
+                         incoming().genderChangeCount == 1)) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'username', 'bio', 'avatarUrl', 'coverUrl', 'gender',
+                         'genderChangeCount', 'age', 'showAge', 'showGender',
+                         'showOnlineStatus', 'online', 'updatedAt'
+                       ]);
+
       // Legacy profiles may predate the userId/createdAt schema fields.
       // Permit only the atomic, authenticated one-time room claim for that account.
       allow update: if isSignedIn() && isValidId(userId) &&

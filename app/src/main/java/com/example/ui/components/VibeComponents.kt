@@ -1194,7 +1194,7 @@ fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
         val sourceUrl = giftVideoSourceUrl(gift.id)
         value = if (sourceUrl == null) null else {
             val cachedFile = cacheGiftVideo(context, gift.id, sourceUrl)
-            if (gift.id in setOf("gift_royal_vows", "gift_sunlit_dream", "gift_prism_muse") && cachedFile != null) {
+            if (gift.id in setOf("gift_sunset_love", "gift_royal_vows", "gift_enchanted_heart", "gift_sunlit_dream", "gift_prism_muse") && cachedFile != null) {
                 withContext(Dispatchers.IO) {
                     runCatching {
                         MediaMetadataRetriever().let { retriever ->
@@ -1211,7 +1211,7 @@ fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
             } else null
         }
     }
-    if (gift.id in setOf("gift_royal_vows", "gift_sunlit_dream", "gift_prism_muse") && videoGiftThumbnail != null) {
+    if (gift.id in setOf("gift_sunset_love", "gift_royal_vows", "gift_enchanted_heart", "gift_sunlit_dream", "gift_prism_muse") && videoGiftThumbnail != null) {
         Image(
             bitmap = videoGiftThumbnail!!.asImageBitmap(),
             contentDescription = gift.name,

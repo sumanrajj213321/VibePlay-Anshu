@@ -510,14 +510,71 @@ private fun LuxuryVipFrameOverlay(
     modifier: Modifier = Modifier,
     pulseAlpha: Float
 ) {
+    // A continuous travelling highlight gives the gold artwork visible motion
+    // while keeping the original frame illustration and transparent centre intact.
+    val motion = rememberInfiniteTransition(label = "luxury_gold_frame_motion_$vipLevel")
+    val sweepAngle by motion.animateFloat(
+        initialValue = -90f,
+        targetValue = 270f,
+        animationSpec = infiniteRepeatable(tween(3200, easing = LinearEasing)),
+        label = "luxury_gold_frame_sweep"
+    )
+    val shimmerPhase by motion.animateFloat(
+        initialValue = 0f,
+        targetValue = (2f * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(tween(2100, easing = LinearEasing)),
+        label = "luxury_gold_frame_shimmer"
+    )
+
     Box(modifier = modifier, contentAlignment = Alignment.BottomCenter) {
         Image(
             painter = painterResource(R.drawable.vip_luxury_gold_frame),
-            contentDescription = "Luxury gold VIP $vipLevel frame",
+            contentDescription = "Animated luxury gold VIP $vipLevel frame",
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Fit
         )
-        // VIP number is rendered as live text over the transparent blank plaque.
+        Canvas(Modifier.fillMaxSize()) {
+            val cx = size.width / 2f
+            val cy = size.height * 0.49f
+            val radius = size.minDimension * 0.315f
+            val glowAlpha = (0.35f + 0.45f * (0.5f + 0.5f * kotlin.math.sin(shimmerPhase))) * pulseAlpha
+
+            // A travelling gold-white arc moves around the frame perimeter.
+            drawArc(
+                brush = Brush.sweepGradient(
+                    listOf(
+                        Color.Transparent,
+                        Color(0xFFFFB52E).copy(alpha = glowAlpha),
+                        Color(0xFFFFF4C2).copy(alpha = 0.95f),
+                        Color(0xFFFFB52E).copy(alpha = glowAlpha),
+                        Color.Transparent
+                    )
+                ),
+                startAngle = sweepAngle,
+                sweepAngle = 64f,
+                useCenter = false,
+                topLeft = Offset(cx - radius, cy - radius),
+                size = androidx.compose.ui.geometry.Size(radius * 2f, radius * 2f),
+                style = Stroke(width = 3.2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            )
+
+            // Four moving sparkle points follow the rotating highlight.
+            for (index in 0..3) {
+                val angle = Math.toRadians((sweepAngle + index * 90f).toDouble())
+                val point = Offset(
+                    cx + kotlin.math.cos(angle).toFloat() * radius,
+                    cy + kotlin.math.sin(angle).toFloat() * radius
+                )
+                val sparkle = 0.55f + 0.45f * kotlin.math.sin(shimmerPhase + index).toFloat()
+                drawCircle(
+                    Color(0xFFFFF4C2).copy(alpha = sparkle.coerceIn(0.15f, 1f)),
+                    (1.5f + sparkle * 1.4f).dp.toPx(),
+                    point
+                )
+            }
+        }
+
+        // VIP number remains the same; only the frame's light effects move.
         Text(
             text = "VIP $vipLevel",
             color = Color(0xFFFFE6A0),

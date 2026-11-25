@@ -876,6 +876,12 @@ private fun AuthenticatedVibePlayApp(
                 val isFollowing = followingList.any { it.peerId == target.userId }
                 PublicProfileSheet(
                     targetUser = target,
+                    liveRooms = liveRoomsList,
+                    onJoinUserRoom = { room ->
+                        inspectedUser = null
+                        viewModel.clearInspectedUser()
+                        tryOpenRoom(room)
+                    },
                     currentUserId = currentUser.userId,
                     isFollowing = isFollowing,
                     followersList = if (target.userId == currentUser.userId) followersList else emptyList(),

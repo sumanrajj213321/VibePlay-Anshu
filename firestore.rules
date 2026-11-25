@@ -500,6 +500,41 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
+      // Compact daily reward authorization avoids evaluating the full profile rule tree.
+      allow update: if isSignedIn() && request.auth.uid == userId &&
+        incoming().role == existing().role &&
+        incoming().accountStatus == existing().accountStatus &&
+        incoming().vipLevel == existing().vipLevel &&
+        incoming().coinBalance == existing().coinBalance + 150 &&
+        incoming().lastDailyClaimDay is string &&
+        (!('lastDailyClaimDay' in existing()) || incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&
+        incoming().lastDailyClaimAt is timestamp &&
+        incoming().lastDailyClaimAt > request.time - duration.value(1, 'm') &&
+        incoming().lastDailyClaimAt <= request.time &&
+        (!('lastDailyClaimAt' in existing()) ||
+          (existing().lastDailyClaimAt + duration.value(330, 'm')).date() !=
+          (request.time + duration.value(330, 'm')).date()) &&
+        incoming().xp is int &&
+        incoming().xp == (('xp' in existing()) ? existing().xp : 0) + 50 &&
+        incoming().level is int && incoming().level >= 1 && incoming().level <= 999 &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'coinBalance', 'lastDailyClaimDay', 'lastDailyClaimAt', 'xp', 'level', 'updatedAt'
+        ]);
+
+      // Compact VIP purchase authorization; wallet and role remain protected.
+      allow update: if isSignedIn() && request.auth.uid == userId &&
+        incoming().role == existing().role &&
+        incoming().accountStatus == existing().accountStatus &&
+        incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
+        incoming().vipLevel is int && incoming().vipLevel >= 1 && incoming().vipLevel <= 8 &&
+        (incoming().vipLevel > existing().vipLevel ||
+          (!('vipExpiresAt' in existing()) || existing().vipExpiresAt <= request.time)) &&
+        incoming().vipExpiresAt is timestamp &&
+        incoming().vipExpiresAt > request.time - duration.value(1, 'm') &&
+        incoming().vipExpiresAt <= request.time + duration.value(30, 'd') + duration.value(1, 'm') &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'coinBalance', 'vipLevel', 'vipExpiresAt', 'updatedAt'
+        ]);
       // Fast, narrowly-scoped profile edit path for legacy accounts.
       // Place before other update rules to avoid exhausting Firestore's expression budget.
       allow update: if isSignedIn() &&

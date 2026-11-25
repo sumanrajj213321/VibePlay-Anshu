@@ -416,7 +416,7 @@ class RoomRepository(
             .snapshots()
             .map { snapshot ->
                 snapshot.toObjects(GiftCatalogItem::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
-                    .filter { it.id == "gift_sunset_love" || it.id == "gift_royal_vows" }
+                    .filter { it.id in setOf("gift_sunset_love", "gift_royal_vows", "gift_sunlit_dream", "gift_prism_muse") }
                     .sortedBy { it.coinCost }
             }
 
@@ -2058,6 +2058,7 @@ class RoomRepository(
                     db.collection("public_gift_wall").document(giftTransactionRef.id),
                     mapOf(
                         "giftTransactionId" to giftTransactionRef.id,
+                        "wallVersion" to 2L,
                         "senderId" to uid,
                         "recipientId" to recipientId,
                         "giftId" to gift.id,

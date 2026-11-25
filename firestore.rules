@@ -63,7 +63,15 @@ service cloud.firestore {
              itemId == 'vip_dragon_5' ? 175000 :
              itemId == 'vip_dragon_6' ? 200000 :
              itemId == 'vip_dragon_7' ? 230000 :
-             itemId == 'vip_dragon_8' ? 275000 : -1;
+             itemId == 'vip_dragon_8' ? 275000 :
+             itemId == 'vip_gold_banner_1' ? 90000 :
+             itemId == 'vip_gold_banner_2' ? 110000 :
+             itemId == 'vip_gold_banner_3' ? 130000 :
+             itemId == 'vip_gold_banner_4' ? 150000 :
+             itemId == 'vip_gold_banner_5' ? 175000 :
+             itemId == 'vip_gold_banner_6' ? 200000 :
+             itemId == 'vip_gold_banner_7' ? 230000 :
+             itemId == 'vip_gold_banner_8' ? 275000 : -1;
     }
 
     function isValidFramePurchase(data, oldData) {

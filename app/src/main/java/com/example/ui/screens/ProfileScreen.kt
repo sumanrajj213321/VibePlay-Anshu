@@ -132,6 +132,7 @@ fun ProfileScreen(
     var showEditSheet by remember { mutableStateOf(false) }
     var showVipSheet by remember { mutableStateOf(false) }
     var showGiftHistory by remember { mutableStateOf(false) }
+    var showLevelInfo by remember { mutableStateOf(false) }
     var selectedGiftPrice by remember { mutableStateOf<GiftCatalogItem?>(null) }
     var showSocialSheet by remember { mutableStateOf(false) }
     var socialInitialTab by remember { mutableStateOf(0) }
@@ -602,19 +603,35 @@ fun ProfileScreen(
                         }
                     }
                     Surface(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { showLevelInfo = true }
+                            .testTag("profile_level_card"),
                         shape = RoundedCornerShape(13.dp),
-                        color = VibeGold.copy(alpha = 0.13f),
-                        border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.65f))
-                    ) {
-                        Text(
-                            text = "Level ${profile.level}",
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = VibeGold,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
+                        color = Color(0xFF211A42),
+                        border = BorderStroke(
+                            1.dp,
+                            Brush.linearGradient(listOf(Color(0xFFB58CFF), Color(0xFF55C7FF), Color(0xFF8D79FF)))
                         )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            verticalArrangement = Arrangement.spacedBy(1.dp)
+                        ) {
+                            Text(
+                                text = "LEVEL ${LevelProgression.levelForXp(profile.xp)}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color(0xFFE8D9FF),
+                                fontWeight = FontWeight.ExtraBold,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = "Tap for XP details",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF9EDFFF),
+                                maxLines = 1
+                            )
+                        }
                     }
                 }
 
@@ -783,7 +800,6 @@ fun ProfileScreen(
                     ) {
                         VibeCoinIcon(modifier = Modifier.size(32.dp))
                         Text("${profile.coinBalance}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = VibeGold)
-                        Text("10 coins = 1 charm", style = MaterialTheme.typography.labelSmall, color = VibeGold)
                     }
                 }
 
@@ -962,6 +978,47 @@ fun ProfileScreen(
                 }
             }
         }
+    }
+
+    if (showLevelInfo) {
+        val currentLevel = LevelProgression.levelForXp(profile.xp)
+        val xpProgress = LevelProgression.progressInLevel(profile.xp)
+        val xpForNext = xpProgress.second
+        val remainingXp = (xpForNext - xpProgress.first).coerceAtLeast(0L)
+        val giftCoinsNeeded = remainingXp * 5L
+        AlertDialog(
+            onDismissRequest = { showLevelInfo = false },
+            title = {
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("LEVEL PROGRESSION", color = Color(0xFF9B78FF), fontWeight = FontWeight.ExtraBold)
+                    Text("Level $currentLevel", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Total XP: ${profile.xp}")
+                    Text("This level: ${xpProgress.first} / $xpForNext XP")
+                    LinearProgressIndicator(
+                        progress = { (xpProgress.first.toFloat() / xpForNext.coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(8.dp)),
+                        color = Color(0xFF9B78FF),
+                        trackColor = Color(0xFFE9E1FF)
+                    )
+                    Text("How XP is earned", fontWeight = FontWeight.Bold, color = Color(0xFF8C63E8))
+                    Text("• Send a gift: every 5 gift coins spent = 1 XP")
+                    Text("• Receive a gift: every 5 gift coins received = 1 XP")
+                    Text("• Daily reward: +50 XP")
+                    Text("Gift XP uses whole-number calculation per transaction (gift coin value ÷ 5).")
+                    Text("Next level calculation", fontWeight = FontWeight.Bold, color = Color(0xFF8C63E8))
+                    Text("You need $remainingXp more XP.")
+                    Text("At 5 gift coins per XP, that is $giftCoinsNeeded gift coins sent or received.")
+                    Text("Level $currentLevel → ${currentLevel + 1}: $xpForNext XP = ${xpForNext * 5L} gift coins.")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLevelInfo = false }) { Text("Got it") }
+            }
+        )
     }
 
     if (showEditSheet) {

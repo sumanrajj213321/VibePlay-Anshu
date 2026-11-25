@@ -642,82 +642,43 @@ service cloud.firestore {
                        isValidTs(incoming().updatedAt) &&
                        isValidFramePurchase(incoming(), existing());
 
+      // General profile edits and active-frame selection only.
+      // Other writes are handled by dedicated narrow rules above.
       allow update: if isSignedIn() && isValidId(userId) &&
-                       !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-                       (!('userId' in existing()) || incoming().userId == existing().userId) &&
-                       (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-                       isValidTs(incoming().updatedAt) && (
-        
-        (request.auth.uid == userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus && (
-          (incoming().diff(existing()).affectedKeys().hasOnly(['username', 'bio', 'avatarUrl', 'coverUrl', 'gender', 'genderChangeCount', 'age', 'ageRange', 'showAge', 'showGender', 'showOnlineStatus', 'online', 'followingCount', 'followersCount', 'updatedAt']) &&
-           isValidUserProfile(incoming()) &&
-           incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
-           ((incoming().gender == (('gender' in existing()) ? existing().gender : 'UNSPECIFIED') &&
-             incoming().genderChangeCount == (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0)) ||
-            ((('gender' in existing()) ? existing().gender : 'UNSPECIFIED') == 'UNSPECIFIED' &&
-             (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0) == 0 &&
-             incoming().gender in ['FEMALE', 'MALE', 'NON_BINARY'] &&
-             incoming().genderChangeCount == 1))) ||
-          (incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
-           incoming().followingCount is int && incoming().followingCount >= 0 &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['followingCount', 'updatedAt'])) ||
-          ((!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false) &&
-           incoming().hasCreatedRoom == true &&
-           isValidId(incoming().createdRoomId) &&
-           incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel &&
-           existsAfter(/databases/$(database)/documents/room_creation_locks/$(userId)) &&
-           getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
-          (incoming().vipLevel == existing().vipLevel && incoming().coinBalance == existing().coinBalance + 150 &&
-           incoming().lastDailyClaimDay is string &&
-           (!('lastDailyClaimDay' in existing()) || incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&
-           incoming().lastDailyClaimAt is timestamp &&
-           incoming().lastDailyClaimAt > request.time - duration.value(1, 'm') &&
-           incoming().lastDailyClaimAt <= request.time &&
-           (!('lastDailyClaimAt' in existing()) ||
-            (existing().lastDailyClaimAt + duration.value(330, 'm')).date() !=
-            (request.time + duration.value(330, 'm')).date()) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'lastDailyClaimDay', 'lastDailyClaimAt', 'xp', 'level', 'updatedAt'])) ||
-          (incoming().vipLevel == existing().vipLevel &&
-           incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
-           incoming().totalGiftsSent is int &&
-           incoming().totalGiftsSent > (('totalGiftsSent' in existing()) ? existing().totalGiftsSent : 0) &&
-           incoming().totalGiftCoinsSent is int &&
-           incoming().totalGiftCoinsSent > (('totalGiftCoinsSent' in existing()) ? existing().totalGiftCoinsSent : 0) &&
-           (
-             (!('totalGiftsReceived' in incoming()) && !('totalGiftCoinsReceived' in incoming())) ||
-             (incoming().totalGiftsReceived is int &&
-              incoming().totalGiftsReceived > (('totalGiftsReceived' in existing()) ? existing().totalGiftsReceived : 0) &&
-              incoming().totalGiftCoinsReceived is int &&
-              incoming().totalGiftCoinsReceived > (('totalGiftCoinsReceived' in existing()) ? existing().totalGiftCoinsReceived : 0))
-           ) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'totalGiftsSent', 'totalGiftCoinsSent', 'totalGiftsReceived', 'totalGiftCoinsReceived', 'xp', 'level', 'updatedAt'])) ||
-          (incoming().coinBalance == existing().coinBalance &&
-           incoming().vipLevel == existing().vipLevel &&
-           incoming().activeFrameId is string &&
-           (incoming().activeFrameId == '' ||
-            (incoming().ownedFrameIds is list && incoming().activeFrameId in incoming().ownedFrameIds &&
-             incoming().frameExpiresAt is map && incoming().frameExpiresAt[incoming().activeFrameId] > request.time)) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['activeFrameId', 'updatedAt'])) ||
-          (incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
-           incoming().vipLevel >= 1 && incoming().vipLevel <= 8 &&
-           (incoming().vipLevel > existing().vipLevel ||
-            (!('vipExpiresAt' in existing()) || existing().vipExpiresAt <= request.time)) &&
-           incoming().vipExpiresAt is timestamp &&
-           incoming().vipExpiresAt > request.time - duration.value(1, 'm') &&
-           incoming().vipExpiresAt <= request.time + duration.value(30, 'd') + duration.value(1, 'm') &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['coinBalance', 'vipLevel', 'vipExpiresAt', 'updatedAt']))
-        )) ||
-        (request.auth.uid != userId && incoming().role == existing().role && incoming().accountStatus == existing().accountStatus &&
-         incoming().coinBalance == existing().coinBalance && incoming().vipLevel == existing().vipLevel && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['followersCount', 'updatedAt']) ||
-          (incoming().totalGiftsReceived is int &&
-           incoming().totalGiftsReceived > (('totalGiftsReceived' in existing()) ? existing().totalGiftsReceived : 0) &&
-           incoming().totalGiftCoinsReceived is int &&
-           incoming().totalGiftCoinsReceived > (('totalGiftCoinsReceived' in existing()) ? existing().totalGiftCoinsReceived : 0) &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['totalGiftsReceived', 'totalGiftCoinsReceived', 'xp', 'level', 'updatedAt']))
-        ))
-      );
+        !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+        request.auth.uid == userId &&
+        (!('userId' in existing()) || incoming().userId == existing().userId) &&
+        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+        incoming().role == existing().role &&
+        incoming().accountStatus == existing().accountStatus &&
+        incoming().coinBalance == existing().coinBalance &&
+        incoming().vipLevel == existing().vipLevel &&
+        isValidTs(incoming().updatedAt) &&
+        (
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'username', 'bio', 'avatarUrl', 'coverUrl', 'gender',
+              'genderChangeCount', 'age', 'ageRange', 'showAge',
+              'showGender', 'showOnlineStatus', 'online', 'updatedAt'
+            ]) &&
+            isValidUserProfile(incoming()) &&
+            ((incoming().gender == (('gender' in existing()) ? existing().gender : 'UNSPECIFIED') &&
+              incoming().genderChangeCount == (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0)) ||
+             ((('gender' in existing()) ? existing().gender : 'UNSPECIFIED') == 'UNSPECIFIED' &&
+              (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0) == 0 &&
+              incoming().gender in ['FEMALE', 'MALE', 'NON_BINARY'] &&
+              incoming().genderChangeCount == 1))
+          ) ||
+          (
+            incoming().activeFrameId is string &&
+            (incoming().activeFrameId == '' ||
+             (incoming().ownedFrameIds is list &&
+              incoming().activeFrameId in incoming().ownedFrameIds &&
+              incoming().frameExpiresAt is map &&
+              incoming().frameExpiresAt[incoming().activeFrameId] > request.time)) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['activeFrameId', 'updatedAt'])
+          )
+        );
 
       allow update: if isSignedIn() && request.auth.uid == userId &&
                        incoming().userId == existing().userId &&

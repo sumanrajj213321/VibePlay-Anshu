@@ -691,7 +691,15 @@ object VibeShopCatalog {
         ShopCosmeticItem("rose_gold", "Rose Gold", 25_000L, 0xFFF472B6, "Soft rose-gold shimmer"),
         ShopCosmeticItem("royal_gold", "Royal Gold", 40_000L, 0xFFFBBF24, "A golden royal outline"),
         ShopCosmeticItem("galaxy", "Galaxy", 60_000L, 0xFFA78BFA, "Deep-space violet frame"),
-        ShopCosmeticItem("aurora", "Aurora", 80_000L, 0xFF34D399, "Aurora-inspired premium frame")
+        ShopCosmeticItem("aurora", "Aurora", 80_000L, 0xFF34D399, "Aurora-inspired premium frame"),
+        ShopCosmeticItem("vip_dragon_1", "VIP 1 · Ember", 90_000L, 0xFFFF5A36, "Animated dragon crown frame with ember fire"),
+        ShopCosmeticItem("vip_dragon_2", "VIP 2 · Ruby", 110_000L, 0xFFE83252, "Animated dragon crown frame with ruby flames"),
+        ShopCosmeticItem("vip_dragon_3", "VIP 3 · Amethyst", 130_000L, 0xFF9B5CFF, "Animated dragon crown frame with amethyst glow"),
+        ShopCosmeticItem("vip_dragon_4", "VIP 4 · Sapphire", 150_000L, 0xFF398BFF, "Animated dragon crown frame with sapphire fire"),
+        ShopCosmeticItem("vip_dragon_5", "VIP 5 · Emerald", 175_000L, 0xFF20C997, "Animated dragon crown frame with emerald flames"),
+        ShopCosmeticItem("vip_dragon_6", "VIP 6 · Amethyst Gold", 200_000L, 0xFFD18BFF, "Animated dragon crown frame with royal violet glow"),
+        ShopCosmeticItem("vip_dragon_7", "VIP 7 · Icefire", 230_000L, 0xFF42D9E8, "Animated dragon crown frame with icefire glow"),
+        ShopCosmeticItem("vip_dragon_8", "VIP 8 · Imperial", 275_000L, 0xFFFFC247, "Animated dragon crown frame with imperial gold fire")
     )
 }
 

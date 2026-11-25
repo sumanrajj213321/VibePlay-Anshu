@@ -2,11 +2,6 @@ name: Deploy VibePlay Firebase Functions
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'functions/**'
-      - '.github/workflows/deploy-firebase-functions.yml'
 
 permissions:
   contents: read

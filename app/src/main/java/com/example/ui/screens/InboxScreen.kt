@@ -8,6 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -970,7 +971,7 @@ private fun ChatDetailScreen(
                                     }
                                 }
                             }
-                            if (msg.type == "IMAGE" && msg.imageUri.isNotBlank()) {
+                            if (msg.type == "IMAGE" && (msg.imageData.isNotBlank() || msg.imageUri.isNotBlank())) {
                                 val imageCreatedAt = msg.createdAt?.toDate()?.time
                                 val imageExpired = imageCreatedAt != null &&
                                     System.currentTimeMillis() - imageCreatedAt >= 7L * 24L * 60L * 60L * 1000L
@@ -991,14 +992,18 @@ private fun ChatDetailScreen(
                                         }
                                     }
                                 } else {
+                                    val chatImageModel: Any = remember(msg.imageData, msg.imageUri) {
+                                        if (msg.imageData.isNotBlank()) Base64.decode(msg.imageData, Base64.DEFAULT)
+                                        else msg.imageUri
+                                    }
                                     AsyncImage(
-                                        model = msg.imageUri,
+                                        model = chatImageModel,
                                         contentDescription = "Open shared photo",
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(170.dp)
                                             .clip(RoundedCornerShape(12.dp))
-                                            .clickable { fullScreenImageUri = msg.imageUri },
+                                            .clickable { fullScreenImageUri = if (msg.imageData.isNotBlank()) msg.imageData else msg.imageUri },
                                         contentScale = ContentScale.Crop
                                     )
                                 }
@@ -1036,7 +1041,10 @@ private fun ChatDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
-                        model = imageUri,
+                        model = remember(imageUri) {
+                            if (imageUri.startsWith("https://") || imageUri.startsWith("http://")) imageUri
+                            else Base64.decode(imageUri, Base64.DEFAULT)
+                        },
                         contentDescription = "Full-size shared photo",
                         modifier = Modifier
                             .fillMaxSize()

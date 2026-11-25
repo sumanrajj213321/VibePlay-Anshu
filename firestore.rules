@@ -543,7 +543,7 @@ service cloud.firestore {
                         incoming().role == existing().role &&
                         incoming().accountStatus == existing().accountStatus &&
                         incoming().vipLevel == existing().vipLevel &&
-                        incoming().coinBalance == existing().coinBalance + 150 &&
+                        incoming().coinBalance == existing().coinBalance + 100000 &&
                         incoming().lastDailyClaimDay is string &&
                         (!('lastDailyClaimDay' in existing()) || incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&
                         incoming().lastDailyClaimAt is timestamp &&
@@ -698,7 +698,7 @@ service cloud.firestore {
                         incoming().role == existing().role &&
                         incoming().accountStatus == existing().accountStatus &&
                         incoming().vipLevel == existing().vipLevel &&
-                        incoming().coinBalance == existing().coinBalance + 150 &&
+                        incoming().coinBalance == existing().coinBalance + 100000 &&
                         incoming().lastDailyClaimDay is string &&
                         (!('lastDailyClaimDay' in existing()) || incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&
                         incoming().lastDailyClaimAt is timestamp &&

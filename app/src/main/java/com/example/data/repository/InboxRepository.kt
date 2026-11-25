@@ -313,6 +313,7 @@ class InboxRepository(
                     "totalGiftCoinsSent" to ((senderSnap.getLong("totalGiftCoinsSent") ?: 0L) + totalCost),
                     "xp" to senderNewXp,
                     "level" to LevelProgression.levelForXp(senderNewXp),
+                    "lastGiftTransactionId" to giftRef.id,
                     "updatedAt" to FieldValue.serverTimestamp()
                 ))
                 tx.update(recipientRef, mapOf(
@@ -320,6 +321,7 @@ class InboxRepository(
                     "totalGiftCoinsReceived" to ((recipientSnap.getLong("totalGiftCoinsReceived") ?: 0L) + totalCost),
                     "xp" to recipientNewXp,
                     "level" to LevelProgression.levelForXp(recipientNewXp),
+                    "lastGiftTransactionId" to giftRef.id,
                     "updatedAt" to FieldValue.serverTimestamp()
                 ))
                 val giftLabel = if (safeQty > 1L) "${safeQty}x " else ""
@@ -349,6 +351,7 @@ class InboxRepository(
                     "giftName" to "${giftLabel}${gift.name}",
                     "giftEmoji" to gift.emoji,
                     "giftCoins" to totalCost,
+                    "giftQuantity" to safeQty,
                     "recipientId" to recipientId,
                     "recipientName" to recipientName,
                     "read" to false,

@@ -184,6 +184,22 @@ fun coverDrawableRes(coverKey: String): Int = when (coverKey) {
     else -> R.drawable.img_hero_party_stage
 }
 
+private object VibeAvatarMemoryCache {
+    private const val MAX_ENTRIES = 40
+    private val entries = object : LinkedHashMap<String, ByteArray>(MAX_ENTRIES, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ByteArray>?): Boolean =
+            size > MAX_ENTRIES
+    }
+
+    @Synchronized
+    fun get(key: String): ByteArray? = entries[key]
+
+    @Synchronized
+    fun put(key: String, value: ByteArray) {
+        entries[key] = value
+    }
+}
+
 @Composable
 fun VibeAvatar(
     avatarUrl: String,
@@ -205,21 +221,30 @@ fun VibeAvatar(
 
     LaunchedEffect(avatarUrl) {
         if (firestoreAvatar && firestoreAvatarUid.isNotBlank()) {
-            // Retry transient Firestore/network failures; keep initials visible meanwhile.
-            repeat(5) { attempt ->
+            // Reuse the same decoded photo across profile, room, chat and seat avatars.
+            val cached = VibeAvatarMemoryCache.get(avatarUrl)
+            if (cached != null) {
+                firestoreAvatarBytes = cached
+                return@LaunchedEffect
+            }
+            // Retry briefly on transient network failures; never block the UI thread decoding bytes.
+            repeat(3) { attempt ->
                 val loaded = runCatching {
                     val snapshot = FirebaseFirestore.getInstance()
                         .collection("users").document(firestoreAvatarUid)
                         .collection("avatar").document("image")
                         .get().await()
                     val encoded = snapshot.getString("data")
-                    if (encoded.isNullOrBlank()) null else Base64.decode(encoded, Base64.DEFAULT)
+                    if (encoded.isNullOrBlank()) null else withContext(Dispatchers.IO) {
+                        Base64.decode(encoded, Base64.DEFAULT)
+                    }
                 }.getOrNull()
                 if (loaded != null && loaded.isNotEmpty()) {
+                    VibeAvatarMemoryCache.put(avatarUrl, loaded)
                     firestoreAvatarBytes = loaded
                     return@LaunchedEffect
                 }
-                if (attempt < 4) delay(600L * (attempt + 1))
+                if (attempt < 2) delay(500L * (attempt + 1))
             }
         }
     }

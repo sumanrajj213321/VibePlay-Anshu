@@ -80,7 +80,7 @@ service cloud.firestore {
 
     function isValidUserProfile(data) {
       return (!('userId' in data) || (data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128)) &&
-             data.vibeId is string && data.vibeId.size() >= 3 && data.vibeId.size() <= 24 &&
+             (!('vibeId' in data) || (data.vibeId is string && data.vibeId.size() >= 3 && data.vibeId.size() <= 24)) &&
              data.username is string && data.username.size() >= 2 && data.username.size() <= 30 &&
              (!('bio' in data) || (data.bio is string && data.bio.size() <= 200)) &&
              (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 500)) &&

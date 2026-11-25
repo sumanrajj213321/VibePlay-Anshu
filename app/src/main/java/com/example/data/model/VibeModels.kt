@@ -699,7 +699,15 @@ object VibeShopCatalog {
         ShopCosmeticItem("vip_dragon_5", "VIP 5 · Elite Gold", 175_000L, 0xFF0F9D78, "Thick royal gold frame with jeweled crown"),
         ShopCosmeticItem("vip_dragon_6", "VIP 6 · Prestige Gold", 200_000L, 0xFF9333EA, "Thick royal gold frame with jeweled crown"),
         ShopCosmeticItem("vip_dragon_7", "VIP 7 · Supreme Gold", 230_000L, 0xFF0891B2, "Thick royal gold frame with jeweled crown"),
-        ShopCosmeticItem("vip_dragon_8", "VIP 8 · Ultimate Gold", 275_000L, 0xFFCA8A04, "Thick royal gold frame with jeweled crown")
+        ShopCosmeticItem("vip_dragon_8", "VIP 8 · Ultimate Gold", 275_000L, 0xFFCA8A04, "Thick royal gold frame with jeweled crown"),
+        ShopCosmeticItem("vip_gold_banner_1", "VIP 1 · Golden Banner", 90_000L, 0xFFD4AF37, "Golden VIP frame with crown and VIP banner"),
+        ShopCosmeticItem("vip_gold_banner_2", "VIP 2 · Golden Banner", 110_000L, 0xFFC9A227, "Golden VIP frame with crown and VIP banner"),
+        ShopCosmeticItem("vip_gold_banner_3", "VIP 3 · Golden Banner", 130_000L, 0xFFE0B84F, "Golden VIP frame with crown and VIP banner"),
+        ShopCosmeticItem("vip_gold_banner_4", "VIP 4 · Golden Banner", 150_000L, 0xFFB8860B, "Golden VIP frame with crown and VIP banner"),
+        ShopCosmeticItem("vip_gold_banner_5", "VIP 5 · Golden Banner", 175_000L, 0xFFF2C14E, "Golden VIP frame with crown and VIP banner"),
+        ShopCosmeticItem("vip_gold_banner_6", "VIP 6 · Golden Banner", 200_000L, 0xFFAA771C, "Golden VIP frame with crown and VIP banner"),
+        ShopCosmeticItem("vip_gold_banner_7", "VIP 7 · Golden Banner", 230_000L, 0xFFE6BE65, "Golden VIP frame with crown and VIP banner"),
+        ShopCosmeticItem("vip_gold_banner_8", "VIP 8 · Golden Banner", 275_000L, 0xFF967117, "Golden VIP frame with crown and VIP banner")
     )
 }
 

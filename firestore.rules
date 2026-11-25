@@ -1291,10 +1291,10 @@ service cloud.firestore {
     // Public, minimal Gift Wall projection. Full gift_transactions remain participant-only.
     match /public_gift_wall/{txId} {
       allow get, list: if isSignedIn();
-      allow create: if isSignedIn() &&
+      allow create, update: if isSignedIn() &&
         isValidId(txId) &&
         incoming().giftTransactionId == txId &&
-        incoming().senderId == request.auth.uid &&
+        (incoming().senderId == request.auth.uid || incoming().recipientId == request.auth.uid) &&
         incoming().recipientId is string &&
         incoming().giftId is string &&
         incoming().giftName is string &&
@@ -1313,7 +1313,7 @@ service cloud.firestore {
         getAfter(/databases/$(database)/documents/gift_transactions/$(txId)).data.coinCost == incoming().coinCost &&
         getAfter(/databases/$(database)/documents/gift_transactions/$(txId)).data.quantity == incoming().quantity &&
         isValidTs(incoming().createdAt);
-      allow update, delete: if false;
+      allow delete: if false;
     }
 
     match /gift_transactions/{txId} {

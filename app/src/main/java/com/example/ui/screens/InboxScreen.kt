@@ -84,6 +84,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -633,6 +634,7 @@ private fun ChatDetailScreen(
     val listState = rememberLazyListState()
     var inputText by remember { mutableStateOf("") }
     var pendingImageUri by remember { mutableStateOf<String?>(null) }
+    var fullScreenImageUri by remember { mutableStateOf<String?>(null) }
     var showReportDialog by remember { mutableStateOf(false) }
     var showGroupInfoSheet by remember { mutableStateOf(false) }
     var showGiftPicker by remember { mutableStateOf(false) }
@@ -970,11 +972,12 @@ private fun ChatDetailScreen(
                             if (msg.type == "IMAGE" && msg.imageUri.isNotBlank()) {
                                 AsyncImage(
                                     model = msg.imageUri,
-                                    contentDescription = "Shared photo",
+                                    contentDescription = "Open shared photo",
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(170.dp)
-                                        .clip(RoundedCornerShape(12.dp)),
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable { fullScreenImageUri = msg.imageUri },
                                     contentScale = ContentScale.Crop
                                 )
                             }
@@ -994,6 +997,26 @@ private fun ChatDetailScreen(
                             }
                         }
                     }
+                }
+            }
+        }
+
+        fullScreenImageUri?.let { imageUri ->
+            Dialog(onDismissRequest = { fullScreenImageUri = null }) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = imageUri,
+                        contentDescription = "Full-size shared photo",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { fullScreenImageUri = null },
+                        contentScale = ContentScale.Fit
+                    )
                 }
             }
         }

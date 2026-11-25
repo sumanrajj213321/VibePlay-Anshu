@@ -500,41 +500,168 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
+      // Keep user update authorization in one short-circuiting rule. Separate allow
+      // statements are independently evaluated and can exhaust Firestore's expression budget.
+      allow update: if (
+        (isSignedIn() && isValidId(userId) &&
+                !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+                request.auth.uid == userId &&
+                (!('userId' in existing()) || incoming().userId == existing().userId) &&
+                (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                incoming().role == existing().role &&
+                incoming().accountStatus == existing().accountStatus &&
+                incoming().coinBalance == existing().coinBalance &&
+                incoming().vipLevel == existing().vipLevel &&
+                isValidTs(incoming().updatedAt) &&
+                (
+                  (
+                    incoming().diff(existing()).affectedKeys().hasOnly([
+                      'username', 'bio', 'avatarUrl', 'coverUrl', 'gender',
+                      'genderChangeCount', 'age', 'ageRange', 'showAge',
+                      'showGender', 'showOnlineStatus', 'online', 'updatedAt'
+                    ]) &&
+                    isValidUserProfile(incoming()) &&
+                    ((incoming().gender == (('gender' in existing()) ? existing().gender : 'UNSPECIFIED') &&
+                      incoming().genderChangeCount == (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0)) ||
+                     ((('gender' in existing()) ? existing().gender : 'UNSPECIFIED') == 'UNSPECIFIED' &&
+                      (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0) == 0 &&
+                      incoming().gender in ['FEMALE', 'MALE', 'NON_BINARY'] &&
+                      incoming().genderChangeCount == 1))
+                  ) ||
+                  (
+                    incoming().activeFrameId is string &&
+                    (incoming().activeFrameId == '' ||
+                     (incoming().ownedFrameIds is list &&
+                      incoming().activeFrameId in incoming().ownedFrameIds &&
+                      incoming().frameExpiresAt is map &&
+                      incoming().frameExpiresAt[incoming().activeFrameId] > request.time)) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['activeFrameId', 'updatedAt'])
+                  )
+                )) ||
+        (isSignedIn() && request.auth.uid == userId &&
+                incoming().role == existing().role &&
+                incoming().accountStatus == existing().accountStatus &&
+                incoming().vipLevel == existing().vipLevel &&
+                incoming().coinBalance == existing().coinBalance + 150 &&
+                incoming().lastDailyClaimDay is string &&
+                (!('lastDailyClaimDay' in existing()) || incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&
+                incoming().lastDailyClaimAt is timestamp &&
+                incoming().lastDailyClaimAt > request.time - duration.value(1, 'm') &&
+                incoming().lastDailyClaimAt <= request.time &&
+                (!('lastDailyClaimAt' in existing()) ||
+                  (existing().lastDailyClaimAt + duration.value(330, 'm')).date() !=
+                  (request.time + duration.value(330, 'm')).date()) &&
+                incoming().xp is int &&
+                incoming().xp == (('xp' in existing()) ? existing().xp : 0) + 50 &&
+                incoming().level is int && incoming().level >= 1 && incoming().level <= 999 &&
+                incoming().diff(existing()).affectedKeys().hasOnly([
+                  'coinBalance', 'lastDailyClaimDay', 'lastDailyClaimAt', 'xp', 'level', 'updatedAt'
+                ])) ||
+        (isSignedIn() && request.auth.uid == userId &&
+                incoming().role == existing().role &&
+                incoming().accountStatus == existing().accountStatus &&
+                incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
+                incoming().vipLevel is int && incoming().vipLevel >= 1 && incoming().vipLevel <= 8 &&
+                (incoming().vipLevel > existing().vipLevel ||
+                  (!('vipExpiresAt' in existing()) || existing().vipExpiresAt <= request.time)) &&
+                incoming().vipExpiresAt is timestamp &&
+                incoming().vipExpiresAt > request.time - duration.value(1, 'm') &&
+                incoming().vipExpiresAt <= request.time + duration.value(30, 'd') + duration.value(1, 'm') &&
+                incoming().diff(existing()).affectedKeys().hasOnly([
+                  'coinBalance', 'vipLevel', 'vipExpiresAt', 'updatedAt'
+                ])) ||
+        (isSignedIn() && isValidId(userId) &&
+                               request.auth.uid == userId &&
+                               incoming().role == existing().role &&
+                               incoming().accountStatus == existing().accountStatus &&
+                               incoming().coinBalance == existing().coinBalance &&
+                               incoming().vipLevel == existing().vipLevel &&
+                               incoming().followingCount is int &&
+                               incoming().followingCount >= 0 &&
+                               incoming().diff(existing()).affectedKeys().hasOnly(['followingCount', 'updatedAt']) &&
+                               isValidTs(incoming().updatedAt)) ||
+        (isSignedIn() && isValidId(userId) &&
+                               request.auth.uid != userId &&
+                               incoming().role == existing().role &&
+                               incoming().accountStatus == existing().accountStatus &&
+                               incoming().coinBalance == existing().coinBalance &&
+                               incoming().vipLevel == existing().vipLevel &&
+                               incoming().followersCount is int &&
+                               incoming().followersCount >= 0 &&
+                               incoming().diff(existing()).affectedKeys().hasOnly(['followersCount', 'updatedAt']) &&
+                               isValidTs(incoming().updatedAt)) ||
+        (isSignedIn() && isValidId(userId) &&
+                               request.auth.uid == userId &&
+                               (!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false) &&
+                               incoming().hasCreatedRoom == true &&
+                               isValidId(incoming().createdRoomId) &&
+                               (!('coinBalance' in existing()) || (('coinBalance' in incoming()) && incoming().coinBalance == existing().coinBalance)) &&
+                               (!('vipLevel' in existing()) || (('vipLevel' in incoming()) && incoming().vipLevel == existing().vipLevel)) &&
+                               isValidTs(incoming().updatedAt) &&
+                               existsAfter(/databases/$(database)/documents/room_creation_locks/$(userId)) &&
+                               getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.userId == userId &&
+                               getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
+                               incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
+        (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
+        (isSignedIn() && isValidId(userId) &&
+                               request.auth.uid == userId &&
+                               incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+                               incoming().userId == existing().userId &&
+                               incoming().createdAt == existing().createdAt &&
+                               incoming().role == existing().role &&
+                               incoming().accountStatus == existing().accountStatus &&
+                               isValidTs(incoming().updatedAt) &&
+                               isValidFramePurchase(incoming(), existing())) ||
+        (isSignedIn() && request.auth.uid == userId &&
+                               incoming().userId == existing().userId &&
+                               incoming().createdAt == existing().createdAt &&
+                               incoming().role == existing().role &&
+                               incoming().accountStatus == existing().accountStatus &&
+                               incoming().online == true &&
+                               incoming().lastSeenAt is timestamp &&
+                               incoming().lastSeenAt == request.time &&
+                               incoming().updatedAt is timestamp &&
+                               incoming().updatedAt == request.time &&
+                               incoming().diff(existing()).affectedKeys().hasOnly(['online', 'lastSeenAt', 'updatedAt'])) ||
+        (isSignedIn() && isValidId(userId) &&
+                request.auth.uid != userId &&
+                (!('userId' in existing()) || incoming().userId == existing().userId) &&
+                (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                (!('coinBalance' in existing()) || incoming().coinBalance == existing().coinBalance) &&
+                (!('vipLevel' in existing()) || incoming().vipLevel == existing().vipLevel) &&
+                isValidTs(incoming().updatedAt) &&
+                incoming().diff(existing()).affectedKeys().hasOnly(['followersCount', 'updatedAt']) &&
+                (
+                  (incoming().followersCount == (('followersCount' in existing()) ? existing().followersCount : 0) + 1 &&
+                   !exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)) &&
+                   existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)) &&
+                   getAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).data.peerId == request.auth.uid) ||
+                  (incoming().followersCount == (('followersCount' in existing()) ? existing().followersCount : 0) - 1 &&
+                   incoming().followersCount >= 0 &&
+                   (
+                     (exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)) &&
+                      !existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))) ||
+                     (exists(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)) &&
+                      !existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)))
+                   ))
+                )) ||
+        (isSignedIn() && isValidId(userId) &&
+                request.auth.uid == userId &&
+                (!('userId' in existing()) || incoming().userId == existing().userId) &&
+                (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                (!('coinBalance' in existing()) || incoming().coinBalance == existing().coinBalance) &&
+                (!('vipLevel' in existing()) || incoming().vipLevel == existing().vipLevel) &&
+                isValidTs(incoming().updatedAt) &&
+                incoming().diff(existing()).affectedKeys().hasOnly(['followingCount', 'updatedAt']) &&
+                incoming().followingCount is int && incoming().followingCount >= 0 &&
+                (incoming().followingCount == (('followingCount' in existing()) ? existing().followingCount : 0) + 1 ||
+                 incoming().followingCount == (('followingCount' in existing()) ? existing().followingCount : 0) - 1))
+      );
       // Compact daily reward authorization avoids evaluating the full profile rule tree.
-      allow update: if isSignedIn() && request.auth.uid == userId &&
-        incoming().role == existing().role &&
-        incoming().accountStatus == existing().accountStatus &&
-        incoming().vipLevel == existing().vipLevel &&
-        incoming().coinBalance == existing().coinBalance + 150 &&
-        incoming().lastDailyClaimDay is string &&
-        (!('lastDailyClaimDay' in existing()) || incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&
-        incoming().lastDailyClaimAt is timestamp &&
-        incoming().lastDailyClaimAt > request.time - duration.value(1, 'm') &&
-        incoming().lastDailyClaimAt <= request.time &&
-        (!('lastDailyClaimAt' in existing()) ||
-          (existing().lastDailyClaimAt + duration.value(330, 'm')).date() !=
-          (request.time + duration.value(330, 'm')).date()) &&
-        incoming().xp is int &&
-        incoming().xp == (('xp' in existing()) ? existing().xp : 0) + 50 &&
-        incoming().level is int && incoming().level >= 1 && incoming().level <= 999 &&
-        incoming().diff(existing()).affectedKeys().hasOnly([
-          'coinBalance', 'lastDailyClaimDay', 'lastDailyClaimAt', 'xp', 'level', 'updatedAt'
-        ]);
+      
 
       // Compact VIP purchase authorization; wallet and role remain protected.
-      allow update: if isSignedIn() && request.auth.uid == userId &&
-        incoming().role == existing().role &&
-        incoming().accountStatus == existing().accountStatus &&
-        incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
-        incoming().vipLevel is int && incoming().vipLevel >= 1 && incoming().vipLevel <= 8 &&
-        (incoming().vipLevel > existing().vipLevel ||
-          (!('vipExpiresAt' in existing()) || existing().vipExpiresAt <= request.time)) &&
-        incoming().vipExpiresAt is timestamp &&
-        incoming().vipExpiresAt > request.time - duration.value(1, 'm') &&
-        incoming().vipExpiresAt <= request.time + duration.value(30, 'd') + duration.value(1, 'm') &&
-        incoming().diff(existing()).affectedKeys().hasOnly([
-          'coinBalance', 'vipLevel', 'vipExpiresAt', 'updatedAt'
-        ]);
+      
       // Legacy profile documents are already supported by the general profile rule below:
       // it permits absent userId/createdAt fields and validates only the edited profile fields.
       allow get: if isSignedIn() && isValidId(userId) && (
@@ -558,146 +685,34 @@ service cloud.firestore {
 
       // Follow counter updates must also work for legacy profiles that predate userId/createdAt.
       // These narrow branches permit only the relevant counter and updatedAt to change.
-      allow update: if isSignedIn() && isValidId(userId) &&
-                       request.auth.uid == userId &&
-                       incoming().role == existing().role &&
-                       incoming().accountStatus == existing().accountStatus &&
-                       incoming().coinBalance == existing().coinBalance &&
-                       incoming().vipLevel == existing().vipLevel &&
-                       incoming().followingCount is int &&
-                       incoming().followingCount >= 0 &&
-                       incoming().diff(existing()).affectedKeys().hasOnly(['followingCount', 'updatedAt']) &&
-                       isValidTs(incoming().updatedAt);
+      
 
-      allow update: if isSignedIn() && isValidId(userId) &&
-                       request.auth.uid != userId &&
-                       incoming().role == existing().role &&
-                       incoming().accountStatus == existing().accountStatus &&
-                       incoming().coinBalance == existing().coinBalance &&
-                       incoming().vipLevel == existing().vipLevel &&
-                       incoming().followersCount is int &&
-                       incoming().followersCount >= 0 &&
-                       incoming().diff(existing()).affectedKeys().hasOnly(['followersCount', 'updatedAt']) &&
-                       isValidTs(incoming().updatedAt);
+      
 
       // Legacy profiles may predate the userId/createdAt schema fields.
       // Permit only the atomic, authenticated one-time room claim for that account.
-      allow update: if isSignedIn() && isValidId(userId) &&
-                       request.auth.uid == userId &&
-                       (!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false) &&
-                       incoming().hasCreatedRoom == true &&
-                       isValidId(incoming().createdRoomId) &&
-                       (!('coinBalance' in existing()) || (('coinBalance' in incoming()) && incoming().coinBalance == existing().coinBalance)) &&
-                       (!('vipLevel' in existing()) || (('vipLevel' in incoming()) && incoming().vipLevel == existing().vipLevel)) &&
-                       isValidTs(incoming().updatedAt) &&
-                       existsAfter(/databases/$(database)/documents/room_creation_locks/$(userId)) &&
-                       getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.userId == userId &&
-                       getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
-                       incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt']);
+      
 
       // Transaction-bound gift updates are checked before the broad profile validator.
-      allow update: if isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId);
+      
 
-      allow update: if isSignedIn() && isValidId(userId) &&
-                       request.auth.uid == userId &&
-                       incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-                       incoming().userId == existing().userId &&
-                       incoming().createdAt == existing().createdAt &&
-                       incoming().role == existing().role &&
-                       incoming().accountStatus == existing().accountStatus &&
-                       isValidTs(incoming().updatedAt) &&
-                       isValidFramePurchase(incoming(), existing());
+      
 
       // General profile edits and active-frame selection only.
       // Other writes are handled by dedicated narrow rules above.
-      allow update: if isSignedIn() && isValidId(userId) &&
-        !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        request.auth.uid == userId &&
-        (!('userId' in existing()) || incoming().userId == existing().userId) &&
-        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-        incoming().role == existing().role &&
-        incoming().accountStatus == existing().accountStatus &&
-        incoming().coinBalance == existing().coinBalance &&
-        incoming().vipLevel == existing().vipLevel &&
-        isValidTs(incoming().updatedAt) &&
-        (
-          (
-            incoming().diff(existing()).affectedKeys().hasOnly([
-              'username', 'bio', 'avatarUrl', 'coverUrl', 'gender',
-              'genderChangeCount', 'age', 'ageRange', 'showAge',
-              'showGender', 'showOnlineStatus', 'online', 'updatedAt'
-            ]) &&
-            isValidUserProfile(incoming()) &&
-            ((incoming().gender == (('gender' in existing()) ? existing().gender : 'UNSPECIFIED') &&
-              incoming().genderChangeCount == (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0)) ||
-             ((('gender' in existing()) ? existing().gender : 'UNSPECIFIED') == 'UNSPECIFIED' &&
-              (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0) == 0 &&
-              incoming().gender in ['FEMALE', 'MALE', 'NON_BINARY'] &&
-              incoming().genderChangeCount == 1))
-          ) ||
-          (
-            incoming().activeFrameId is string &&
-            (incoming().activeFrameId == '' ||
-             (incoming().ownedFrameIds is list &&
-              incoming().activeFrameId in incoming().ownedFrameIds &&
-              incoming().frameExpiresAt is map &&
-              incoming().frameExpiresAt[incoming().activeFrameId] > request.time)) &&
-            incoming().diff(existing()).affectedKeys().hasOnly(['activeFrameId', 'updatedAt'])
-          )
-        );
+      
 
-      allow update: if isSignedIn() && request.auth.uid == userId &&
-                       incoming().userId == existing().userId &&
-                       incoming().createdAt == existing().createdAt &&
-                       incoming().role == existing().role &&
-                       incoming().accountStatus == existing().accountStatus &&
-                       incoming().online == true &&
-                       incoming().lastSeenAt is timestamp &&
-                       incoming().lastSeenAt == request.time &&
-                       incoming().updatedAt is timestamp &&
-                       incoming().updatedAt == request.time &&
-                       incoming().diff(existing()).affectedKeys().hasOnly(['online', 'lastSeenAt', 'updatedAt']);
+      
 
       allow delete: if false;
 
       // Allow a follower to update only the target's follower counter when
       // the matching follower edge is created or removed in the same transaction.
-      allow update: if isSignedIn() && isValidId(userId) &&
-        request.auth.uid != userId &&
-        (!('userId' in existing()) || incoming().userId == existing().userId) &&
-        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-        (!('coinBalance' in existing()) || incoming().coinBalance == existing().coinBalance) &&
-        (!('vipLevel' in existing()) || incoming().vipLevel == existing().vipLevel) &&
-        isValidTs(incoming().updatedAt) &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['followersCount', 'updatedAt']) &&
-        (
-          (incoming().followersCount == (('followersCount' in existing()) ? existing().followersCount : 0) + 1 &&
-           !exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)) &&
-           existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)) &&
-           getAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)).data.peerId == request.auth.uid) ||
-          (incoming().followersCount == (('followersCount' in existing()) ? existing().followersCount : 0) - 1 &&
-           incoming().followersCount >= 0 &&
-           (
-             (exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid)) &&
-              !existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))) ||
-             (exists(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)) &&
-              !existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)))
-           ))
-        );
+      
 
       // Allow an authenticated user to change only their own following counter by one.
       // The counter is non-financial profile metadata; wallet and VIP fields remain immutable.
-      allow update: if isSignedIn() && isValidId(userId) &&
-        request.auth.uid == userId &&
-        (!('userId' in existing()) || incoming().userId == existing().userId) &&
-        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-        (!('coinBalance' in existing()) || incoming().coinBalance == existing().coinBalance) &&
-        (!('vipLevel' in existing()) || incoming().vipLevel == existing().vipLevel) &&
-        isValidTs(incoming().updatedAt) &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['followingCount', 'updatedAt']) &&
-        incoming().followingCount is int && incoming().followingCount >= 0 &&
-        (incoming().followingCount == (('followingCount' in existing()) ? existing().followingCount : 0) + 1 ||
-         incoming().followingCount == (('followingCount' in existing()) ? existing().followingCount : 0) - 1);
+      
 
       match /avatar/{avatarDocId} {
         allow get: if isSignedIn() && avatarDocId == 'image';

@@ -348,7 +348,7 @@ class InboxRepository(
                     "type" to "GIFT",
                     "text" to messageText,
                     "giftId" to gift.id,
-                    "giftName" to "${giftLabel}${gift.name}",
+                    "giftName" to gift.name,
                     "giftEmoji" to gift.emoji,
                     "giftCoins" to totalCost,
                     "giftQuantity" to safeQty,

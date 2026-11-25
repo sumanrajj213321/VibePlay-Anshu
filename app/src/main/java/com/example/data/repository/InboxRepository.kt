@@ -1,7 +1,11 @@
 package com.example.data.repository
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Base64
+import java.io.ByteArrayOutputStream
 import com.example.R
 import com.example.data.firebase.OperationType
 import com.example.data.firebase.handleFirestoreError
@@ -17,7 +21,6 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.snapshots
-import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -26,13 +29,43 @@ import kotlinx.coroutines.tasks.await
 class InboxRepository(
     private val db: FirebaseFirestore,
     private val auth: FirebaseAuth = Firebase.auth,
-    private val storage: FirebaseStorage = FirebaseStorage.getInstance()
+    private val appContext: Context? = null
 ) {
     constructor(context: Context) : this(
         FirebaseFirestore.getInstance(
             context.applicationContext.getString(R.string.firestore_database_id)
-        )
+        ),
+        Firebase.auth,
+        context.applicationContext
     )
+
+    private fun encodeChatImage(uriString: String): String {
+        val context = appContext ?: error("Image sending needs an application context. Please reopen the app and try again.")
+        val uri = Uri.parse(uriString)
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+            ?: error("Could not read the selected image.")
+        require(bounds.outWidth > 0 && bounds.outHeight > 0) { "Selected file is not a valid image." }
+        var sample = 1
+        while (bounds.outWidth / sample > 1280 || bounds.outHeight / sample > 1280) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        var bitmap = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+            ?: error("Could not decode the selected image.")
+        try {
+            repeat(8) {
+                val output = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 78, output)
+                val bytes = output.toByteArray()
+                if (bytes.size <= 600 * 1024) return Base64.encodeToString(bytes, Base64.NO_WRAP)
+                val next = Bitmap.createScaledBitmap(bitmap, (bitmap.width * 0.8f).toInt().coerceAtLeast(1), (bitmap.height * 0.8f).toInt().coerceAtLeast(1), true)
+                if (next !== bitmap) bitmap.recycle()
+                bitmap = next
+            }
+            error("This image is too large to save safely. Please choose a smaller image.")
+        } finally {
+            if (!bitmap.isRecycled) bitmap.recycle()
+        }
+    }
 
     private fun requireUserId(): String {
         return auth.currentUser?.uid
@@ -206,18 +239,11 @@ class InboxRepository(
             val preview = if (isImage && cleanText.isEmpty()) "[Photo]" else cleanText.take(120)
             val recipients = conversation.participantIds.filter { it != uid }.take(49)
 
-            // Persist the selected photo in Firebase Storage. A picker content:// URI
-            // is temporary and cannot reliably be reopened after logout or process death.
-            val storedImageUrl = imageUri?.takeIf { it.isNotBlank() }?.let { rawUri ->
-                if (rawUri.startsWith("https://") || rawUri.startsWith("http://")) {
-                    rawUri
-                } else {
-                    val imageRef = storage.reference
-                        .child("chat-images/${conversation.id}/${uid}/${msgRef.id}.jpg")
-                    imageRef.putFile(Uri.parse(rawUri)).await()
-                    imageRef.downloadUrl.await().toString()
-                }
-            }
+            // Store a compressed JPEG payload in the message document itself.
+            // This uses Firestore only, so no Firebase Storage upgrade is required.
+            val storedImageData = imageUri?.takeIf { it.isNotBlank() && !it.startsWith("https://") && !it.startsWith("http://") }
+                ?.let(::encodeChatImage)
+            val storedImageUrl = imageUri?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
 
             val updatedNames = conversation.participantNames.toMutableMap().apply {
                 put(uid, sender.username)
@@ -238,9 +264,8 @@ class InboxRepository(
                 "read" to false,
                 "createdAt" to FieldValue.serverTimestamp()
             )
-            if (!storedImageUrl.isNullOrBlank()) {
-                msgPayload["imageUri"] = storedImageUrl.take(600)
-            }
+            if (!storedImageUrl.isNullOrBlank()) msgPayload["imageUri"] = storedImageUrl.take(600)
+            if (!storedImageData.isNullOrBlank()) msgPayload["imageData"] = storedImageData
             batch.set(msgRef, msgPayload)
             batch.update(
                 convRef,

@@ -50,7 +50,7 @@ import com.example.data.model.VibeShopCatalog
 import com.example.data.model.VoiceRoom
 import com.example.ui.components.LevelBadge
 import com.example.ui.components.VibeAvatar
-import com.example.ui.components.VipBadgePill
+import com.example.ui.components.VipMiniBadge
 import com.example.ui.components.VipShiningNameText
 import com.example.ui.components.VoiceRoomCard
 import com.example.ui.state.UiState
@@ -216,7 +216,7 @@ fun ExploreScreen(
                                     modifier = Modifier.weight(1f, fill = false)
                                 )
                                 LevelBadge(user.level)
-                                if (user.isVipActive) VipBadgePill(user.vipLevel)
+                                if (user.isVipActive) VipMiniBadge(user.vipLevel)
                             }
                             val ageTag = if (user.showAge && user.formattedAge != null) " · ${user.formattedAge}" else ""
                             Text(

@@ -1084,55 +1084,61 @@ fun VoiceRoomCard(
     }
 }
 
+private fun giftVideoSourceUrl(giftId: String): String? = when (giftId) {
+    "gift_sunset_love" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/sunset_love_gift.mp4"
+    "gift_royal_vows" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/From%20Klickpin.com-%20Discover%20Simple%20family%20dinner%20ideas%20that%20are%20trending%20right%20now%20across%20Pinterest%20boards%20for%20ideas%20worth%20saving%20right%20now-pin-id%20%28online-video-cutter.com%29.mp4"
+    "gift_enchanted_heart" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/enchanted_heart_gift.mp4"
+    "gift_sunlit_dream" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Save%20Modern%20weekend%20getaway%20inspiration%20that%20make%20your%20next%20project%20look%20polished%20and%20expensive%20for%20your%20next%20inspiration%20board%20%28online-video-cutter.com%29.mp4"
+    "gift_prism_muse" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Try%20this%20cozy%20easy%20makeup%20roundup%20that%20make%20everything%20look%20instantly%20polished%20with%20smart%20steps%20cute%20details%20and%20cozy%20vibes%20and.mp4"
+    else -> null
+}
+
+private suspend fun cacheGiftVideo(context: Context, giftId: String, sourceUrl: String): java.io.File? =
+    withContext(Dispatchers.IO) {
+        val cacheFile = java.io.File(context.cacheDir, "gift-video-$giftId.mp4")
+        if (cacheFile.exists() && cacheFile.length() > 0L) return@withContext cacheFile
+        runCatching {
+            val tempFile = java.io.File(context.cacheDir, "gift-video-$giftId.tmp")
+            val connection = java.net.URL(sourceUrl).openConnection().apply {
+                connectTimeout = 12_000
+                readTimeout = 30_000
+                useCaches = true
+            }
+            connection.getInputStream().use { input ->
+                tempFile.outputStream().use { output -> input.copyTo(output) }
+            }
+            if (tempFile.length() > 0L) {
+                if (cacheFile.exists()) cacheFile.delete()
+                if (tempFile.renameTo(cacheFile)) cacheFile else null
+            } else {
+                tempFile.delete()
+                null
+            }
+        }.getOrNull()
+    }
+
 @Composable
 fun GiftCatalogArtwork(gift: GiftCatalogItem, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val videoGiftThumbnail by produceState<android.graphics.Bitmap?>(initialValue = null, gift.id, context) {
-        val thumbnailUrl = when (gift.id) {
-            "gift_royal_vows" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/From%20Klickpin.com-%20Discover%20Simple%20family%20dinner%20ideas%20that%20are%20trending%20right%20now%20across%20Pinterest%20boards%20for%20ideas%20worth%20saving%20right%20now-pin-id%20%28online-video-cutter.com%29.mp4"
-            "gift_sunlit_dream" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Save%20Modern%20weekend%20getaway%20inspiration%20that%20make%20your%20next%20project%20look%20polished%20and%20expensive%20for%20your%20next%20inspiration%20board%20%28online-video-cutter.com%29.mp4"
-            "gift_prism_muse" -> "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Try%20this%20cozy%20easy%20makeup%20roundup%20that%20make%20everything%20look%20instantly%20polished%20with%20smart%20steps%20cute%20details%20and%20cozy%20vibes%20and.mp4"
-            else -> null
-        }
-        value = if (thumbnailUrl == null) null else withContext(Dispatchers.IO) {
-            val cacheFile = java.io.File(context.cacheDir, "gift-thumb-${gift.id}.mp4")
-            var bitmap: android.graphics.Bitmap? = null
-            repeat(3) { attempt ->
-                if (bitmap == null) {
+        val sourceUrl = giftVideoSourceUrl(gift.id)
+        value = if (sourceUrl == null) null else {
+            val cachedFile = cacheGiftVideo(context, gift.id, sourceUrl)
+            if (gift.id in setOf("gift_royal_vows", "gift_sunlit_dream", "gift_prism_muse") && cachedFile != null) {
+                withContext(Dispatchers.IO) {
                     runCatching {
-                        if (!cacheFile.exists() || cacheFile.length() == 0L) {
-                            val connection = java.net.URL(thumbnailUrl).openConnection().apply {
-                                connectTimeout = 12_000
-                                readTimeout = 20_000
-                                useCaches = true
-                            }
-                            val tempFile = java.io.File(context.cacheDir, "gift-thumb-${gift.id}.tmp")
-                            connection.getInputStream().use { input ->
-                                tempFile.outputStream().use { output -> input.copyTo(output) }
-                            }
-                            if (tempFile.length() > 0L) {
-                                if (cacheFile.exists()) cacheFile.delete()
-                                tempFile.renameTo(cacheFile)
-                            } else {
-                                tempFile.delete()
+                        MediaMetadataRetriever().let { retriever ->
+                            try {
+                                retriever.setDataSource(cachedFile.absolutePath)
+                                retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                                    ?: retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                            } finally {
+                                retriever.release()
                             }
                         }
-                        if (cacheFile.exists() && cacheFile.length() > 0L) {
-                            MediaMetadataRetriever().let { retriever ->
-                                try {
-                                    retriever.setDataSource(cacheFile.absolutePath)
-                                    retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                                        ?: retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                                } finally {
-                                    retriever.release()
-                                }
-                            }
-                        } else null
-                    }.onSuccess { bitmap = it }
+                    }.getOrNull()
                 }
-                if (bitmap == null && attempt < 2) delay(700L * (attempt + 1))
-            }
-            bitmap
+            } else null
         }
     }
     if (gift.id in setOf("gift_royal_vows", "gift_sunlit_dream", "gift_prism_muse") && videoGiftThumbnail != null) {
@@ -1316,20 +1322,15 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
     LaunchedEffect(event?.id) {
         val active = event
         if (active != null) {
-            if (active.giftId in setOf("gift_sunset_love", "gift_royal_vows", "gift_enchanted_heart", "gift_sunlit_dream", "gift_prism_muse")) {
-                videoUrl = when (active.giftId) {
-                    "gift_royal_vows" ->
-                        "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/From%20Klickpin.com-%20Discover%20Simple%20family%20dinner%20ideas%20that%20are%20trending%20right%20now%20across%20Pinterest%20boards%20for%20ideas%20worth%20saving%20right%20now-pin-id%20%28online-video-cutter.com%29.mp4"
-                    "gift_enchanted_heart" ->
-                        "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/enchanted_heart_gift.mp4"
-                    "gift_sunlit_dream" ->
-                        "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Save%20Modern%20weekend%20getaway%20inspiration%20that%20make%20your%20next%20project%20look%20polished%20and%20expensive%20for%20your%20next%20inspiration%20board%20%28online-video-cutter.com%29.mp4"
-                    "gift_prism_muse" ->
-                        "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/From%20Klickpin.com-%20Try%20this%20cozy%20easy%20makeup%20roundup%20that%20make%20everything%20look%20instantly%20polished%20with%20smart%20steps%20cute%20details%20and%20cozy%20vibes%20and.mp4"
-                    else ->
-                        "https://raw.githubusercontent.com/sumanrajj213321/VibePlay-Anshu/main/gift-assets/sunset_love_gift.mp4"
+            val sourceUrl = giftVideoSourceUrl(active.giftId)
+            if (sourceUrl != null) {
+                // Catalog artwork preloads these clips into app cache. Prefer the local
+                // copy so video frames and their original audio start without a network wait.
+                val cachedFile = withContext(Dispatchers.IO) {
+                    java.io.File(context.cacheDir, "gift-video-${active.giftId}.mp4")
+                        .takeIf { it.exists() && it.length() > 0L }
                 }
-                if (videoUrl.isNullOrBlank()) videoLoadFailed = true
+                videoUrl = cachedFile?.toURI()?.toString() ?: sourceUrl
             } else {
                 // Gift visuals must never request or emit STREAM_MUSIC audio:
                 // keep the shared room song uninterrupted while the animation runs.

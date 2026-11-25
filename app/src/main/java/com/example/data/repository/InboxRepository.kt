@@ -15,11 +15,16 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageMetadata
+import android.net.Uri
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
+import java.util.Date
 
 class InboxRepository(
     private val db: FirebaseFirestore,
@@ -199,6 +204,16 @@ class InboxRepository(
 
             val convRef = db.collection("conversations").document(conversation.id)
             val msgRef = convRef.collection("messages").document()
+            val imageExpiresAt = Timestamp(Date(System.currentTimeMillis() + 7L * 24L * 60L * 60L * 1000L))
+            var uploadedImageUrl = ""
+            var uploadedImagePath = ""
+            if (!imageUri.isNullOrBlank()) {
+                uploadedImagePath = "inbox-images/${conversation.id}/${msgRef.id}.jpg"
+                val imageRef = FirebaseStorage.getInstance().reference.child(uploadedImagePath)
+                val metadata = StorageMetadata.Builder().setContentType("image/jpeg").build()
+                imageRef.putFile(Uri.parse(imageUri), metadata).await()
+                uploadedImageUrl = imageRef.downloadUrl.await().toString()
+            }
             val preview = if (isImage && cleanText.isEmpty()) "[Photo]" else cleanText.take(120)
             val recipients = conversation.participantIds.filter { it != uid }.take(49)
 
@@ -222,7 +237,9 @@ class InboxRepository(
                 "createdAt" to FieldValue.serverTimestamp()
             )
             if (!imageUri.isNullOrBlank()) {
-                msgPayload["imageUri"] = imageUri.take(600)
+                msgPayload["imageUri"] = uploadedImageUrl.take(600)
+                msgPayload["imageStoragePath"] = uploadedImagePath
+                msgPayload["expiresAt"] = imageExpiresAt
             }
             batch.set(msgRef, msgPayload)
             batch.update(

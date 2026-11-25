@@ -1294,6 +1294,7 @@ service cloud.firestore {
       allow create, update: if isSignedIn() &&
         isValidId(txId) &&
         incoming().giftTransactionId == txId &&
+        incoming().wallVersion == 2 &&
         (incoming().senderId == request.auth.uid || incoming().recipientId == request.auth.uid) &&
         incoming().recipientId is string &&
         incoming().giftId is string &&

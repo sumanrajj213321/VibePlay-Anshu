@@ -490,7 +490,7 @@ private fun AuthenticatedVibePlayApp(
                     contentWindowInsets = WindowInsets.systemBars,
                     snackbarHost = { SnackbarHost(snackbarHostState) },
                     bottomBar = {
-                        if (showTopLevelNav && !useNavigationRail) {
+                        if (showTopLevelNav && currentRoute?.startsWith("room/") != true && !useNavigationRail) {
                             NavigationBar {
                                 mainTabs.forEach { tab ->
                                     val selected = currentRoute == tab.route
@@ -520,7 +520,7 @@ private fun AuthenticatedVibePlayApp(
                             .padding(innerPadding)
                             .consumeWindowInsets(innerPadding)
                     ) {
-                        if (showTopLevelNav && useNavigationRail) {
+                        if (showTopLevelNav && currentRoute?.startsWith("room/") != true && useNavigationRail) {
                             NavigationRail(modifier = Modifier.fillMaxHeight()) {
                                 Spacer(modifier = Modifier.height(12.dp))
                                 mainTabs.forEach { tab ->

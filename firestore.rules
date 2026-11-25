@@ -260,6 +260,7 @@ service cloud.firestore {
              data.type in ['TEXT', 'IMAGE', 'SYSTEM', 'GIFT'] &&
              data.text is string && data.text.size() <= 1000 &&
              (!('imageUri' in data) || (data.imageUri is string && data.imageUri.size() <= 600)) &&
+             (!('imageData' in data) || (data.imageData is string && data.imageData.size() <= 819200)) &&
              (!('giftId' in data) || (data.giftId is string && data.giftId.size() <= 128)) &&
              (!('giftName' in data) || (data.giftName is string && data.giftName.size() <= 80)) &&
              (!('giftEmoji' in data) || (data.giftEmoji is string && data.giftEmoji.size() <= 16)) &&

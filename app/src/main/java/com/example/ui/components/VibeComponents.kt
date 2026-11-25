@@ -308,6 +308,17 @@ fun VibeAvatar(
         else -> null
     }
     val isLuxuryVipFrame = luxuryVipLevel != null
+    val bannerVipLevel = when (frameColorArgb) {
+        0xFFD4AF37L -> 1
+        0xFFC9A227L -> 2
+        0xFFE0B84FL -> 3
+        0xFFB8860BL -> 4
+        0xFFF2C14EL -> 5
+        0xFFAA771CL -> 6
+        0xFFE6BE65L -> 7
+        0xFF967117L -> 8
+        else -> null
+    }
     val dragonVipLevel = when (frameColorArgb) {
         0xFFB87333L -> 1
         0xFF8C5A2BL -> 2
@@ -476,6 +487,14 @@ fun VibeAvatar(
             VipDragonFrameOverlay(
                 vipLevel = dragonVipLevel,
                 modifier = Modifier.align(Alignment.Center).requiredSize(size * 1.72f),
+                pulseAlpha = pulseAlpha
+            )
+        }
+        if (bannerVipLevel != null) {
+            LuxuryVipFrameOverlay(
+                vipLevel = bannerVipLevel,
+                avatarSize = size,
+                modifier = Modifier.align(Alignment.Center).requiredSize(size * 1.68f),
                 pulseAlpha = pulseAlpha
             )
         }

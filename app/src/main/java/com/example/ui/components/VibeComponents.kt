@@ -814,6 +814,59 @@ fun VipBadgePill(vipLevel: Long, modifier: Modifier = Modifier, compact: Boolean
 }
 
 @Composable
+fun VipMiniBadge(vipLevel: Long, modifier: Modifier = Modifier) {
+    val level = vipLevel.coerceIn(1L, 8L)
+    if (level <= 0L) return
+    val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == level.toInt() }
+    val accent = tier?.let { Color(it.badgeColorHex) } ?: VibeGold
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Box(modifier = Modifier.size(width = 25.dp, height = 23.dp), contentAlignment = Alignment.Center) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val shield = Path().apply {
+                    moveTo(size.width * 0.5f, size.height * 0.02f)
+                    lineTo(size.width * 0.96f, size.height * 0.22f)
+                    lineTo(size.width * 0.88f, size.height * 0.68f)
+                    lineTo(size.width * 0.5f, size.height * 0.98f)
+                    lineTo(size.width * 0.12f, size.height * 0.68f)
+                    lineTo(size.width * 0.04f, size.height * 0.22f)
+                    close()
+                }
+                drawPath(shield, Brush.linearGradient(listOf(Color(0xFFBFEAFF), accent, Color(0xFF183D78))))
+                drawPath(shield, Color.White.copy(alpha = 0.92f), style = Stroke(width = 1.15.dp.toPx()))
+                val inner = Path().apply {
+                    moveTo(size.width * 0.5f, size.height * 0.12f)
+                    lineTo(size.width * 0.84f, size.height * 0.27f)
+                    lineTo(size.width * 0.78f, size.height * 0.63f)
+                    lineTo(size.width * 0.5f, size.height * 0.86f)
+                    lineTo(size.width * 0.22f, size.height * 0.63f)
+                    lineTo(size.width * 0.16f, size.height * 0.27f)
+                    close()
+                }
+                drawPath(inner, Brush.linearGradient(listOf(Color(0xFF174B91), accent.copy(alpha = 0.9f))))
+            }
+            Text(
+                text = "V$level",
+                color = Color.White,
+                fontSize = 8.sp,
+                lineHeight = 9.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
+        Text(
+            text = "VIP",
+            color = accent,
+            fontSize = 8.sp,
+            lineHeight = 9.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+    }
+}
+
+@Composable
 fun LevelBadge(level: Long, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier,

@@ -708,13 +708,12 @@ fun ProfileScreen(
                 giftHistory
                     .filter {
                         it.recipientId == profile.userId &&
-                            it.giftName.isNotBlank() &&
-                            VibeCatalogDefaults.defaultGifts.any { currentGift -> currentGift.id == it.giftId }
+                            it.giftName.isNotBlank()
                     }
                     .groupBy { it.giftId.ifBlank { it.giftName.trim().lowercase() } }
                     .map { (_, transactions) ->
                         val first = transactions.first()
-                        GiftCatalogItem(id = first.giftId, name = first.giftName) to
+                        GiftCatalogItem(id = first.giftId, name = first.giftName, coinCost = first.coinCost) to
                             transactions.sumOf { it.quantity.coerceAtLeast(1L) }
                     }
                     .sortedByDescending { it.second }
@@ -747,7 +746,7 @@ fun ProfileScreen(
                         receivedGiftWall.forEach { (gift, quantity) ->
                             Surface(
                                 modifier = Modifier.width(112.dp).clickable {
-                                    selectedGiftPrice = VibeCatalogDefaults.defaultGifts.firstOrNull { it.id == gift.id }
+                                    selectedGiftPrice = gift
                                 },
                                 shape = RoundedCornerShape(16.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),

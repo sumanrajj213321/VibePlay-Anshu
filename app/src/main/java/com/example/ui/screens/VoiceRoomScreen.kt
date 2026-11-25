@@ -653,10 +653,10 @@ internal fun VoiceRoomStageContent(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Surface(
-                                shape = RoundedCornerShape((8 + (roomLevel % 4) * 3).dp),
+                                shape = RoundedCornerShape((8 + (roomLevel % 4L).toInt() * 3).dp),
                                 color = Color.Black.copy(alpha = 0.22f),
                                 border = BorderStroke(
-                                    (1.5f + ((roomLevel - 1L) % 4L) * 0.45f).dp,
+                                    (1.5f + ((roomLevel - 1L) % 4L).toFloat() * 0.45f).dp,
                                     Brush.linearGradient(roomLevelPalette(roomLevel))
                                 ),
                                 modifier = Modifier.weight(1f, fill = false)

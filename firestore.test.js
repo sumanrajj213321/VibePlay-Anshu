@@ -1783,12 +1783,10 @@ test("public gift wall exposes only transaction-linked gift projections", async 
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
   const txId = "public_wall_tx_1";
-  // Seed a valid historical transaction as trusted server data, as the
-  // scheduled backfill and Firestore trigger run with Admin privileges.
+  // Seed a historical private transaction as trusted server data, then verify
+  // its recipient can publish the matching minimal public projection.
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    const adminDb = context.firestore();
-    const batch = adminDb.batch();
-    batch.set(adminDb.collection("gift_transactions").doc(txId), {
+    await context.firestore().collection("gift_transactions").doc(txId).set({
       senderId: BOB_UID,
       senderName: "Bob",
       recipientId: ALICE_UID,
@@ -1801,18 +1799,17 @@ test("public gift wall exposes only transaction-linked gift projections", async 
       participantIds: [BOB_UID, ALICE_UID],
       createdAt: pastDate(),
     });
-    batch.set(adminDb.collection("public_gift_wall").doc(txId), {
-      giftTransactionId: txId,
-      senderId: BOB_UID,
-      recipientId: ALICE_UID,
-      giftId: "gift_fire",
-      giftName: "Vibe Fire",
-      coinCost: 100,
-      quantity: 1,
-      createdAt: pastDate(),
-    });
-    await batch.commit();
   });
+  await assertSucceeds(aliceDb.collection("public_gift_wall").doc(txId).set({
+    giftTransactionId: txId,
+    senderId: BOB_UID,
+    recipientId: ALICE_UID,
+    giftId: "gift_fire",
+    giftName: "Vibe Fire",
+    coinCost: 100,
+    quantity: 1,
+    createdAt: pastDate(),
+  }));
   await assertSucceeds(aliceDb.collection("public_gift_wall").where("recipientId", "==", ALICE_UID).get());
   await assertFails(aliceDb.collection("public_gift_wall").doc("forged_projection").set({
     giftTransactionId: "forged_projection",

@@ -85,6 +85,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -970,16 +971,37 @@ private fun ChatDetailScreen(
                                 }
                             }
                             if (msg.type == "IMAGE" && msg.imageUri.isNotBlank()) {
-                                AsyncImage(
-                                    model = msg.imageUri,
-                                    contentDescription = "Open shared photo",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(170.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable { fullScreenImageUri = msg.imageUri },
-                                    contentScale = ContentScale.Crop
-                                )
+                                val imageCreatedAt = msg.createdAt?.toDate()?.time
+                                val imageExpired = imageCreatedAt != null &&
+                                    System.currentTimeMillis() - imageCreatedAt >= 7L * 24L * 60L * 60L * 1000L
+                                if (imageExpired) {
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(110.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = "Photo expired",
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    AsyncImage(
+                                        model = msg.imageUri,
+                                        contentDescription = "Open shared photo",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(170.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .clickable { fullScreenImageUri = msg.imageUri },
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
                             }
                             if (msg.text.isNotBlank()) {
                                 Text(
@@ -1002,18 +1024,22 @@ private fun ChatDetailScreen(
         }
 
         fullScreenImageUri?.let { imageUri ->
-            Dialog(onDismissRequest = { fullScreenImageUri = null }) {
+            Dialog(
+                onDismissRequest = { fullScreenImageUri = null },
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black),
+                        .background(Color.Black)
+                        .clickable { fullScreenImageUri = null },
                     contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
                         model = imageUri,
                         contentDescription = "Full-size shared photo",
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .fillMaxSize()
                             .clickable { fullScreenImageUri = null },
                         contentScale = ContentScale.Fit
                     )

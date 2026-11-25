@@ -161,6 +161,60 @@ test("Follow transaction can update counters for legacy profiles without userId 
   await assertSucceeds(followerRef.get());
 });
 
+test("Legacy profile edits and profile cover uploads are allowed without userId/vibeId/createdAt", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const profileRef = aliceDb.collection("users").doc(ALICE_UID);
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await ctx.firestore().doc(`users/${ALICE_UID}`).set({
+      username: "Alice",
+      bio: "",
+      avatarUrl: "",
+      coverUrl: "",
+      gender: "UNSPECIFIED",
+      genderChangeCount: 0,
+      age: 0,
+      showAge: false,
+      showGender: true,
+      showOnlineStatus: true,
+      online: true,
+      role: "USER",
+      accountStatus: "ACTIVE",
+      coinBalance: 1000500,
+      vipLevel: 0,
+      updatedAt: pastDate(),
+    });
+  });
+
+  await assertSucceeds(profileRef.collection("cover").doc("image").set({
+    data: "dGVzdA==",
+    contentType: "image/jpeg",
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+
+  await assertSucceeds(profileRef.update({
+    username: "Alice Updated",
+    bio: "Updated profile",
+    avatarUrl: "",
+    coverUrl: "firestore-cover://alice_uid_1?updated=1",
+    gender: "UNSPECIFIED",
+    genderChangeCount: 0,
+    age: 0,
+    showAge: false,
+    showGender: true,
+    showOnlineStatus: true,
+    online: true,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+
+  const updated = await assertSucceeds(profileRef.get());
+  if (updated.get("coverUrl") !== "firestore-cover://alice_uid_1?updated=1") {
+    throw new Error("Legacy profile cover marker was not saved.");
+  }
+  if (updated.get("coinBalance") !== 1000500 || updated.get("vipLevel") !== 0) {
+    throw new Error("Legacy profile edit changed protected account fields.");
+  }
+});
+
 test("Room music queue can be read and updated by a seated room member", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();

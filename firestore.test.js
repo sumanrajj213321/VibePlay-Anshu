@@ -91,6 +91,76 @@ beforeEach(async () => {
 });
 
 
+test("Follow transaction can update counters for legacy profiles without userId or createdAt", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
+  const aliceRef = aliceDb.collection("users").doc(ALICE_UID);
+  const bobRef = aliceDb.collection("users").doc(BOB_UID);
+  const followingRef = aliceRef.collection("following").doc(BOB_UID);
+  const followerRef = bobRef.collection("followers").doc(ALICE_UID);
+
+  // Simulate existing accounts created before the userId/createdAt fields were introduced.
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const admin = ctx.firestore();
+    await admin.doc(`users/${ALICE_UID}`).set({
+      username: "Alice",
+      role: "USER",
+      accountStatus: "ACTIVE",
+      coinBalance: 1000500,
+      vipLevel: 0,
+      followingCount: 0,
+      followersCount: 0,
+      updatedAt: pastDate(),
+    });
+    await admin.doc(`users/${BOB_UID}`).set({
+      username: "Bob",
+      role: "USER",
+      accountStatus: "ACTIVE",
+      coinBalance: 1000500,
+      vipLevel: 0,
+      followingCount: 0,
+      followersCount: 0,
+      updatedAt: pastDate(),
+    });
+  });
+
+  await assertSucceeds(aliceDb.runTransaction(async (tx) => {
+    const [aliceSnap, bobSnap, followingSnap, followerSnap] = await Promise.all([
+      tx.get(aliceRef),
+      tx.get(bobRef),
+      tx.get(followingRef),
+      tx.get(followerRef),
+    ]);
+    if (!followingSnap.exists) {
+      tx.set(followingRef, {
+        peerId: BOB_UID,
+        peerName: "Bob",
+        peerAvatarUrl: "",
+        peerGender: "UNSPECIFIED",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      tx.set(followerRef, {
+        peerId: ALICE_UID,
+        peerName: "Alice",
+        peerAvatarUrl: "",
+        peerGender: "UNSPECIFIED",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      tx.update(aliceRef, {
+        followingCount: (aliceSnap.get("followingCount") || 0) + 1,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      tx.update(bobRef, {
+        followersCount: (bobSnap.get("followersCount") || 0) + 1,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  }));
+
+  await assertSucceeds(followingRef.get());
+  await assertSucceeds(followerRef.get());
+});
+
 test("Room music queue can be read and updated by a seated room member", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();

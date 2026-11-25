@@ -443,7 +443,7 @@ class UserRepository(
                 tx.update(
                     userRef,
                     mapOf(
-                        "coinBalance" to currentCoins + 150L,
+                        "coinBalance" to currentCoins + 100_000L,
                         "lastDailyClaimDay" to today,
                         "lastDailyClaimAt" to FieldValue.serverTimestamp(),
                         "xp" to newXp,
@@ -452,7 +452,7 @@ class UserRepository(
                     )
                 )
             }.await()
-            Result.success(150L)
+            Result.success(100_000L)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

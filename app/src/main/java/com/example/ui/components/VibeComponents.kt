@@ -105,6 +105,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.ImageLoader
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import coil.decode.GifDecoder
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -197,11 +198,15 @@ fun VibeAvatar(
     val firestoreAvatar = avatarUrl.startsWith("firestore-avatar://")
     val firestoreAvatarUid = if (firestoreAvatar) avatarUrl.removePrefix("firestore-avatar://").substringBefore("?") else ""
     var firestoreAvatarBytes by remember(avatarUrl) { mutableStateOf<ByteArray?>(null) }
+    var avatarImageLoaded by remember(avatarUrl) { mutableStateOf(false) }
+    var avatarLoadFailed by remember(avatarUrl) { mutableStateOf(false) }
+    var avatarRetryCount by remember(avatarUrl) { mutableStateOf(0) }
+    val avatarContext = LocalContext.current
+
     LaunchedEffect(avatarUrl) {
         if (firestoreAvatar && firestoreAvatarUid.isNotBlank()) {
-            // Avatar reads can fail briefly during reconnects. Retry instead of
-            // permanently replacing a real photo with the initials fallback.
-            repeat(3) { attempt ->
+            // Retry transient Firestore/network failures; keep initials visible meanwhile.
+            repeat(5) { attempt ->
                 val loaded = runCatching {
                     val snapshot = FirebaseFirestore.getInstance()
                         .collection("users").document(firestoreAvatarUid)
@@ -214,8 +219,18 @@ fun VibeAvatar(
                     firestoreAvatarBytes = loaded
                     return@LaunchedEffect
                 }
-                if (attempt < 2) delay(500L * (attempt + 1))
+                if (attempt < 4) delay(600L * (attempt + 1))
             }
+        }
+    }
+
+    // Remote avatar URLs occasionally fail during a short network interruption.
+    // Retry twice, while always showing the user's initial instead of an empty circle.
+    LaunchedEffect(avatarUrl, avatarLoadFailed) {
+        if (avatarLoadFailed && !firestoreAvatar && avatarRetryCount < 2) {
+            delay(700L * (avatarRetryCount + 1))
+            avatarRetryCount += 1
+            avatarLoadFailed = false
         }
     }
     val displayVipLevel = vipLevel.coerceIn(0L, 8L)
@@ -316,21 +331,43 @@ fun VibeAvatar(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            val avatarImageModel: Any? = if (firestoreAvatar) firestoreAvatarBytes else avatarUrl.takeIf { it.isNotBlank() }
+            val avatarImageModel: Any? = if (firestoreAvatar) {
+                firestoreAvatarBytes
+            } else {
+                avatarUrl.takeIf { it.isNotBlank() }?.let { url ->
+                    ImageRequest.Builder(avatarContext)
+                        .data(url)
+                        .crossfade(180)
+                        .memoryCacheKey("$url#retry$avatarRetryCount")
+                        .build()
+                }
+            }
             if (avatarImageModel != null) {
                 AsyncImage(
                     model = avatarImageModel,
                     contentDescription = "$username avatar",
                     modifier = Modifier.fillMaxSize().clip(CircleShape),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    onSuccess = { avatarImageLoaded = true; avatarLoadFailed = false },
+                    onError = { avatarImageLoaded = false; avatarLoadFailed = true }
                 )
-            } else {
-                Text(
-                    text = username.trim().take(1).uppercase().ifBlank { "V" },
-                    style = if (size < 36.dp) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleMedium,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
+            }
+            // Keep a reliable visible fallback during loading and after any image error.
+            if (!avatarImageLoaded) {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(
+                        Brush.linearGradient(listOf(VibeViolet, VibeCyan)),
+                        CircleShape
+                    ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = username.trim().take(1).uppercase().ifBlank { "V" },
+                        style = if (size < 36.dp) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
         if (isNeonCyanFrame) {

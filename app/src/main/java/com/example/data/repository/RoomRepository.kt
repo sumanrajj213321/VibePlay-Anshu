@@ -2052,6 +2052,22 @@ class RoomRepository(
                     )
                 )
 
+                // Minimal public projection: lets every signed-in user see the recipient's Gift Wall
+                // without exposing private room/session or full transaction metadata.
+                tx.set(
+                    db.collection("public_gift_wall").document(giftTransactionRef.id),
+                    mapOf(
+                        "giftTransactionId" to giftTransactionRef.id,
+                        "senderId" to uid,
+                        "recipientId" to recipientId,
+                        "giftId" to gift.id,
+                        "giftName" to gift.name,
+                        "coinCost" to totalCost,
+                        "quantity" to safeQty,
+                        "createdAt" to FieldValue.serverTimestamp()
+                    )
+                )
+
                 if (totalCost >= 10_000L) {
                     tx.set(
                         db.collection("global_gift_announcements").document(giftTransactionRef.id),

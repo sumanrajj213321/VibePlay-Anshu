@@ -357,15 +357,16 @@ fun InboxScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
+                                .padding(horizontal = 14.dp, vertical = 18.dp)
+                                .heightIn(min = 88.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             Box {
                                 VibeAvatar(
                                     avatarUrl = displayAvatar,
                                     username = displayName,
-                                    size = 50.dp,
+                                    size = 58.dp,
                                     vipLevel = if (conv.isGroupChat) 0L else (peerProfile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L),
                                     online = isOnline,
                                     frameColorArgb = if (conv.isGroupChat) null else peerProfile?.let { profile -> VibeShopCatalog.frames.firstOrNull { it.id == profile.activeFrameId && profile.isFrameActive(it.id) }?.colorArgb }
@@ -400,7 +401,7 @@ fun InboxScreen(
                                     VipShiningNameText(
                                         text = displayName,
                                         vipLevel = if (conv.isGroupChat) 0L else (peerProfile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L),
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f, fill = false)
@@ -446,7 +447,7 @@ fun InboxScreen(
                                 }
                                 Text(
                                     text = conv.lastMessage,
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = if (isUnread) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = if (isUnread) FontWeight.SemiBold else FontWeight.Normal,
                                     maxLines = 1,

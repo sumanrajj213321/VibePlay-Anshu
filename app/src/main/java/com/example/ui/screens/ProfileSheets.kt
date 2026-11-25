@@ -1242,12 +1242,11 @@ fun PublicProfileSheet(
                     .distinctBy { it.id }
                     .filter { transaction ->
                         transaction.recipientId == targetUser.userId &&
-                            transaction.giftName.isNotBlank() &&
-                            VibeCatalogDefaults.defaultGifts.any { it.id == transaction.giftId }
+                            transaction.giftName.isNotBlank()
                     }.groupBy { it.giftId.ifBlank { it.giftName.trim().lowercase() } }
                     .map { (_, transactions) ->
                         val first = transactions.first()
-                        GiftCatalogItem(id = first.giftId, name = first.giftName) to
+                        GiftCatalogItem(id = first.giftId, name = first.giftName, coinCost = first.coinCost) to
                             transactions.sumOf { it.quantity.coerceAtLeast(1L) }
                     }.sortedByDescending { it.second }
             }
@@ -1269,7 +1268,7 @@ fun PublicProfileSheet(
                         publicGiftWall.forEach { (gift, quantity) ->
                             Surface(
                                 modifier = Modifier.width(104.dp).clickable {
-                                    selectedGiftPrice = VibeCatalogDefaults.defaultGifts.firstOrNull { it.id == gift.id }
+                                    selectedGiftPrice = gift
                                 },
                                 shape = RoundedCornerShape(14.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),

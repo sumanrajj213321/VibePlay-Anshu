@@ -1686,6 +1686,7 @@ class RoomRepository(
         category: String? = null,
         coverKey: String,
         keepCustomCover: Boolean,
+        backgroundKey: String = "aurora_luxe",
         locked: Boolean,
         newRawPassword: String?
     ): Result<Unit> {
@@ -1699,6 +1700,7 @@ class RoomRepository(
                 "announcement" to announcement.trim().take(200),
                 "locked" to locked,
                 "coverKey" to coverKey,
+                "roomBackgroundKey" to backgroundKey.take(40),
                 "updatedAt" to FieldValue.serverTimestamp()
             )
             if (!category.isNullOrBlank()) {

@@ -169,6 +169,9 @@ class RoomViewModel(
             messages.collect { msgs ->
                 val unseen = msgs.filter { it.type == "GIFT" && it.id.isNotBlank() && seenGiftMessageIds.add(it.id) }
                 unseen.forEach { giftMessage ->
+                    // The sender already starts the animation optimistically in sendGift().
+                    // Do not replay the same gift when its Firestore message arrives.
+                    if (giftMessage.senderId == currentUserId) return@forEach
                     val event = GiftBurstEvent(
                         id = giftMessage.id,
                         senderName = giftMessage.senderName,
@@ -178,7 +181,7 @@ class RoomViewModel(
                         giftId = giftMessage.giftId,
                         quantity = giftMessage.giftQuantity.coerceIn(1L, 999L)
                     )
-                    // Replace any currently playing gift so this new gift starts without queue wait.
+                    // Other room members start from the live Firestore event.
                     _giftBurst.value = event
                 }
             }
@@ -466,9 +469,25 @@ class RoomViewModel(
         gift: GiftCatalogItem,
         quantity: Long = 1L
     ) {
+        // Start the sender's animation immediately; do not wait for the Firestore
+        // transaction and room-message listener round trip.
+        val safeQuantity = quantity.coerceIn(1L, 999L)
+        val qtyLabel = if (safeQuantity > 1L) "${safeQuantity}x " else ""
+        _giftBurst.value = GiftBurstEvent(
+            id = "local-${System.nanoTime()}",
+            senderName = sender.username,
+            recipientName = recipientName,
+            giftName = "$qtyLabel${gift.name}",
+            coinCost = gift.coinCost * safeQuantity,
+            giftId = gift.id,
+            quantity = safeQuantity
+        )
         viewModelScope.launch {
-            roomRepository.sendVirtualGift(roomId, sender, recipientId, recipientName, gift, quantity)
-                .onFailure { _roomError.value = it.localizedMessage ?: "Gift send failed" }
+            roomRepository.sendVirtualGift(roomId, sender, recipientId, recipientName, gift, safeQuantity)
+                .onFailure {
+                    _giftBurst.value = null
+                    _roomError.value = it.localizedMessage ?: "Gift send failed"
+                }
         }
     }
 

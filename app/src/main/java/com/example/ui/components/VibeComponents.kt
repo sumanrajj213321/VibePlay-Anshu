@@ -1575,6 +1575,22 @@ fun GiftBurstOverlay(event: GiftBurstEvent?, onFinished: () -> Unit, modifier: M
                 verticalArrangement = Arrangement.Bottom
             ) {
                 Text(event.giftName, color = Color.White, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+                if (event.quantity > 1L) {
+                    Spacer(Modifier.height(6.dp))
+                    Surface(
+                        color = accent.copy(alpha = 0.18f),
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.dp, accent)
+                    ) {
+                        Text(
+                            "×${event.quantity} COMBO",
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 7.dp),
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
                 Spacer(Modifier.height(6.dp))
                 Text("For ${event.recipientName}  ·  ${event.coinCost} coins", color = accent, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
 

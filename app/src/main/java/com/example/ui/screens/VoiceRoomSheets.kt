@@ -147,7 +147,7 @@ fun RoomGiftStoreSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Send Virtual Gift", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Send Gifts", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Surface(
                     shape = RoundedCornerShape(50),
                     color = VibeGold.copy(alpha = 0.16f)

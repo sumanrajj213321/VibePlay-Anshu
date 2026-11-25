@@ -289,9 +289,7 @@ class AgoraVoiceEngine {
         if (result != 0) {
             joinInProgress = false
             Log.e(TAG, "Agora rejected channel join request: $result (room=$roomId)")
-            _connectionState.value = VoiceConnectionState.Error(
-                "Agora could not join the voice room (error $result). Please try again."
-            )
+            throw IllegalStateException("Agora rejected the channel join request ($result).")
         }
     }
 

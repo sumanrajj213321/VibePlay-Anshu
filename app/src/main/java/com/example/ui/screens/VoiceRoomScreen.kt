@@ -107,6 +107,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.data.agora.VoiceConnectionState
+import com.example.data.model.CharmProgression
 import com.example.data.model.GiftBurstEvent
 import com.example.data.model.GiftCatalogItem
 import com.example.data.model.GiftTransaction
@@ -939,7 +940,7 @@ internal fun VoiceRoomStageContent(
                                         )
                                         if (msg.type == "GIFT") {
                                             Text(
-                                                text = "Get ${msg.giftCoins} Gifts",
+                                                text = "Get Charms +${CharmProgression.fromReceivedGiftCoins(msg.giftCoins)}",
                                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
                                                 color = VibeGold
                                             )

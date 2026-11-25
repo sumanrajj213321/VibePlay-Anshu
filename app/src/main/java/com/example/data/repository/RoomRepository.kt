@@ -2079,7 +2079,7 @@ class RoomRepository(
                             "recipientId" to recipientId,
                             "recipientName" to recipientName.take(60),
                             "roomId" to roomId,
-                            "giftName" to (if (safeQty > 1L) "${safeQty}x " else "") + gift.name.take(60),
+                            "giftName" to gift.name.take(60),
                             "totalCoins" to totalCost,
                             "createdAt" to FieldValue.serverTimestamp()
                         )

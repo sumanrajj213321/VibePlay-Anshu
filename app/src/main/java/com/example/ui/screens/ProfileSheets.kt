@@ -1023,6 +1023,39 @@ fun PublicProfileSheet(
         }
     }
 
+    // Backfill this user's historical received gifts when they open their own profile.
+    // The rules permit only the sender or recipient to publish a projection, and every field
+    // is checked against the immutable private transaction before it becomes public.
+    LaunchedEffect(isSelf, giftHistory) {
+        if (isSelf && giftHistory.isNotEmpty()) {
+            val db = FirebaseFirestore.getInstance()
+            giftHistory
+                .filter { it.recipientId == targetUser.userId && it.giftName.isNotBlank() && it.createdAt != null }
+                .distinctBy { it.id }
+                .chunked(450)
+                .forEach { page ->
+                    val batch = db.batch()
+                    page.forEach { transaction ->
+                        val projectionRef = db.collection("public_gift_wall").document(transaction.id)
+                        batch.set(
+                            projectionRef,
+                            mapOf(
+                                "giftTransactionId" to transaction.id,
+                                "senderId" to transaction.senderId,
+                                "recipientId" to transaction.recipientId,
+                                "giftId" to transaction.giftId,
+                                "giftName" to transaction.giftName.take(60),
+                                "coinCost" to transaction.coinCost,
+                                "quantity" to transaction.quantity.coerceIn(1L, 999L),
+                                "createdAt" to transaction.createdAt
+                            )
+                        )
+                    }
+                    batch.commit()
+                }
+        }
+    }
+
     DisposableEffect(targetUser.userId) {
         val giftRegistration = FirebaseFirestore.getInstance()
             .collection("public_gift_wall")

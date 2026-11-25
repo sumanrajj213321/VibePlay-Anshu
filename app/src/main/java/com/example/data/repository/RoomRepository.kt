@@ -46,6 +46,10 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 class RoomRepository(
     private val db: FirebaseFirestore,
@@ -1975,6 +1979,12 @@ class RoomRepository(
             val senderRef = db.collection("users").document(uid)
             val recipientRef = db.collection("users").document(recipientId)
             val giftTransactionRef = db.collection("gift_transactions").document()
+            val rankingDateKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+            val weekCalendar = Calendar.getInstance().apply {
+                firstDayOfWeek = Calendar.MONDAY
+                set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            }
+            val rankingWeekKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(weekCalendar.time)
 
             db.runTransaction { tx ->
                 val senderSnap = tx.get(senderRef)
@@ -1995,6 +2005,12 @@ class RoomRepository(
                             "coinBalance" to (liveCoins - totalCost),
                             "totalGiftsSent" to (liveSent + safeQty),
                             "totalGiftCoinsSent" to ((senderSnap.getLong("totalGiftCoinsSent") ?: 0L) + totalCost),
+                            "dailyGiftCoinsSent" to (if (senderSnap.getString("dailyGiftCoinsDate") == rankingDateKey) (senderSnap.getLong("dailyGiftCoinsSent") ?: 0L) + totalCost else totalCost),
+                            "dailyGiftCoinsReceived" to (if (senderSnap.getString("dailyGiftCoinsDate") == rankingDateKey) (senderSnap.getLong("dailyGiftCoinsReceived") ?: 0L) + totalCost else totalCost),
+                            "dailyGiftCoinsDate" to rankingDateKey,
+                            "weeklyGiftCoinsSent" to (if (senderSnap.getString("weeklyGiftCoinsWeek") == rankingWeekKey) (senderSnap.getLong("weeklyGiftCoinsSent") ?: 0L) + totalCost else totalCost),
+                            "weeklyGiftCoinsReceived" to (if (senderSnap.getString("weeklyGiftCoinsWeek") == rankingWeekKey) (senderSnap.getLong("weeklyGiftCoinsReceived") ?: 0L) + totalCost else totalCost),
+                            "weeklyGiftCoinsWeek" to rankingWeekKey,
                             "lastGiftTransactionId" to giftTransactionRef.id,
                             "totalGiftsReceived" to ((senderSnap.getLong("totalGiftsReceived") ?: 0L) + safeQty),
                             "totalGiftCoinsReceived" to ((senderSnap.getLong("totalGiftCoinsReceived") ?: 0L) + totalCost),
@@ -2010,6 +2026,10 @@ class RoomRepository(
                             "coinBalance" to (liveCoins - totalCost),
                             "totalGiftsSent" to (liveSent + safeQty),
                             "totalGiftCoinsSent" to ((senderSnap.getLong("totalGiftCoinsSent") ?: 0L) + totalCost),
+                            "dailyGiftCoinsSent" to (if (senderSnap.getString("dailyGiftCoinsDate") == rankingDateKey) (senderSnap.getLong("dailyGiftCoinsSent") ?: 0L) + totalCost else totalCost),
+                            "dailyGiftCoinsDate" to rankingDateKey,
+                            "weeklyGiftCoinsSent" to (if (senderSnap.getString("weeklyGiftCoinsWeek") == rankingWeekKey) (senderSnap.getLong("weeklyGiftCoinsSent") ?: 0L) + totalCost else totalCost),
+                            "weeklyGiftCoinsWeek" to rankingWeekKey,
                             "lastGiftTransactionId" to giftTransactionRef.id,
                             "xp" to newSenderXp,
                             "level" to LevelProgression.levelForXp(newSenderXp),
@@ -2027,6 +2047,10 @@ class RoomRepository(
                         mapOf(
                             "totalGiftsReceived" to (recReceived + safeQty),
                             "totalGiftCoinsReceived" to ((recipientSnap.getLong("totalGiftCoinsReceived") ?: 0L) + totalCost),
+                            "dailyGiftCoinsReceived" to (if (recipientSnap.getString("dailyGiftCoinsDate") == rankingDateKey) (recipientSnap.getLong("dailyGiftCoinsReceived") ?: 0L) + totalCost else totalCost),
+                            "dailyGiftCoinsDate" to rankingDateKey,
+                            "weeklyGiftCoinsReceived" to (if (recipientSnap.getString("weeklyGiftCoinsWeek") == rankingWeekKey) (recipientSnap.getLong("weeklyGiftCoinsReceived") ?: 0L) + totalCost else totalCost),
+                            "weeklyGiftCoinsWeek" to rankingWeekKey,
                             "lastGiftTransactionId" to giftTransactionRef.id,
                             "xp" to updatedRecXp,
                             "level" to LevelProgression.levelForXp(updatedRecXp),

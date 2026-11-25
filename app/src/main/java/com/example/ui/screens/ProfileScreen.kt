@@ -708,7 +708,13 @@ fun ProfileScreen(
                 giftHistory
                     .filter {
                         it.recipientId == profile.userId &&
-                            it.giftName.isNotBlank()
+                            it.giftName.isNotBlank() &&
+                            it.giftId in setOf(
+                                "gift_sunset_love",
+                                "gift_royal_vows",
+                                "gift_sunlit_dream",
+                                "gift_prism_muse"
+                            )
                     }
                     .groupBy { it.giftId.ifBlank { it.giftName.trim().lowercase() } }
                     .map { (_, transactions) ->

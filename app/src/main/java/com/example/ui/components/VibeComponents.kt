@@ -296,6 +296,17 @@ fun VibeAvatar(
     val isRoseGoldFrame = frameColorArgb == 0xFFF472B6L
     val isRoyalGoldFrame = frameColorArgb == 0xFFFBBF24L
     val isGalaxyFrame = frameColorArgb == 0xFFA78BFAL
+    val dragonVipLevel = when (frameColorArgb) {
+        0xFFFF5A36L -> 1
+        0xFFE83252L -> 2
+        0xFF9B5CFFL -> 3
+        0xFF398BFFL -> 4
+        0xFF20C997L -> 5
+        0xFFD18BFFL -> 6
+        0xFF42D9E8L -> 7
+        0xFFFFC247L -> 8
+        else -> null
+    }
     val vipColor = remember(displayVipLevel) {
         val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == displayVipLevel.toInt() }
         if (tier != null) Color(tier.badgeColorHex) else null
@@ -449,6 +460,9 @@ fun VibeAvatar(
         if (isRoseGoldFrame) {
             RoseGoldFrameOverlay(Modifier.align(Alignment.Center).requiredSize(size * 1.55f), pulseAlpha)
         }
+        if (dragonVipLevel != null) {
+            VipDragonFrameOverlay(dragonVipLevel, Modifier.align(Alignment.Center).requiredSize(size * 1.72f), pulseAlpha)
+        }
         if (online) {
             Box(
                 modifier = Modifier
@@ -464,6 +478,98 @@ fun VibeAvatar(
     }
 }
 
+
+@Composable
+private fun VipDragonFrameOverlay(
+    vipLevel: Int,
+    modifier: Modifier = Modifier,
+    pulseAlpha: Float
+) {
+    val palette = listOf(
+        Color(0xFFFF5A36), Color(0xFFE83252), Color(0xFF9B5CFF), Color(0xFF398BFF),
+        Color(0xFF20C997), Color(0xFFD18BFF), Color(0xFF42D9E8), Color(0xFFFFC247)
+    )
+    val accent = palette[(vipLevel - 1).coerceIn(0, 7)]
+    val sweep = rememberInfiniteTransition(label = "vip_dragon_sweep_$vipLevel")
+    val sweepAngle by sweep.animateFloat(
+        initialValue = -35f,
+        targetValue = 325f,
+        animationSpec = infiniteRepeatable(tween(2600, easing = LinearEasing)),
+        label = "vip_dragon_fire_sweep"
+    )
+    Box(modifier = modifier, contentAlignment = Alignment.BottomCenter) {
+        Canvas(Modifier.fillMaxSize()) {
+            val cx = size.width / 2f
+            val cy = size.height * 0.49f
+            val r = size.minDimension * 0.285f
+            val glow = accent.copy(alpha = 0.36f + pulseAlpha * 0.42f)
+            drawCircle(glow, r + 2.dp.toPx(), Offset(cx, cy), style = Stroke(3.dp.toPx()))
+            drawCircle(Color.White.copy(alpha = pulseAlpha * 0.62f), r - 3.dp.toPx(), Offset(cx, cy), style = Stroke(1.dp.toPx()))
+            for (side in listOf(-1f, 1f)) {
+                val dragon = Path().apply {
+                    moveTo(cx + side * r * 0.98f, cy - r * 0.55f)
+                    cubicTo(cx + side * r * 1.62f, cy - r * 1.25f, cx + side * r * 1.78f, cy - r * 0.12f, cx + side * r * 1.12f, cy + r * 0.12f)
+                    cubicTo(cx + side * r * 1.55f, cy + r * 0.62f, cx + side * r * 1.08f, cy + r * 1.08f, cx + side * r * 0.78f, cy + r * 0.72f)
+                }
+                drawPath(dragon, glow, style = Stroke(4.dp.toPx()))
+                drawPath(dragon, accent, style = Stroke(1.8.dp.toPx()))
+                for (i in 0..3) {
+                    val y = cy - r * 0.35f + i * r * 0.34f
+                    drawLine(accent.copy(alpha = 0.85f), Offset(cx + side * r * 1.04f, y), Offset(cx + side * r * 1.38f, y + r * 0.14f), 2.dp.toPx())
+                }
+                for (i in 0..2) {
+                    val x = cx + side * (r * (0.82f + i * 0.13f))
+                    val y = cy + r * 1.02f
+                    drawLine(Color.White.copy(alpha = pulseAlpha), Offset(x, y), Offset(x + side * r * 0.13f, y + r * 0.22f), 2.dp.toPx())
+                }
+            }
+            val crown = Path().apply {
+                moveTo(cx - r * 0.55f, cy - r * 0.92f)
+                lineTo(cx - r * 0.62f, cy - r * 1.38f)
+                lineTo(cx - r * 0.20f, cy - r * 1.12f)
+                lineTo(cx, cy - r * 1.55f)
+                lineTo(cx + r * 0.20f, cy - r * 1.12f)
+                lineTo(cx + r * 0.62f, cy - r * 1.38f)
+                lineTo(cx + r * 0.55f, cy - r * 0.92f)
+                close()
+            }
+            drawPath(crown, accent.copy(alpha = 0.95f), style = Stroke(3.dp.toPx()))
+            drawCircle(Color.White.copy(alpha = pulseAlpha), r * 0.085f, Offset(cx, cy - r * 1.12f))
+            drawArc(
+                brush = Brush.sweepGradient(listOf(Color.Transparent, accent, Color.White, accent, Color.Transparent)),
+                startAngle = sweepAngle,
+                sweepAngle = 72f,
+                useCenter = false,
+                topLeft = Offset(cx - r - 5.dp.toPx(), cy - r - 5.dp.toPx()),
+                size = androidx.compose.ui.geometry.Size((r + 5.dp.toPx()) * 2f, (r + 5.dp.toPx()) * 2f),
+                style = Stroke(width = 4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            )
+            for (i in 0..11) {
+                val a = Math.toRadians((i * 30.0) + sweepAngle)
+                val radius = r * (1.48f + (i % 3) * 0.08f)
+                drawCircle(
+                    color = accent.copy(alpha = pulseAlpha * 0.8f),
+                    radius = (1.2f + (i % 2)) * density,
+                    center = Offset(cx + kotlin.math.cos(a).toFloat() * radius, cy + kotlin.math.sin(a).toFloat() * radius)
+                )
+            }
+        }
+        Surface(
+            color = Color(0xCC170A0A),
+            shape = RoundedCornerShape(7.dp),
+            border = BorderStroke(1.dp, accent.copy(alpha = pulseAlpha)),
+            modifier = Modifier.padding(bottom = 2.dp)
+        ) {
+            Text(
+                text = "VIP $vipLevel",
+                color = Color.White,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.padding(horizontal = 9.dp, vertical = 2.dp)
+            )
+        }
+    }
+}
 
 @Composable
 private fun NeonAuroraFrameOverlay(

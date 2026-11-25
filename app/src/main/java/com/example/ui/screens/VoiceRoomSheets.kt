@@ -173,7 +173,22 @@ fun RoomGiftStoreSheet(
                         selected = selected,
                         onClick = { selectedRecipient = seat },
                         label = {
-                            Text(if (seat.isHostSeat) "Host · ${seat.occupantName}" else seat.occupantName)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                VibeAvatar(
+                                    avatarUrl = seat.occupantAvatarUrl,
+                                    username = seat.occupantName,
+                                    size = 24.dp,
+                                    vipLevel = seat.occupantVipLevel
+                                )
+                                Text(
+                                    if (seat.isHostSeat) "Host · ${seat.occupantName}" else seat.occupantName,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     )
                 }
@@ -194,7 +209,7 @@ fun RoomGiftStoreSheet(
                 columns = GridCells.Fixed(4),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(190.dp),
+                    .height(118.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {

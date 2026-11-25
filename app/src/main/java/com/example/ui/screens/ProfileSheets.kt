@@ -988,6 +988,71 @@ fun PublicProfileSheet(
     var showPublicRelationship by remember(targetUser.userId) { mutableStateOf(true) }
     val isSelf = currentUserId.isNotBlank() && targetUser.userId == currentUserId
 
+    var firestoreCoverBitmap by remember(targetUser.userId, targetUser.coverUrl) {
+        mutableStateOf<Bitmap?>(null)
+    }
+    var publicGiftTransactions by remember(targetUser.userId) {
+        mutableStateOf<List<GiftTransaction>>(emptyList())
+    }
+    val usesFirestoreCover = targetUser.coverUrl.startsWith("firestore-cover://")
+
+    DisposableEffect(targetUser.userId, targetUser.coverUrl) {
+        firestoreCoverBitmap = null
+        if (usesFirestoreCover) {
+            val coverRegistration = FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(targetUser.userId)
+                .collection("cover")
+                .document("image")
+                .addSnapshotListener { snapshot, error ->
+                    if (error == null) {
+                        val encoded = snapshot?.getString("data")
+                        firestoreCoverBitmap = try {
+                            encoded?.let { value ->
+                                val bytes = android.util.Base64.decode(value, android.util.Base64.DEFAULT)
+                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            }
+                        } catch (_: Exception) {
+                            null
+                        }
+                    }
+                }
+            onDispose { coverRegistration.remove() }
+        } else {
+            onDispose { }
+        }
+    }
+
+    DisposableEffect(targetUser.userId) {
+        val giftRegistration = FirebaseFirestore.getInstance()
+            .collection("public_gift_wall")
+            .whereEqualTo("recipientId", targetUser.userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null) {
+                    publicGiftTransactions = snapshot?.documents.orEmpty().mapNotNull { doc ->
+                        val recipient = doc.getString("recipientId").orEmpty()
+                        val giftId = doc.getString("giftId").orEmpty()
+                        val giftName = doc.getString("giftName").orEmpty()
+                        if (recipient.isBlank() || giftId.isBlank() || giftName.isBlank()) {
+                            null
+                        } else {
+                            GiftTransaction(
+                                id = doc.id,
+                                senderId = doc.getString("senderId").orEmpty(),
+                                recipientId = recipient,
+                                giftId = giftId,
+                                giftName = giftName,
+                                coinCost = doc.getLong("coinCost") ?: 0L,
+                                quantity = doc.getLong("quantity") ?: 1L,
+                                createdAt = doc.getTimestamp("createdAt")
+                            )
+                        }
+                    }.sortedByDescending { it.createdAt?.seconds ?: 0L }
+                }
+            }
+        onDispose { giftRegistration.remove() }
+    }
+
     DisposableEffect(targetUser.userId) {
         val registration = FirebaseFirestore.getInstance()
             .collection("relationship_public_tags")
@@ -1055,7 +1120,14 @@ fun PublicProfileSheet(
                 TextButton(onClick = onDismiss) { Text("Close") }
             }
             Box(modifier = Modifier.fillMaxWidth().height(165.dp)) {
-                if (targetUser.coverUrl.isNotBlank()) {
+                if (usesFirestoreCover && firestoreCoverBitmap != null) {
+                    AsyncImage(
+                        model = firestoreCoverBitmap,
+                        contentDescription = "Profile cover",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else if (!usesFirestoreCover && targetUser.coverUrl.isNotBlank()) {
                     AsyncImage(
                         model = targetUser.coverUrl,
                         contentDescription = "Profile cover",
@@ -1165,12 +1237,14 @@ fun PublicProfileSheet(
                 }
             }
 
-            val publicGiftWall = remember(giftHistory, targetUser.userId) {
-                giftHistory.filter { transaction ->
-                    transaction.recipientId == targetUser.userId &&
-                        transaction.giftName.isNotBlank() &&
-                        VibeCatalogDefaults.defaultGifts.any { it.id == transaction.giftId }
-                }.groupBy { it.giftId.ifBlank { it.giftName.trim().lowercase() } }
+            val publicGiftWall = remember(giftHistory, publicGiftTransactions, targetUser.userId) {
+                (giftHistory + publicGiftTransactions)
+                    .distinctBy { it.id }
+                    .filter { transaction ->
+                        transaction.recipientId == targetUser.userId &&
+                            transaction.giftName.isNotBlank() &&
+                            VibeCatalogDefaults.defaultGifts.any { it.id == transaction.giftId }
+                    }.groupBy { it.giftId.ifBlank { it.giftName.trim().lowercase() } }
                     .map { (_, transactions) ->
                         val first = transactions.first()
                         GiftCatalogItem(id = first.giftId, name = first.giftName) to

@@ -313,7 +313,7 @@ fun HostSettingsSheet(
     stage: VoiceStage,
     isOwner: Boolean = true,
     onDismiss: () -> Unit,
-    onSaveSettings: (title: String, announcement: String, category: String, coverKey: String, keepCustomCover: Boolean, locked: Boolean, newPassword: String?) -> Unit,
+    onSaveSettings: (title: String, announcement: String, category: String, coverKey: String, keepCustomCover: Boolean, backgroundKey: String, locked: Boolean, newPassword: String?) -> Unit,
     onUploadCover: (Uri) -> Unit = {},
     onMuteAllSpeakers: () -> Unit = {},
     onTransferOwnership: (VoiceSeat) -> Unit,
@@ -325,6 +325,7 @@ fun HostSettingsSheet(
     var selectedCategory by remember(room.category) { mutableStateOf(RoomCategory.fromString(room.category)) }
     var selectedCoverKey by remember(room.coverKey) { mutableStateOf(room.coverKey) }
     var keepCustomCover by remember(room.coverUrl) { mutableStateOf(room.coverUrl.isNotBlank()) }
+    var selectedBackgroundKey by remember(room.roomBackgroundKey) { mutableStateOf(room.roomBackgroundKey) }
     var locked by remember(room.locked) { mutableStateOf(room.locked) }
     var changePassword by remember { mutableStateOf(false) }
     var newPassword by remember { mutableStateOf("") }
@@ -453,6 +454,45 @@ fun HostSettingsSheet(
                 }
             }
             item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Luxury Animated Room Backgrounds", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Choose the animated look everyone sees inside this room. Your Room Cover stays separate.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(AnimatedRoomBackgroundPresets.entries) { preset ->
+                            val selected = selectedBackgroundKey == preset.key
+                            Column(
+                                modifier = Modifier
+                                    .width(154.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .clickable { selectedBackgroundKey = preset.key }
+                                    .then(if (selected) Modifier.border(2.dp, VibeCyan, RoundedCornerShape(14.dp)) else Modifier)
+                                    .padding(5.dp)
+                                    .testTag("room_background_${preset.key}"),
+                                verticalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().height(82.dp).clip(RoundedCornerShape(10.dp))
+                                ) {
+                                    AnimatedRoomBackground(preset.key, Modifier.fillMaxSize())
+                                }
+                                Text(
+                                    preset.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (selected) VibeCyan else MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -496,6 +536,7 @@ fun HostSettingsSheet(
                             selectedCategory.label,
                             selectedCoverKey,
                             keepCustomCover,
+                            selectedBackgroundKey,
                             locked,
                             if (changePassword) newPassword else null
                         )

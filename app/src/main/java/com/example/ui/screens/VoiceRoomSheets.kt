@@ -85,6 +85,7 @@ import com.example.data.model.VoiceRoom
 import com.example.data.model.VoiceSeat
 import com.example.data.model.VoiceStage
 import com.example.ui.components.GiftCatalogArtwork
+import com.example.ui.components.PreloadGiftVideo
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.coverDrawableRes
 import com.example.ui.components.VipBadgePill
@@ -126,6 +127,7 @@ fun RoomGiftStoreSheet(
         if (selectedGift !in visibleGifts) selectedGift = visibleGifts.firstOrNull()
     }
     var selectedQuantity by remember { mutableStateOf(1L) }
+    PreloadGiftVideo(selectedGift)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

@@ -1801,6 +1801,7 @@ test("public gift wall exposes only transaction-linked gift projections", async 
     });
   });
   await assertSucceeds(aliceDb.collection("public_gift_wall").doc(txId).set({
+    wallVersion: 2,
     giftTransactionId: txId,
     senderId: BOB_UID,
     recipientId: ALICE_UID,

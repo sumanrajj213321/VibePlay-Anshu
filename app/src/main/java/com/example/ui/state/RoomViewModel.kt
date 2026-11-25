@@ -474,12 +474,11 @@ class RoomViewModel(
         // Start the sender's animation immediately; do not wait for the Firestore
         // transaction and room-message listener round trip.
         val safeQuantity = quantity.coerceIn(1L, 999L)
-        val qtyLabel = if (safeQuantity > 1L) "${safeQuantity}x " else ""
         _giftBurst.value = GiftBurstEvent(
             id = "local-${System.nanoTime()}",
             senderName = sender.username,
             recipientName = recipientName,
-            giftName = "$qtyLabel${gift.name}",
+            giftName = gift.name,
             coinCost = gift.coinCost * safeQuantity,
             giftId = gift.id,
             quantity = safeQuantity

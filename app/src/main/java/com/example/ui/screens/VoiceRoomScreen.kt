@@ -618,9 +618,9 @@ internal fun VoiceRoomStageContent(
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
-                                VibeViolet.copy(alpha = 0.14f),
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.96f)
+                                Color(0xFF0B0A20).copy(alpha = 0.05f),
+                                VibeViolet.copy(alpha = 0.035f),
+                                Color(0xFF080918).copy(alpha = 0.12f)
                             )
                         )
                     )

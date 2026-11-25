@@ -531,6 +531,7 @@ data class DirectMessage(
     val type: String = "TEXT",
     val text: String = "",
     val imageUri: String = "",
+    val imageData: String = "",
     val giftId: String = "",
     val giftName: String = "",
     val giftEmoji: String = "",

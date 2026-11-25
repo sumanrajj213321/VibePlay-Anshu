@@ -1093,6 +1093,18 @@ private fun giftVideoSourceUrl(giftId: String): String? = when (giftId) {
     else -> null
 }
 
+@Composable
+fun PreloadGiftVideo(gift: GiftCatalogItem?) {
+    val context = LocalContext.current
+    LaunchedEffect(gift?.id) {
+        val activeGift = gift ?: return@LaunchedEffect
+        val sourceUrl = giftVideoSourceUrl(activeGift.id) ?: return@LaunchedEffect
+        // Begin downloading the selected gift while the user is reviewing it,
+        // so its MP4 (including original audio) is ready before Send is tapped.
+        cacheGiftVideo(context, activeGift.id, sourceUrl)
+    }
+}
+
 private suspend fun cacheGiftVideo(context: Context, giftId: String, sourceUrl: String): java.io.File? =
     withContext(Dispatchers.IO) {
         val cacheFile = java.io.File(context.cacheDir, "gift-video-$giftId.mp4")

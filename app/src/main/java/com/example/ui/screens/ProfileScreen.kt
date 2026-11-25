@@ -92,7 +92,7 @@ import com.example.ui.components.BiologicalGenderBadge
 import com.example.ui.components.LevelBadge
 import com.example.ui.components.VibeCoinIcon
 import com.example.ui.components.VibeAvatar
-import com.example.ui.components.VipBadgePill
+import com.example.ui.components.VipMiniBadge
 import com.example.ui.components.VipShiningNameText
 import com.example.ui.theme.VibeCoral
 import com.example.ui.theme.VibeCyan

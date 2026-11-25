@@ -262,9 +262,9 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(Icons.Filled.CardGiftcard, contentDescription = null, tint = VibeGold, modifier = Modifier.size(30.dp))
+                    VibeCoinIcon(modifier = Modifier.size(30.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Total Ranking", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Ranking", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text("Top Gifters · Top Receivers", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Text("View", color = VibeCyan, fontWeight = FontWeight.Bold)

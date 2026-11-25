@@ -209,7 +209,7 @@ fun RoomGiftStoreSheet(
                 columns = GridCells.Fixed(4),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(118.dp),
+                    .height(130.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {

@@ -797,6 +797,7 @@ fun RoomOnlineMembersSheet(
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f, fill = false)
                                     )
+                                    VipBadgePill(vipLevel = member.vipLevel, compact = true)
                                     if (member.isRoomAdmin && member.stageRole != "HOST") {
                                         Surface(
                                             shape = RoundedCornerShape(50),

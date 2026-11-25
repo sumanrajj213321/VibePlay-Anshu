@@ -422,6 +422,7 @@ class RoomViewModel(
         category: String? = null,
         coverKey: String,
         keepCustomCover: Boolean,
+        backgroundKey: String = "aurora_luxe",
         locked: Boolean,
         newPassword: String?
     ) {
@@ -433,6 +434,7 @@ class RoomViewModel(
                 category = category,
                 coverKey = coverKey,
                 keepCustomCover = keepCustomCover,
+                backgroundKey = backgroundKey,
                 locked = locked,
                 newRawPassword = newPassword
             )

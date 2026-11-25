@@ -76,6 +76,8 @@ class AgoraVoiceEngine {
     private var tokenAllowsPublish = false
     private var micShouldPublish = false
     private var joined = false
+    // joinChannel() is asynchronous; keep duplicate seat updates from issuing a second join.
+    @Volatile private var joinInProgress = false
     private var localAgoraUid = 0
     private val _activeSpeakerUids = MutableStateFlow<Set<Int>>(emptySet())
     val activeSpeakerUids: StateFlow<Set<Int>> = _activeSpeakerUids.asStateFlow()
@@ -88,6 +90,7 @@ class AgoraVoiceEngine {
 
     private val eventHandler = object : IRtcEngineEventHandler() {
         override fun onJoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
+            joinInProgress = false
             joined = true
             _connectionState.value = VoiceConnectionState.Connected(
                 roomId = activeRoomId.orEmpty(),
@@ -110,6 +113,7 @@ class AgoraVoiceEngine {
         }
 
         override fun onError(err: Int) {
+            joinInProgress = false
             Log.e(TAG, "Agora RTC error: $err")
             _connectionState.value = VoiceConnectionState.Error("Agora connection error ($err)")
         }
@@ -129,6 +133,7 @@ class AgoraVoiceEngine {
         }
 
         override fun onConnectionLost() {
+            joinInProgress = false
             joined = false
             localIsSpeaking = false
             remoteSpeakingUids = emptySet()
@@ -223,6 +228,12 @@ class AgoraVoiceEngine {
     }
 
     private suspend fun joinWithFreshServerAuthorization(roomId: String) {
+        // Agora accepts only one outstanding join per engine. Seat streams can emit
+        // while the initial asynchronous join is still pending.
+        if (joinInProgress && activeRoomId == roomId) {
+            Log.d(TAG, "Skipping duplicate Agora join while the current join is pending")
+            return
+        }
         val idToken = Firebase.auth.currentUser?.getIdToken(false)?.await()?.token
             ?: error("Please sign in again to join voice.")
         val response = tokenApi().fetchToken(
@@ -272,13 +283,21 @@ class AgoraVoiceEngine {
             autoSubscribeAudio = true
             autoSubscribeVideo = false
         }
-        val result = engine?.joinChannel(response.token, response.channelName, response.uid, options)
-            ?: error("Agora engine could not be initialized.")
-        check(result == 0) { "Agora rejected the channel join request ($result)." }
+        val targetEngine = engine ?: error("Agora engine could not be initialized.")
+        joinInProgress = true
+        val result = targetEngine.joinChannel(response.token, response.channelName, response.uid, options)
+        if (result != 0) {
+            joinInProgress = false
+            Log.e(TAG, "Agora rejected channel join request: $result (room=$roomId)")
+            _connectionState.value = VoiceConnectionState.Error(
+                "Agora could not join the voice room (error $result). Please try again."
+            )
+        }
     }
 
     /** Called from the Firestore seat stream. False always mutes immediately; true requires a fresh server authorization. */
     suspend fun setMicPublished(published: Boolean) = voiceOperationMutex.withLock {
+        try {
         if (!published) {
             micShouldPublish = false
             engine?.muteLocalAudioStream(true)
@@ -318,6 +337,14 @@ class AgoraVoiceEngine {
         if (current is VoiceConnectionState.Connected) {
             _connectionState.value = current.copy(micPublished = true)
         }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Log.e(TAG, "Unable to update Agora microphone state", error)
+            _connectionState.value = VoiceConnectionState.Error(
+                error.localizedMessage ?: "Unable to update voice connection. Please try again."
+            )
+        }
     }
 
     fun disconnect() {
@@ -329,6 +356,7 @@ class AgoraVoiceEngine {
         } finally {
             engine = null
             joined = false
+            joinInProgress = false
             tokenAllowsPublish = false
             micShouldPublish = false
             localAgoraUid = 0

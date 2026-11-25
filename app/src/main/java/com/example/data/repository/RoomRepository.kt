@@ -2098,7 +2098,7 @@ class RoomRepository(
                         "text" to "sent $qtyLabel${gift.name} to $recipientName!",
                         "type" to "GIFT",
                         "giftId" to gift.id,
-                        "giftName" to "$qtyLabel${gift.name}",
+                        "giftName" to gift.name,
                         "giftCoins" to totalCost,
                         "giftQuantity" to safeQty,
                         "recipientName" to recipientName,

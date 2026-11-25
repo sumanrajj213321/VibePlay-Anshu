@@ -659,10 +659,10 @@ internal fun VoiceRoomStageContent(
                                     (1.5f + ((roomLevel - 1L) % 4L).toFloat() * 0.45f).dp,
                                     Brush.linearGradient(roomLevelPalette(roomLevel))
                                 ),
-                                modifier = Modifier.weight(1f, fill = false)
+                                modifier = Modifier.weight(1f)
                             ) {
                                 Text(
-                                    text = currentRoom.title,
+                                    text = currentRoom.title.ifBlank { "Voice Room" },
                                     modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
@@ -670,7 +670,12 @@ internal fun VoiceRoomStageContent(
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
-                            RoomLevelBadge(level = roomLevel)
+                            RoomLevelBadge(
+                                level = roomLevel,
+                                modifier = Modifier
+                                    .clickable { showRoomExpDetails = true }
+                                    .testTag("room_level_exp_details")
+                            )
                             IconButton(
                                 onClick = { showRoomInfo = true },
                                 modifier = Modifier
@@ -688,36 +693,12 @@ internal fun VoiceRoomStageContent(
                                 Icon(Icons.Filled.Lock, contentDescription = "Locked", tint = VibePink, modifier = Modifier.size(16.dp))
                             }
                         }
-                        val roleTag = when {
-                            isOwner -> " · Host"
-                            isRoomAdmin -> " · Admin"
-                            else -> ""
-                        }
                         Text(
-                            text = "${currentRoom.category} · 9-Seat Stage$roleTag",
+                            text = currentRoom.category,
                             style = MaterialTheme.typography.labelSmall,
-                            color = VibeCyan
+                            color = VibeCyan,
+                            maxLines = 1
                         )
-                        Row(
-                            modifier = Modifier
-                                .clickable { showRoomExpDetails = true }
-                                .testTag("room_exp_details_entry"),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            Text("✦", color = roomLevelPalette(roomLevel).first(), fontWeight = FontWeight.Black)
-                            Text(
-                                text = if (roomExpToNextLevel == null) {
-                                    "Room EXP · %,d · MAX LEVEL".format(roomExp)
-                                } else {
-                                    "Room EXP · %,d / %,d".format(roomExpIntoLevel, RoomLevelProgression.EXP_PER_LEVEL)
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text("ⓘ", style = MaterialTheme.typography.labelSmall, color = VibeGold)
-                        }
                         Text(
                             text = "ROOM ID · ${currentRoom.publicRoomId.ifBlank { currentRoom.id }}",
                             style = MaterialTheme.typography.labelSmall,
@@ -1775,8 +1756,9 @@ private fun roomLevelPalette(level: Long): List<Color> = when (((level - 1L).coe
 }
 
 @Composable
-private fun RoomLevelBadge(level: Long) {
+private fun RoomLevelBadge(level: Long, modifier: Modifier = Modifier) {
     Surface(
+        modifier = modifier,
         shape = RoundedCornerShape(50),
         color = Color.Black.copy(alpha = 0.3f),
         border = BorderStroke(1.dp, Brush.linearGradient(roomLevelPalette(level)))

@@ -1288,6 +1288,34 @@ service cloud.firestore {
       }
     }
 
+    // Public, minimal Gift Wall projection. Full gift_transactions remain participant-only.
+    match /public_gift_wall/{txId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() &&
+        isValidId(txId) &&
+        incoming().giftTransactionId == txId &&
+        incoming().senderId == request.auth.uid &&
+        incoming().recipientId is string &&
+        incoming().giftId is string &&
+        incoming().giftName is string &&
+        incoming().giftName.size() >= 1 &&
+        incoming().giftName.size() <= 60 &&
+        incoming().coinCost is int &&
+        incoming().coinCost > 0 &&
+        incoming().quantity is int &&
+        incoming().quantity >= 1 &&
+        incoming().quantity <= 999 &&
+        existsAfter(/databases/$(database)/documents/gift_transactions/$(txId)) &&
+        getAfter(/databases/$(database)/documents/gift_transactions/$(txId)).data.senderId == incoming().senderId &&
+        getAfter(/databases/$(database)/documents/gift_transactions/$(txId)).data.recipientId == incoming().recipientId &&
+        getAfter(/databases/$(database)/documents/gift_transactions/$(txId)).data.giftId == incoming().giftId &&
+        getAfter(/databases/$(database)/documents/gift_transactions/$(txId)).data.giftName == incoming().giftName &&
+        getAfter(/databases/$(database)/documents/gift_transactions/$(txId)).data.coinCost == incoming().coinCost &&
+        getAfter(/databases/$(database)/documents/gift_transactions/$(txId)).data.quantity == incoming().quantity &&
+        isValidTs(incoming().createdAt);
+      allow update, delete: if false;
+    }
+
     match /gift_transactions/{txId} {
       allow get: if isSignedIn() && isValidId(txId) && (
         request.auth.uid in existing().participantIds ||

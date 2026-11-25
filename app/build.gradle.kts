@@ -6,6 +6,7 @@ plugins {
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.secrets)
   alias(libs.plugins.google.services)
+  alias(libs.plugins.firebase.crashlytics)
 }
 
 android {
@@ -119,6 +120,8 @@ dependencies {
   implementation(libs.firebase.firestore)
   implementation("com.google.firebase:firebase-functions")
   implementation(libs.firebase.auth)
+  implementation(libs.firebase.crashlytics)
+  implementation(libs.firebase.analytics)
   implementation("com.google.firebase:firebase-storage")
   implementation(libs.androidx.credentials)
   implementation(libs.androidx.credentials.play.services)

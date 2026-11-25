@@ -474,10 +474,10 @@ test("User profile creation, private subcollection isolation, daily reward, and 
     bobDb.collection("users").doc(ALICE_UID).collection("private").doc("account").get()
   );
 
-  // Valid daily login reward claim (+150 coins)
+  // Valid daily login reward claim (+100000 coins)
   await assertSucceeds(
     aliceDb.collection("users").doc(ALICE_UID).update({
-      coinBalance: 1000650,
+      coinBalance: 1100500,
       lastDailyClaimDay: indiaDay(),
       lastDailyClaimAt: pastDate(1000),
       xp: 50,
@@ -489,7 +489,7 @@ test("User profile creation, private subcollection isolation, daily reward, and 
   // A second claim on the same India calendar day must fail, even if the client changes the day string.
   await assertFails(
     aliceDb.collection("users").doc(ALICE_UID).update({
-      coinBalance: 1000800,
+      coinBalance: 1200500,
       lastDailyClaimDay: "2099-01-01",
       lastDailyClaimAt: pastDate(1000),
       xp: 100,
@@ -501,7 +501,7 @@ test("User profile creation, private subcollection isolation, daily reward, and 
   // Valid VIP 1 upgrade (650 - 200 = 450)
   await assertSucceeds(
     aliceDb.collection("users").doc(ALICE_UID).update({
-      coinBalance: 1000450,
+      coinBalance: 1100450,
       vipLevel: 1,
       vipExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       updatedAt: pastDate(),

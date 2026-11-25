@@ -223,6 +223,7 @@ service cloud.firestore {
              (!('giftId' in data) || (data.giftId is string && data.giftId.size() <= 128)) &&
              (!('giftName' in data) || (data.giftName is string && data.giftName.size() <= 60)) &&
              (!('giftCoins' in data) || (data.giftCoins is int && data.giftCoins >= 0)) &&
+             (!('giftQuantity' in data) || (data.giftQuantity is int && data.giftQuantity >= 1 && data.giftQuantity <= 999)) &&
              (!('recipientName' in data) || (data.recipientName is string && data.recipientName.size() <= 60));
     }
 

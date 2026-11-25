@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -107,21 +108,29 @@ fun ShopScreen(
                         vipLevel = tier.level
                     )
                 }
-                1 -> items(VibeShopCatalog.frames, key = { it.id }) { item ->
-                    val owned = profile.isFrameActive(item.id)
-                    val equipped = profile.activeFrameId == item.id && profile.isFrameActive(item.id)
-                    ShopCard(
-                        title = item.title,
-                        subtitle = item.subtitle + " · Valid for 7 days",
-                        price = item.coinPrice,
-                        accent = Color(item.colorArgb),
-                        status = when { equipped -> "Equipped"; owned -> "Equip"; else -> "Purchase" },
-                        enabled = !equipped && (owned || profile.coinBalance >= item.coinPrice),
-                        onClick = { if (owned) onEquip("FRAME", item.id) else onPurchase("FRAME", item.id) },
-                        icon = "✨",
-                        previewAvatarUrl = profile.avatarUrl,
-                        previewFrameColorArgb = item.colorArgb
-                    )
+                1 -> items(VibeShopCatalog.frames.chunked(4)) { frameRow ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        frameRow.forEach { item ->
+                            val owned = profile.isFrameActive(item.id)
+                            val equipped = profile.activeFrameId == item.id && owned
+                            FrameGridCard(
+                                modifier = Modifier.weight(1f),
+                                title = item.title,
+                                price = item.coinPrice,
+                                accent = Color(item.colorArgb),
+                                status = when { equipped -> "Equipped"; owned -> "Equip"; else -> "Buy" },
+                                enabled = !equipped && (owned || profile.coinBalance >= item.coinPrice),
+                                onClick = { if (owned) onEquip("FRAME", item.id) else onPurchase("FRAME", item.id) },
+                                avatarUrl = profile.avatarUrl,
+                                frameColorArgb = item.colorArgb
+                            )
+                        }
+                        repeat(4 - frameRow.size) { Spacer(modifier = Modifier.weight(1f)) }
+                    }
                 }
             }
             if (selectedTab == 1 && profile.isFrameActive(profile.activeFrameId)) {
@@ -130,6 +139,61 @@ fun ShopScreen(
                         Text("Remove equipped frame")
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FrameGridCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    price: Long,
+    accent: Color,
+    status: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    avatarUrl: String,
+    frameColorArgb: Long
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = accent.copy(alpha = 0.10f),
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.65f))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 9.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            VibeAvatar(
+                avatarUrl = avatarUrl,
+                username = "Preview",
+                size = 48.dp,
+                frameColorArgb = frameColorArgb
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium,
+                color = accent,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                minLines = 2
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                VibeCoinIcon(modifier = Modifier.size(14.dp))
+                Text("$price", style = MaterialTheme.typography.labelSmall, color = VibeGold, fontWeight = FontWeight.Bold, maxLines = 1)
+            }
+            Button(
+                onClick = onClick,
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 5.dp),
+                shape = RoundedCornerShape(9.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = Color.Black)
+            ) {
+                Text(status, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
             }
         }
     }

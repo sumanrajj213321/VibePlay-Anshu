@@ -90,6 +90,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.data.model.AppNotification
+import com.example.data.model.CharmProgression
 import com.example.data.model.Conversation
 import com.example.data.model.DirectMessage
 import com.example.data.model.FollowEdge
@@ -943,7 +944,7 @@ private fun ChatDetailScreen(
                                         Text(msg.giftName.ifBlank { "Virtual Gift" }, color = Color.White, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
                                         if (msg.giftQuantity > 1L) Text("Combo ×${msg.giftQuantity}", color = VibeCyan, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
                                         Text("${senderName} sent a gift!", color = VibeGold, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                        Text("To ${msg.recipientName.ifBlank { headerTitle }}  •  ${msg.giftCoins} Coins", color = Color.White, style = MaterialTheme.typography.labelSmall)
+                                        Text("Get Charms +${CharmProgression.fromReceivedGiftCoins(msg.giftCoins)}", color = VibeGold, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
                             }

@@ -124,7 +124,7 @@ import com.example.ui.components.GiftBurstOverlay
 import com.example.ui.components.ReportUserOrRoomDialog
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.VibeCoinIcon
-import com.example.ui.components.VipBadgePill
+import com.example.ui.components.VipMiniBadge
 import com.example.ui.components.VipShiningNameText
 import com.example.ui.components.VipEntranceOverlay
 import com.example.ui.components.coverDrawableRes
@@ -928,7 +928,7 @@ internal fun VoiceRoomStageContent(
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                             if (msg.senderVipLevel > 0) {
-                                                VipBadgePill(msg.senderVipLevel, compact = true)
+                                                VipMiniBadge(msg.senderVipLevel)
                                             }
                                         }
                                         Text(
@@ -962,7 +962,7 @@ internal fun VoiceRoomStageContent(
                                                     overflow = TextOverflow.Ellipsis
                                                 )
                                                 if (msg.senderVipLevel > 0L) {
-                                                    VipBadgePill(msg.senderVipLevel, compact = true)
+                                                    VipMiniBadge(msg.senderVipLevel)
                                                 }
                                             }
                                         }
@@ -1401,6 +1401,7 @@ private fun HostSeatTile(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (seat.occupantVipLevel > 0L) VipMiniBadge(seat.occupantVipLevel)
             }
         }
     }
@@ -1456,14 +1457,20 @@ private fun SpeakerSeatTile(
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
-            VipShiningNameText(
-                text = seat.occupantName,
-                vipLevel = seat.occupantVipLevel,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                VipShiningNameText(
+                    text = seat.occupantName,
+                    vipLevel = seat.occupantVipLevel,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+                if (seat.occupantVipLevel > 0L) VipMiniBadge(seat.occupantVipLevel)
+            }
             if (seat.seatLocked) {
                 Surface(
                     shape = RoundedCornerShape(50),

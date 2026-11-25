@@ -464,6 +464,7 @@ fun VibeAvatar(
         if (luxuryVipLevel != null) {
             LuxuryVipFrameOverlay(
                 vipLevel = luxuryVipLevel,
+                avatarSize = size,
                 modifier = Modifier.align(Alignment.Center).requiredSize(size * 1.68f),
                 pulseAlpha = pulseAlpha
             )
@@ -487,154 +488,36 @@ fun VibeAvatar(
 @Composable
 private fun LuxuryVipFrameOverlay(
     vipLevel: Int,
+    avatarSize: Dp,
     modifier: Modifier = Modifier,
     pulseAlpha: Float
 ) {
-    val gold = Color(0xFFFFC247)
-    val paleGold = Color(0xFFFFF0B0)
-    val deepGold = Color(0xFF9B4D08)
-    val motion = rememberInfiniteTransition(label = "luxury_vip_gold_$vipLevel")
-    val sweep by motion.animateFloat(
-        initialValue = -70f,
-        targetValue = 290f,
-        animationSpec = infiniteRepeatable(tween(2800, easing = LinearEasing)),
-        label = "luxury_vip_sweep"
-    )
-    val jewelPulse by motion.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(900, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "luxury_vip_jewel"
-    )
-    val shimmer by motion.animateFloat(
-        initialValue = 0.15f,
-        targetValue = 0.85f,
-        animationSpec = infiniteRepeatable(tween(1500, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "luxury_vip_shimmer"
-    )
     Box(modifier = modifier, contentAlignment = Alignment.BottomCenter) {
-        Canvas(Modifier.fillMaxSize()) {
-            val cx = size.width / 2f
-            val cy = size.height * 0.49f
-            val r = size.minDimension * 0.305f
-            val thick = size.minDimension * 0.027f
-            val goldBrush = Brush.sweepGradient(
-                listOf(deepGold, gold, paleGold, Color(0xFFFFD66E), deepGold, gold)
-            )
-            // Thick, layered oval ring with bright inner bevel; the avatar centre remains transparent.
-            drawCircle(goldBrush, r + thick * 0.55f, Offset(cx, cy), style = Stroke(thick * 1.65f))
-            drawCircle(paleGold.copy(alpha = 0.75f), r - thick * 0.22f, Offset(cx, cy), style = Stroke(thick * 0.22f))
-            drawCircle(gold.copy(alpha = 0.5f + shimmer * 0.4f), r + thick * 1.2f, Offset(cx, cy), style = Stroke(thick * 0.22f))
-
-            // Ornate mirrored gold flourishes on both sides.
-            for (side in listOf(-1f, 1f)) {
-                for (layer in 0..2) {
-                    val flourish = Path().apply {
-                        moveTo(cx + side * r * 0.88f, cy - r * (0.58f - layer * 0.12f))
-                        cubicTo(
-                            cx + side * r * (1.55f + layer * 0.06f), cy - r * 1.05f,
-                            cx + side * r * (1.58f + layer * 0.05f), cy + r * 0.65f,
-                            cx + side * r * 0.86f, cy + r * (0.78f - layer * 0.10f)
-                        )
-                    }
-                    drawPath(flourish, goldBrush, style = Stroke((3.5f - layer * 0.65f).dp.toPx(), cap = StrokeCap.Round))
-                }
-                for (i in 0..3) {
-                    val y = cy - r * 0.48f + i * r * 0.32f
-                    val leaf = Path().apply {
-                        moveTo(cx + side * r * 0.94f, y)
-                        quadraticTo(cx + side * r * 1.34f, y - r * 0.24f, cx + side * r * 1.22f, y + r * 0.06f)
-                        quadraticTo(cx + side * r * 1.10f, y + r * 0.25f, cx + side * r * 0.94f, y)
-                    }
-                    drawPath(leaf, goldBrush, style = Stroke(2.dp.toPx()))
-                }
-            }
-
-            // Five-point royal crown at the top with a pulsing centre diamond.
-            val crown = Path().apply {
-                moveTo(cx - r * 0.58f, cy - r * 0.91f)
-                lineTo(cx - r * 0.66f, cy - r * 1.34f)
-                lineTo(cx - r * 0.30f, cy - r * 1.12f)
-                lineTo(cx - r * 0.16f, cy - r * 1.48f)
-                lineTo(cx, cy - r * 1.22f)
-                lineTo(cx + r * 0.16f, cy - r * 1.48f)
-                lineTo(cx + r * 0.30f, cy - r * 1.12f)
-                lineTo(cx + r * 0.66f, cy - r * 1.34f)
-                lineTo(cx + r * 0.58f, cy - r * 0.91f)
-                close()
-            }
-            drawPath(crown, goldBrush, style = Stroke(4.dp.toPx(), cap = StrokeCap.Round))
-            drawLine(paleGold, Offset(cx - r * 0.55f, cy - r * 0.93f), Offset(cx + r * 0.55f, cy - r * 0.93f), 2.dp.toPx())
-            val gem = Path().apply {
-                moveTo(cx, cy - r * 1.36f)
-                lineTo(cx + r * 0.12f, cy - r * 1.20f)
-                lineTo(cx, cy - r * 1.04f)
-                lineTo(cx - r * 0.12f, cy - r * 1.20f)
-                close()
-            }
-            drawPath(gem, Color(0xFFFFF5D2).copy(alpha = jewelPulse), style = Stroke(2.dp.toPx()))
-            drawCircle(paleGold.copy(alpha = jewelPulse), 2.2.dp.toPx(), Offset(cx, cy - r * 1.20f))
-
-            // Diamond studs distributed symmetrically around the frame.
-            for (i in 0..7) {
-                val angle = Math.toRadians(-155.0 + i * 44.0)
-                val x = cx + kotlin.math.cos(angle).toFloat() * r
-                val y = cy + kotlin.math.sin(angle).toFloat() * r
-                val d = Path().apply {
-                    moveTo(x, y - 4.dp.toPx())
-                    lineTo(x + 3.dp.toPx(), y)
-                    lineTo(x, y + 4.dp.toPx())
-                    lineTo(x - 3.dp.toPx(), y)
-                    close()
-                }
-                drawPath(d, paleGold.copy(alpha = 0.72f + jewelPulse * 0.25f))
-            }
-
-            // Moving gold light sweep and tiny travelling sparks.
-            drawArc(
-                brush = Brush.sweepGradient(listOf(Color.Transparent, gold, Color.White, paleGold, Color.Transparent)),
-                startAngle = sweep,
-                sweepAngle = 64f,
-                useCenter = false,
-                topLeft = Offset(cx - r - 5.dp.toPx(), cy - r - 5.dp.toPx()),
-                size = androidx.compose.ui.geometry.Size((r + 5.dp.toPx()) * 2f, (r + 5.dp.toPx()) * 2f),
-                style = Stroke(4.dp.toPx(), cap = StrokeCap.Round)
-            )
-            for (i in 0..13) {
-                val a = Math.toRadians(i * 27.0 + sweep)
-                val radius = r * (1.18f + (i % 3) * 0.11f)
-                val point = Offset(cx + kotlin.math.cos(a).toFloat() * radius, cy + kotlin.math.sin(a).toFloat() * radius)
-                val alpha = (0.25f + 0.75f * (0.5f + 0.5f * kotlin.math.sin(Math.toRadians(i * 24.0) + Math.toRadians(sweep.toDouble())))).coerceIn(0f, 1f)
-                drawCircle(paleGold.copy(alpha = alpha), (1.2f + (i % 2)) * density, point)
-            }
-        }
-        Surface(
-            color = Color(0xE6100803),
-            shape = RoundedCornerShape(8.dp),
-            border = BorderStroke(1.4.dp, gold.copy(alpha = 0.55f + shimmer * 0.4f)),
+        Image(
+            painter = painterResource(R.drawable.vip_luxury_gold_frame),
+            contentDescription = "Luxury gold VIP $vipLevel frame",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit
+        )
+        // VIP number is rendered as live text over the transparent blank plaque.
+        Text(
+            text = "VIP $vipLevel",
+            color = Color(0xFFFFE6A0),
+            fontSize = (avatarSize.value * 0.18f).coerceIn(8f, 17f).sp,
+            fontWeight = FontWeight.Black,
+            style = MaterialTheme.typography.labelLarge,
+            textAlign = TextAlign.Center,
             modifier = Modifier
-                .padding(bottom = 1.dp)
+                .align(Alignment.BottomCenter)
+                .offset(y = -(avatarSize * 0.31f))
                 .drawBehind {
-                    val x = (sweep / 360f) * size.width
                     drawRoundRect(
-                        brush = Brush.linearGradient(
-                            listOf(Color.Transparent, gold.copy(alpha = 0.72f), Color.White.copy(alpha = 0.72f), Color.Transparent),
-                            start = Offset(x - size.width * 0.35f, 0f),
-                            end = Offset(x + size.width * 0.35f, size.height)
-                        ),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(8.dp.toPx())
+                        brush = Brush.horizontalGradient(
+                            listOf(Color.Transparent, Color(0x99FFB52E).copy(alpha = pulseAlpha), Color.Transparent)
+                        )
                     )
                 }
-        ) {
-            Text(
-                text = "VIP $vipLevel",
-                color = paleGold,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Black,
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(horizontal = 13.dp, vertical = 4.dp)
-            )
-        }
+        )
     }
 }
 

@@ -519,6 +519,30 @@ service cloud.firestore {
                        isValidTs(incoming().createdAt) &&
                        isValidTs(incoming().updatedAt);
 
+      // Follow counter updates must also work for legacy profiles that predate userId/createdAt.
+      // These narrow branches permit only the relevant counter and updatedAt to change.
+      allow update: if isSignedIn() && isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().role == existing().role &&
+                       incoming().accountStatus == existing().accountStatus &&
+                       incoming().coinBalance == existing().coinBalance &&
+                       incoming().vipLevel == existing().vipLevel &&
+                       incoming().followingCount is int &&
+                       incoming().followingCount >= 0 &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['followingCount', 'updatedAt']) &&
+                       isValidTs(incoming().updatedAt);
+
+      allow update: if isSignedIn() && isValidId(userId) &&
+                       request.auth.uid != userId &&
+                       incoming().role == existing().role &&
+                       incoming().accountStatus == existing().accountStatus &&
+                       incoming().coinBalance == existing().coinBalance &&
+                       incoming().vipLevel == existing().vipLevel &&
+                       incoming().followersCount is int &&
+                       incoming().followersCount >= 0 &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['followersCount', 'updatedAt']) &&
+                       isValidTs(incoming().updatedAt);
+
       // Legacy profiles may predate the userId/createdAt schema fields.
       // Permit only the atomic, authenticated one-time room claim for that account.
       allow update: if isSignedIn() && isValidId(userId) &&

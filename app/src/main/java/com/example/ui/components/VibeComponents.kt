@@ -296,7 +296,7 @@ fun VibeAvatar(
     val isRoseGoldFrame = frameColorArgb == 0xFFF472B6L
     val isRoyalGoldFrame = frameColorArgb == 0xFFFBBF24L
     val isGalaxyFrame = frameColorArgb == 0xFFA78BFAL
-    val dragonVipLevel = when (frameColorArgb) {
+    val luxuryVipLevel = when (frameColorArgb) {
         0xFFFF5A36L -> 1
         0xFFE83252L -> 2
         0xFF9B5CFFL -> 3
@@ -307,6 +307,7 @@ fun VibeAvatar(
         0xFFFFC247L -> 8
         else -> null
     }
+    val isLuxuryVipFrame = luxuryVipLevel != null
     val vipColor = remember(displayVipLevel) {
         val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == displayVipLevel.toInt() }
         if (tier != null) Color(tier.badgeColorHex) else null
@@ -346,7 +347,7 @@ fun VibeAvatar(
         modifier = modifier
             .size(size)
             .drawBehind {
-                if (frameColorArgb != null && !isNeonCyanFrame) {
+                if (frameColorArgb != null && !isNeonCyanFrame && !isLuxuryVipFrame) {
                     val frameColor = Color(frameColorArgb)
                     val centerX = this.size.width / 2f
                     val centerY = this.size.height / 2f
@@ -383,7 +384,7 @@ fun VibeAvatar(
                 .fillMaxSize()
                 .clip(CircleShape)
                 .border(
-                    width = if (isNeonCyanFrame) 0.dp else if (frameColorArgb != null || speaking || vipLevel > 0) 3.5.dp else 1.5.dp,
+                    width = if (isNeonCyanFrame || isLuxuryVipFrame) 0.dp else if (frameColorArgb != null || speaking || vipLevel > 0) 3.5.dp else 1.5.dp,
                     brush = borderBrush,
                     shape = CircleShape
                 )
@@ -460,8 +461,12 @@ fun VibeAvatar(
         if (isRoseGoldFrame) {
             RoseGoldFrameOverlay(Modifier.align(Alignment.Center).requiredSize(size * 1.55f), pulseAlpha)
         }
-        if (dragonVipLevel != null) {
-            VipDragonFrameOverlay(dragonVipLevel, Modifier.align(Alignment.Center).requiredSize(size * 1.72f), pulseAlpha)
+        if (luxuryVipLevel != null) {
+            LuxuryVipFrameOverlay(
+                vipLevel = luxuryVipLevel,
+                modifier = Modifier.align(Alignment.Center).requiredSize(size * 1.68f),
+                pulseAlpha = pulseAlpha
+            )
         }
         if (online) {
             Box(
@@ -480,173 +485,154 @@ fun VibeAvatar(
 
 
 @Composable
-private fun VipDragonFrameOverlay(
+private fun LuxuryVipFrameOverlay(
     vipLevel: Int,
     modifier: Modifier = Modifier,
     pulseAlpha: Float
 ) {
-    val palette = listOf(
-        Color(0xFFFF5A36), Color(0xFFE83252), Color(0xFF9B5CFF), Color(0xFF398BFF),
-        Color(0xFF20C997), Color(0xFFD18BFF), Color(0xFF42D9E8), Color(0xFFFFC247)
+    val gold = Color(0xFFFFC247)
+    val paleGold = Color(0xFFFFF0B0)
+    val deepGold = Color(0xFF9B4D08)
+    val motion = rememberInfiniteTransition(label = "luxury_vip_gold_$vipLevel")
+    val sweep by motion.animateFloat(
+        initialValue = -70f,
+        targetValue = 290f,
+        animationSpec = infiniteRepeatable(tween(2800, easing = LinearEasing)),
+        label = "luxury_vip_sweep"
     )
-    val accent = palette[(vipLevel - 1).coerceIn(0, 7)]
-    val motion = rememberInfiniteTransition(label = "vip_dragon_motion_$vipLevel")
-    val phase by motion.animateFloat(
-        initialValue = 0f,
-        targetValue = (2f * Math.PI).toFloat(),
-        animationSpec = infiniteRepeatable(tween(3200, easing = LinearEasing)),
-        label = "vip_flame_phase"
-    )
-    val sweepAngle by motion.animateFloat(
-        initialValue = -45f,
-        targetValue = 315f,
-        animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing)),
-        label = "vip_fire_sweep"
-    )
-    val gemPulse by motion.animateFloat(
-        initialValue = 0.45f,
+    val jewelPulse by motion.animateFloat(
+        initialValue = 0.35f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(780, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "vip_crown_gem_pulse"
+        animationSpec = infiniteRepeatable(tween(900, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "luxury_vip_jewel"
+    )
+    val shimmer by motion.animateFloat(
+        initialValue = 0.15f,
+        targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(tween(1500, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "luxury_vip_shimmer"
     )
     Box(modifier = modifier, contentAlignment = Alignment.BottomCenter) {
         Canvas(Modifier.fillMaxSize()) {
             val cx = size.width / 2f
             val cy = size.height * 0.49f
-            val r = size.minDimension * 0.285f
-            val wave = kotlin.math.sin(phase)
-            val glow = accent.copy(alpha = 0.30f + pulseAlpha * 0.48f)
-            val hot = Color(0xFFFFF2C4).copy(alpha = 0.45f + gemPulse * 0.5f)
+            val r = size.minDimension * 0.305f
+            val thick = size.minDimension * 0.027f
+            val goldBrush = Brush.sweepGradient(
+                listOf(deepGold, gold, paleGold, Color(0xFFFFD66E), deepGold, gold)
+            )
+            // Thick, layered oval ring with bright inner bevel; the avatar centre remains transparent.
+            drawCircle(goldBrush, r + thick * 0.55f, Offset(cx, cy), style = Stroke(thick * 1.65f))
+            drawCircle(paleGold.copy(alpha = 0.75f), r - thick * 0.22f, Offset(cx, cy), style = Stroke(thick * 0.22f))
+            drawCircle(gold.copy(alpha = 0.5f + shimmer * 0.4f), r + thick * 1.2f, Offset(cx, cy), style = Stroke(thick * 0.22f))
 
-            // Multi-layer transparent ring: the avatar photo remains visible through the centre.
-            drawCircle(glow, r + 3.dp.toPx(), Offset(cx, cy), style = Stroke(4.dp.toPx()))
-            drawCircle(accent.copy(alpha = 0.9f), r, Offset(cx, cy), style = Stroke(1.8.dp.toPx()))
-            drawCircle(Color.White.copy(alpha = 0.42f * pulseAlpha), r - 4.dp.toPx(), Offset(cx, cy), style = Stroke(0.9.dp.toPx()))
-
-            // Mirrored dragon bodies with animated flame whiskers and breathing glow.
+            // Ornate mirrored gold flourishes on both sides.
             for (side in listOf(-1f, 1f)) {
-                val breathe = wave * r * 0.035f
-                val dragon = Path().apply {
-                    moveTo(cx + side * r * 0.98f, cy - r * 0.55f)
-                    cubicTo(
-                        cx + side * r * (1.60f + wave * 0.035f), cy - r * 1.24f - breathe,
-                        cx + side * r * (1.82f + wave * 0.025f), cy - r * 0.10f,
-                        cx + side * r * 1.12f, cy + r * 0.12f
-                    )
-                    cubicTo(
-                        cx + side * r * (1.58f - wave * 0.035f), cy + r * 0.62f,
-                        cx + side * r * 1.08f, cy + r * 1.08f + breathe,
-                        cx + side * r * 0.78f, cy + r * 0.72f
-                    )
-                }
-                drawPath(dragon, glow, style = Stroke(7.dp.toPx()))
-                drawPath(dragon, accent, style = Stroke(2.4.dp.toPx()))
-                drawPath(dragon, hot.copy(alpha = 0.5f), style = Stroke(0.9.dp.toPx()))
-
-                // Three moving flame tongues along each dragon's outer edge.
-                for (i in 0..2) {
-                    val t = phase + i * 1.7f + if (side < 0f) 0.8f else 0f
-                    val baseX = cx + side * r * (1.18f + i * 0.12f)
-                    val baseY = cy - r * 0.48f + i * r * 0.48f
-                    val flick = kotlin.math.sin(t) * r * 0.12f
-                    val flame = Path().apply {
-                        moveTo(baseX, baseY + r * 0.16f)
+                for (layer in 0..2) {
+                    val flourish = Path().apply {
+                        moveTo(cx + side * r * 0.88f, cy - r * (0.58f - layer * 0.12f))
                         cubicTo(
-                            baseX + side * (r * 0.22f + flick), baseY - r * 0.02f,
-                            baseX + side * (r * 0.10f - flick), baseY - r * 0.28f,
-                            baseX + side * flick, baseY - r * (0.48f + 0.05f * kotlin.math.cos(t))
+                            cx + side * r * (1.55f + layer * 0.06f), cy - r * 1.05f,
+                            cx + side * r * (1.58f + layer * 0.05f), cy + r * 0.65f,
+                            cx + side * r * 0.86f, cy + r * (0.78f - layer * 0.10f)
                         )
                     }
-                    drawPath(flame, accent.copy(alpha = 0.72f), style = Stroke(2.4.dp.toPx()))
-                    drawPath(flame, hot.copy(alpha = 0.7f), style = Stroke(0.8.dp.toPx()))
+                    drawPath(flourish, goldBrush, style = Stroke((3.5f - layer * 0.65f).dp.toPx(), cap = StrokeCap.Round))
                 }
-
-                // Scales, eye glint, and three lower claws.
                 for (i in 0..3) {
-                    val y = cy - r * 0.34f + i * r * 0.31f
-                    drawLine(accent.copy(alpha = 0.9f), Offset(cx + side * r * 1.04f, y), Offset(cx + side * r * 1.34f, y + r * 0.13f), 2.dp.toPx())
-                }
-                drawCircle(hot, 2.1.dp.toPx(), Offset(cx + side * r * 1.11f, cy - r * 0.48f))
-                for (i in 0..2) {
-                    val x = cx + side * (r * (0.82f + i * 0.13f))
-                    val y = cy + r * 1.00f
-                    val claw = Path().apply {
-                        moveTo(x, y)
-                        quadraticTo(x + side * r * 0.13f, y + r * 0.04f, x + side * r * (0.15f + i * 0.015f), y + r * (0.22f + wave * 0.025f))
+                    val y = cy - r * 0.48f + i * r * 0.32f
+                    val leaf = Path().apply {
+                        moveTo(cx + side * r * 0.94f, y)
+                        quadraticTo(cx + side * r * 1.34f, y - r * 0.24f, cx + side * r * 1.22f, y + r * 0.06f)
+                        quadraticTo(cx + side * r * 1.10f, y + r * 0.25f, cx + side * r * 0.94f, y)
                     }
-                    drawPath(claw, accent, style = Stroke(2.2.dp.toPx()))
+                    drawPath(leaf, goldBrush, style = Stroke(2.dp.toPx()))
                 }
             }
 
-            // Crown with a pulsing centre jewel and animated glint.
+            // Five-point royal crown at the top with a pulsing centre diamond.
             val crown = Path().apply {
-                moveTo(cx - r * 0.55f, cy - r * 0.92f)
-                lineTo(cx - r * 0.62f, cy - r * 1.38f)
-                lineTo(cx - r * 0.20f, cy - r * 1.12f)
-                lineTo(cx, cy - r * 1.55f)
-                lineTo(cx + r * 0.20f, cy - r * 1.12f)
-                lineTo(cx + r * 0.62f, cy - r * 1.38f)
-                lineTo(cx + r * 0.55f, cy - r * 0.92f)
+                moveTo(cx - r * 0.58f, cy - r * 0.91f)
+                lineTo(cx - r * 0.66f, cy - r * 1.34f)
+                lineTo(cx - r * 0.30f, cy - r * 1.12f)
+                lineTo(cx - r * 0.16f, cy - r * 1.48f)
+                lineTo(cx, cy - r * 1.22f)
+                lineTo(cx + r * 0.16f, cy - r * 1.48f)
+                lineTo(cx + r * 0.30f, cy - r * 1.12f)
+                lineTo(cx + r * 0.66f, cy - r * 1.34f)
+                lineTo(cx + r * 0.58f, cy - r * 0.91f)
                 close()
             }
-            drawPath(crown, accent.copy(alpha = 0.96f), style = Stroke(3.5.dp.toPx()))
-            drawPath(crown, hot, style = Stroke(1.dp.toPx()))
-            val gem = Offset(cx, cy - r * 1.13f)
-            drawCircle(accent.copy(alpha = 0.25f + gemPulse * 0.35f), r * 0.19f, gem)
-            drawCircle(hot, r * 0.095f * gemPulse, gem)
-            drawCircle(Color.White.copy(alpha = gemPulse), r * 0.035f, Offset(gem.x - r * 0.035f, gem.y - r * 0.035f))
+            drawPath(crown, goldBrush, style = Stroke(4.dp.toPx(), cap = StrokeCap.Round))
+            drawLine(paleGold, Offset(cx - r * 0.55f, cy - r * 0.93f), Offset(cx + r * 0.55f, cy - r * 0.93f), 2.dp.toPx())
+            val gem = Path().apply {
+                moveTo(cx, cy - r * 1.36f)
+                lineTo(cx + r * 0.12f, cy - r * 1.20f)
+                lineTo(cx, cy - r * 1.04f)
+                lineTo(cx - r * 0.12f, cy - r * 1.20f)
+                close()
+            }
+            drawPath(gem, Color(0xFFFFF5D2).copy(alpha = jewelPulse), style = Stroke(2.dp.toPx()))
+            drawCircle(paleGold.copy(alpha = jewelPulse), 2.2.dp.toPx(), Offset(cx, cy - r * 1.20f))
 
-            // Rotating fire sweep around the avatar ring.
+            // Diamond studs distributed symmetrically around the frame.
+            for (i in 0..7) {
+                val angle = Math.toRadians(-155.0 + i * 44.0)
+                val x = cx + kotlin.math.cos(angle).toFloat() * r
+                val y = cy + kotlin.math.sin(angle).toFloat() * r
+                val d = Path().apply {
+                    moveTo(x, y - 4.dp.toPx())
+                    lineTo(x + 3.dp.toPx(), y)
+                    lineTo(x, y + 4.dp.toPx())
+                    lineTo(x - 3.dp.toPx(), y)
+                    close()
+                }
+                drawPath(d, paleGold.copy(alpha = 0.72f + jewelPulse * 0.25f))
+            }
+
+            // Moving gold light sweep and tiny travelling sparks.
             drawArc(
-                brush = Brush.sweepGradient(listOf(Color.Transparent, accent, hot, accent, Color.Transparent)),
-                startAngle = sweepAngle,
-                sweepAngle = 86f,
+                brush = Brush.sweepGradient(listOf(Color.Transparent, gold, Color.White, paleGold, Color.Transparent)),
+                startAngle = sweep,
+                sweepAngle = 64f,
                 useCenter = false,
-                topLeft = Offset(cx - r - 6.dp.toPx(), cy - r - 6.dp.toPx()),
-                size = androidx.compose.ui.geometry.Size((r + 6.dp.toPx()) * 2f, (r + 6.dp.toPx()) * 2f),
-                style = Stroke(width = 4.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                topLeft = Offset(cx - r - 5.dp.toPx(), cy - r - 5.dp.toPx()),
+                size = androidx.compose.ui.geometry.Size((r + 5.dp.toPx()) * 2f, (r + 5.dp.toPx()) * 2f),
+                style = Stroke(4.dp.toPx(), cap = StrokeCap.Round)
             )
-
-            // Sparks travel around the frame rather than staying fixed in place.
-            for (i in 0..15) {
-                val a = Math.toRadians((i * 22.5) + sweepAngle * (if (i % 2 == 0) 1.0 else -0.72))
-                val radius = r * (1.40f + (i % 4) * 0.075f)
-                val drift = kotlin.math.sin(phase + i) * r * 0.045f
-                val point = Offset(
-                    cx + kotlin.math.cos(a).toFloat() * (radius + drift),
-                    cy + kotlin.math.sin(a).toFloat() * (radius + drift)
-                )
-                val alpha = (0.28f + 0.72f * (0.5f + 0.5f * kotlin.math.sin(phase + i))).coerceIn(0f, 1f)
-                drawCircle(accent.copy(alpha = alpha), (1.2f + (i % 3) * 0.65f) * density, point)
-                if (i % 3 == 0) drawCircle(Color.White.copy(alpha = alpha * 0.8f), 0.8.dp.toPx(), point)
+            for (i in 0..13) {
+                val a = Math.toRadians(i * 27.0 + sweep)
+                val radius = r * (1.18f + (i % 3) * 0.11f)
+                val point = Offset(cx + kotlin.math.cos(a).toFloat() * radius, cy + kotlin.math.sin(a).toFloat() * radius)
+                val alpha = (0.25f + 0.75f * (0.5f + 0.5f * kotlin.math.sin(Math.toRadians(i * 24.0) + Math.toRadians(sweep.toDouble())))).coerceIn(0f, 1f)
+                drawCircle(paleGold.copy(alpha = alpha), (1.2f + (i % 2)) * density, point)
             }
         }
-
-        // The banner's light sweep is animated independently from the dragon flames.
         Surface(
-            color = Color(0xCC170A0A),
-            shape = RoundedCornerShape(7.dp),
-            border = BorderStroke(1.dp, accent.copy(alpha = pulseAlpha)),
+            color = Color(0xE6100803),
+            shape = RoundedCornerShape(8.dp),
+            border = BorderStroke(1.4.dp, gold.copy(alpha = 0.55f + shimmer * 0.4f)),
             modifier = Modifier
-                .padding(bottom = 2.dp)
+                .padding(bottom = 1.dp)
                 .drawBehind {
-                    val travel = (sweepAngle / 360f) * size.width
+                    val x = (sweep / 360f) * size.width
                     drawRoundRect(
                         brush = Brush.linearGradient(
-                            colors = listOf(Color.Transparent, accent.copy(alpha = 0.62f), Color.White.copy(alpha = 0.55f), Color.Transparent),
-                            start = Offset(travel - size.width * 0.35f, 0f),
-                            end = Offset(travel + size.width * 0.35f, size.height)
+                            listOf(Color.Transparent, gold.copy(alpha = 0.72f), Color.White.copy(alpha = 0.72f), Color.Transparent),
+                            start = Offset(x - size.width * 0.35f, 0f),
+                            end = Offset(x + size.width * 0.35f, size.height)
                         ),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(7.dp.toPx())
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(8.dp.toPx())
                     )
                 }
         ) {
             Text(
                 text = "VIP $vipLevel",
-                color = Color.White,
-                fontSize = 8.sp,
+                color = paleGold,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.Black,
-                modifier = Modifier.padding(horizontal = 9.dp, vertical = 2.dp)
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 13.dp, vertical = 4.dp)
             )
         }
     }

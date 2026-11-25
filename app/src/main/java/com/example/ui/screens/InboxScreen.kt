@@ -661,7 +661,8 @@ private fun ChatDetailScreen(
                     recipientName = latestMessage.recipientName.ifBlank { headerTitle },
                     giftName = latestMessage.giftName.ifBlank { "Virtual Gift" },
                     coinCost = latestMessage.giftCoins,
-                    giftId = latestMessage.giftId
+                    giftId = latestMessage.giftId,
+                    quantity = latestMessage.giftQuantity.coerceIn(1L, 999L)
                 )
             }
         }
@@ -940,6 +941,7 @@ private fun ChatDetailScreen(
                                         Text("✨ SPECIAL GIFT ✨", color = VibeGold, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelMedium)
                                         Box(Modifier.size(76.dp).clip(CircleShape).background(Brush.radialGradient(listOf(VibePink, VibeViolet, Color(0xFF171039)))), contentAlignment = Alignment.Center) { Text(msg.giftName.take(1).uppercase(), color = Color.White, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black) }
                                         Text(msg.giftName.ifBlank { "Virtual Gift" }, color = Color.White, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
+                                        if (msg.giftQuantity > 1L) Text("Combo ×${msg.giftQuantity}", color = VibeCyan, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
                                         Text("${senderName} sent a gift!", color = VibeGold, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                                         Text("To ${msg.recipientName.ifBlank { headerTitle }}  •  ${msg.giftCoins} Coins", color = Color.White, style = MaterialTheme.typography.labelSmall)
                                     }

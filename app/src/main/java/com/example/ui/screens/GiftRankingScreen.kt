@@ -39,6 +39,10 @@ import com.example.data.model.VibeShopCatalog
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.VibeCoinIcon
 import com.example.ui.theme.VibeGold
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun GiftRankingScreen(
@@ -47,12 +51,26 @@ fun GiftRankingScreen(
     onOpenUserProfile: (UserProfile) -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val rankedUsers = remember(users, selectedTab) {
-        users.filter {
-            if (selectedTab == 0) it.totalGiftCoinsSent > 0L else it.totalGiftCoinsReceived > 0L
-        }.sortedByDescending {
-            if (selectedTab == 0) it.totalGiftCoinsSent else it.totalGiftCoinsReceived
+    var selectedPeriod by remember { mutableIntStateOf(2) }
+    val todayKey = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
+    val weekKey = remember {
+        val calendar = Calendar.getInstance().apply {
+            firstDayOfWeek = Calendar.MONDAY
+            set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
         }
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(calendar.time)
+    }
+    fun score(user: UserProfile): Long = when (selectedPeriod) {
+        0 -> if (user.dailyGiftCoinsDate == todayKey) {
+            if (selectedTab == 0) user.dailyGiftCoinsSent else user.dailyGiftCoinsReceived
+        } else 0L
+        1 -> if (user.weeklyGiftCoinsWeek == weekKey) {
+            if (selectedTab == 0) user.weeklyGiftCoinsSent else user.weeklyGiftCoinsReceived
+        } else 0L
+        else -> if (selectedTab == 0) user.totalGiftCoinsSent else user.totalGiftCoinsReceived
+    }
+    val rankedUsers = remember(users, selectedTab, selectedPeriod, todayKey, weekKey) {
+        users.filter { score(it) > 0L }.sortedByDescending { score(it) }
     }
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -62,11 +80,16 @@ fun GiftRankingScreen(
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
-            Text("Total Ranking", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("Ranking", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        }
+        TabRow(selectedTabIndex = selectedPeriod) {
+            Tab(selected = selectedPeriod == 0, onClick = { selectedPeriod = 0 }, text = { Text("Daily") })
+            Tab(selected = selectedPeriod == 1, onClick = { selectedPeriod = 1 }, text = { Text("Weekly") })
+            Tab(selected = selectedPeriod == 2, onClick = { selectedPeriod = 2 }, text = { Text("Total") })
         }
         TabRow(selectedTabIndex = selectedTab) {
-            Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Top Gifters") })
-            Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Top Receivers") })
+            Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Gifters") })
+            Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Receivers") })
         }
         if (rankedUsers.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -79,7 +102,7 @@ fun GiftRankingScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 itemsIndexed(rankedUsers, key = { _, user -> user.userId }) { index, user ->
-                    val total = if (selectedTab == 0) user.totalGiftCoinsSent else user.totalGiftCoinsReceived
+                    val total = score(user)
                     Surface(
                         modifier = Modifier.fillMaxWidth().clickable { onOpenUserProfile(user) },
                         shape = RoundedCornerShape(18.dp),
@@ -113,7 +136,7 @@ fun GiftRankingScreen(
                                     VibeCoinIcon(modifier = Modifier.size(18.dp))
                                     Text("%,d".format(total), fontWeight = FontWeight.Bold)
                                 }
-                                Text("Gift coins", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Coins", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }

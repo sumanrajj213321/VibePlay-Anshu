@@ -1750,20 +1750,83 @@ private fun roomLevelPalette(level: Long): List<Color> = when (((level - 1L).coe
 
 @Composable
 private fun RoomLevelBadge(level: Long, modifier: Modifier = Modifier) {
+    val palette = roomLevelPalette(level)
+    val shimmer = rememberInfiniteTransition(label = "room_level_badge_shimmer")
+    val shimmerAlpha by shimmer.animateFloat(
+        initialValue = 0.72f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "room_level_badge_glow"
+    )
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(50),
-        color = Color.Black.copy(alpha = 0.3f),
-        border = BorderStroke(1.dp, Brush.linearGradient(roomLevelPalette(level)))
+        shape = RoundedCornerShape(topStart = 11.dp, topEnd = 5.dp, bottomEnd = 11.dp, bottomStart = 5.dp),
+        color = Color.Transparent,
+        border = BorderStroke(1.25.dp, Brush.linearGradient(palette.map { it.copy(alpha = shimmerAlpha) })),
+        shadowElevation = 5.dp
     ) {
-        Text(
-            text = "✦ LV $level",
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
-            color = roomLevelPalette(level).first(),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.ExtraBold,
-            maxLines = 1
-        )
+        Row(
+            modifier = Modifier
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color(0xFF101426),
+                            palette.first().copy(alpha = 0.30f),
+                            Color(0xFF20152D)
+                        )
+                    )
+                )
+                .padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(23.dp)
+                    .background(
+                        Brush.linearGradient(listOf(palette.last(), palette.first())),
+                        RoundedCornerShape(7.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "♛",
+                    color = Color(0xFFFFF4D0),
+                    fontSize = 15.sp,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(0.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Text(
+                    text = "ROOM",
+                    color = Color(0xFFC9C5D8),
+                    fontSize = 7.sp,
+                    lineHeight = 8.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.1.sp
+                )
+                Text(
+                    text = "LV $level",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    lineHeight = 14.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
+            Text(
+                text = "✦",
+                color = palette.last().copy(alpha = shimmerAlpha),
+                fontSize = 10.sp,
+                lineHeight = 11.sp
+            )
+        }
     }
 }
 

@@ -258,8 +258,8 @@ fun VoiceRoomScreen(
         onSendGift = { recId, recName, gift, qty ->
             roomViewModel.sendGift(currentUser, recId, recName, gift, qty)
         },
-        onUpdateRoomSettings = { t, ann, cat, cover, keepCustom, lock, pwd ->
-            roomViewModel.updateRoomSettings(t, ann, cat, cover, keepCustom, lock, pwd)
+        onUpdateRoomSettings = { t, ann, cat, cover, keepCustom, backgroundKey, lock, pwd ->
+            roomViewModel.updateRoomSettings(t, ann, cat, cover, keepCustom, backgroundKey, lock, pwd)
         },
         onUploadRoomCover = { uri -> roomViewModel.uploadRoomCover(uri) },
         onTransferOwnership = { targetSeat ->
@@ -341,7 +341,7 @@ internal fun VoiceRoomStageContent(
     onClearGiftBurst: () -> Unit,
     onClearVipEntrance: () -> Unit = {},
     onSendGift: (recipientId: String, recipientName: String, gift: GiftCatalogItem, quantity: Long) -> Unit,
-    onUpdateRoomSettings: (title: String, announcement: String, category: String, coverKey: String, keepCustomCover: Boolean, locked: Boolean, passcode: String?) -> Unit,
+    onUpdateRoomSettings: (title: String, announcement: String, category: String, coverKey: String, keepCustomCover: Boolean, backgroundKey: String, locked: Boolean, passcode: String?) -> Unit,
     onUploadRoomCover: (Uri) -> Unit,
     onTransferOwnership: (VoiceSeat) -> Unit,
     onPromoteOrDemoteAdmin: (userId: String, username: String, promote: Boolean) -> Unit = { _, _, _ -> },
@@ -606,13 +606,11 @@ internal fun VoiceRoomStageContent(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Subtle atmospheric cover backdrop
-            RoomCoverImage(
-                roomId = currentRoom.id,
-                coverUrl = currentRoom.coverUrl,
-                fallbackCoverKey = currentRoom.coverKey,
-                modifier = Modifier.fillMaxSize().alpha(0.18f),
-                contentScale = ContentScale.Crop
+            // The in-room animated backdrop is independent from the room cover
+            // shown on room cards and discovery surfaces.
+            AnimatedRoomBackground(
+                backgroundKey = currentRoom.roomBackgroundKey,
+                modifier = Modifier.fillMaxSize()
             )
             Box(
                 modifier = Modifier
@@ -1015,8 +1013,8 @@ internal fun VoiceRoomStageContent(
             stage = currentStage,
             isOwner = isOwner,
             onDismiss = { showHostSettings = false },
-            onSaveSettings = { t, ann, cat, cover, keepCustom, lock, pwd ->
-                onUpdateRoomSettings(t, ann, cat, cover, keepCustom, lock, pwd)
+            onSaveSettings = { t, ann, cat, cover, keepCustom, backgroundKey, lock, pwd ->
+                onUpdateRoomSettings(t, ann, cat, cover, keepCustom, backgroundKey, lock, pwd)
             },
             onUploadCover = onUploadRoomCover,
             onMuteAllSpeakers = onMuteAllSpeakers,

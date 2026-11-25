@@ -26,8 +26,12 @@ import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Password
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -92,6 +96,9 @@ fun RoomsHubScreen(
     var roomPassword by remember { mutableStateOf("") }
     var validationError by remember { mutableStateOf<String?>(null) }
     var selectedListCategory by remember { mutableStateOf(RoomCategory.ALL) }
+    var showJoinRoomDialog by remember { mutableStateOf(false) }
+    var roomIdToJoin by remember { mutableStateOf("") }
+    var joinRoomError by remember { mutableStateOf<String?>(null) }
 
     val liveRooms = (roomsState as? UiState.Success)?.data ?: emptyList()
     val filteredLiveRooms = remember(liveRooms, selectedListCategory) {
@@ -131,17 +138,29 @@ fun RoomsHubScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = if (hasCreatedRoom) "My Room" else "Launch Voice Room",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = if (hasCreatedRoom) "Open your permanent room and continue where you left off." else "Every VibePlay room includes 1 Host seat + 8 Speaker seats (9 total).",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = VibeCyan
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = if (hasCreatedRoom) "My Room" else "Rooms",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (hasCreatedRoom) "Your room and rooms you have joined." else "Create a room or join an existing voice room.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = VibeCyan
+                    )
+                }
+                IconButton(
+                    onClick = { showJoinRoomDialog = true; roomIdToJoin = ""; joinRoomError = null },
+                    modifier = Modifier.testTag("open_join_room_dialog")
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Join a room", tint = VibeCyan, modifier = Modifier.size(30.dp))
+                }
             }
         }
 
@@ -149,11 +168,25 @@ fun RoomsHubScreen(
             item {
                 OutlinedButton(
                     onClick = { onOpenRoom(myCreatedLiveRoom) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("open_my_created_room_button")
+                    modifier = Modifier.fillMaxWidth().testTag("open_my_created_room_button")
                 ) {
                     Text("My Room (${myCreatedLiveRoom.title})", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        if (recentlyJoinedRooms.isNotEmpty()) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Filled.History, contentDescription = null, tint = VibePink)
+                        Text("Joined Rooms (${recentlyJoinedRooms.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(recentlyJoinedRooms, key = { "hub_joined_" + it.id }) { room ->
+                            VoiceRoomCard(room = room, onClick = { onOpenRoom(room) })
+                        }
+                    }
                 }
             }
         }
@@ -350,21 +383,6 @@ fun RoomsHubScreen(
 
         }
 
-        if (recentlyJoinedRooms.isNotEmpty()) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Filled.History, contentDescription = null, tint = VibePink)
-                        Text(text = "Recently Joined (${recentlyJoinedRooms.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    }
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        items(recentlyJoinedRooms, key = { "hub_recent_" + it.id }) { room ->
-                            VoiceRoomCard(room = room, onClick = { onOpenRoom(room) })
-                        }
-                    }
-                }
-            }
-        }
         if (liveRooms.isNotEmpty()) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -394,5 +412,47 @@ fun RoomsHubScreen(
                 VoiceRoomCard(room = room, onClick = { onOpenRoom(room) })
             }
         }
+    }
+
+    if (showJoinRoomDialog) {
+        AlertDialog(
+            onDismissRequest = { showJoinRoomDialog = false },
+            title = { Text("Join Voice Room") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Enter the room ID to join an active room.")
+                    OutlinedTextField(
+                        value = roomIdToJoin,
+                        onValueChange = { value ->
+                            roomIdToJoin = value.filter { it.isLetterOrDigit() || it == '-' }.take(40)
+                            joinRoomError = null
+                        },
+                        label = { Text("Room ID") },
+                        singleLine = true,
+                        isError = joinRoomError != null,
+                        modifier = Modifier.fillMaxWidth().testTag("join_room_id_input")
+                    )
+                    joinRoomError?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val target = liveRooms.firstOrNull { it.id.equals(roomIdToJoin.trim(), ignoreCase = true) }
+                        when {
+                            roomIdToJoin.isBlank() -> joinRoomError = "Enter a room ID."
+                            target == null -> joinRoomError = "Room not found or it is no longer live."
+                            else -> { showJoinRoomDialog = false; onOpenRoom(target) }
+                        }
+                    },
+                    modifier = Modifier.testTag("confirm_join_room")
+                ) { Text("Join") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showJoinRoomDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 }

@@ -796,7 +796,6 @@ fun ProfileScreen(
                     border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.55f)),
                     modifier = Modifier
                         .weight(1f)
-                        .clickable(onClick = onClaimDailyReward)
                         .testTag("profile_wallet_card")
                 ) {
                     Column(

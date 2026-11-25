@@ -650,24 +650,38 @@ private fun ChatDetailScreen(
     }
 
     var lastGiftSoundMessageId by remember(conversation.id) { mutableStateOf("") }
+    var giftHistoryInitialized by remember(conversation.id) { mutableStateOf(false) }
+
     LaunchedEffect(messages.size, messages.lastOrNull()?.id) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.lastIndex)
-            val latestMessage = messages.last()
-            if (latestMessage.type == "GIFT" && latestMessage.id.isNotBlank() &&
-                latestMessage.id != lastGiftSoundMessageId
-            ) {
-                lastGiftSoundMessageId = latestMessage.id
-                inboxGiftBurst = GiftBurstEvent(
-                    id = latestMessage.id,
-                    senderName = latestMessage.senderName,
-                    recipientName = latestMessage.recipientName.ifBlank { headerTitle },
-                    giftName = latestMessage.giftName.ifBlank { "Virtual Gift" },
-                    coinCost = latestMessage.giftCoins,
-                    giftId = latestMessage.giftId,
-                    quantity = latestMessage.giftQuantity.coerceIn(1L, 999L)
-                )
-            }
+        }
+    }
+
+    // The first Firestore snapshot is message history, not a newly received gift.
+    // Only trigger the full-screen burst for a gift that arrives after this chat is open.
+    LaunchedEffect(conversation.id, messages.lastOrNull()?.id) {
+        val latestMessage = messages.lastOrNull() ?: return@LaunchedEffect
+        if (!giftHistoryInitialized) {
+            lastGiftSoundMessageId = latestMessage.id
+            giftHistoryInitialized = true
+            return@LaunchedEffect
+        }
+        if (latestMessage.type == "GIFT" && latestMessage.id.isNotBlank() &&
+            latestMessage.id != lastGiftSoundMessageId
+        ) {
+            lastGiftSoundMessageId = latestMessage.id
+            inboxGiftBurst = GiftBurstEvent(
+                id = latestMessage.id,
+                senderName = latestMessage.senderName,
+                recipientName = latestMessage.recipientName.ifBlank { headerTitle },
+                giftName = latestMessage.giftName.ifBlank { "Virtual Gift" },
+                coinCost = latestMessage.giftCoins,
+                giftId = latestMessage.giftId,
+                quantity = latestMessage.giftQuantity.coerceIn(1L, 999L)
+            )
+        } else if (latestMessage.id.isNotBlank()) {
+            lastGiftSoundMessageId = latestMessage.id
         }
     }
 
@@ -942,7 +956,10 @@ private fun ChatDetailScreen(
                                         verticalArrangement = Arrangement.spacedBy(5.dp)
                                     ) {
                                         Text("✨ SPECIAL GIFT ✨", color = VibeGold, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelMedium)
-                                        Box(Modifier.size(76.dp).clip(CircleShape).background(Brush.radialGradient(listOf(VibePink, VibeViolet, Color(0xFF171039)))), contentAlignment = Alignment.Center) { Text(msg.giftName.take(1).uppercase(), color = Color.White, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black) }
+                                        GiftCatalogArtwork(
+                                            gift = GiftCatalogItem(id = msg.giftId, name = msg.giftName.ifBlank { "Virtual Gift" }),
+                                            modifier = Modifier.size(132.dp)
+                                        )
                                         Text(msg.giftName.ifBlank { "Virtual Gift" }, color = Color.White, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
                                         if (msg.giftQuantity > 1L) Text("Combo ×${msg.giftQuantity}", color = VibeCyan, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
                                         Text("${senderName} sent a gift!", color = VibeGold, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)

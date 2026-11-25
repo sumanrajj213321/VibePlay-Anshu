@@ -111,6 +111,7 @@ import com.example.data.model.CharmProgression
 import com.example.data.model.GiftBurstEvent
 import com.example.data.model.GiftCatalogItem
 import com.example.data.model.GiftTransaction
+import com.example.data.model.RoomLevelProgression
 import com.example.data.model.RoomListener
 import com.example.data.model.RoomMessage
 import com.example.data.model.RoomMusicState
@@ -362,6 +363,13 @@ internal fun VoiceRoomStageContent(
     val snackbarHostState = remember { SnackbarHostState() }
     val chatListState = rememberLazyListState()
     val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val roomGiftCoins = remember(currentRoom.id, giftTransactions) {
+        giftTransactions.filter { it.roomId == currentRoom.id }.sumOf { it.coinCost.coerceAtLeast(0L) }
+    }
+    val roomExp = RoomLevelProgression.expFromGiftCoins(roomGiftCoins)
+    val roomLevel = RoomLevelProgression.levelForExp(roomExp)
+    val roomExpIntoLevel = RoomLevelProgression.expIntoLevel(roomExp)
+    val roomExpToNextLevel = RoomLevelProgression.expForNextLevel(roomExp)
 
     var chatInput by remember { mutableStateOf("") }
     var isChatInputFocused by remember { mutableStateOf(false) }
@@ -371,6 +379,7 @@ internal fun VoiceRoomStageContent(
     var showRoomMusic by remember { mutableStateOf(false) }
     var showOnlineMembers by remember { mutableStateOf(false) }
     var showRoomInfo by remember { mutableStateOf(false) }
+    var showRoomExpDetails by remember { mutableStateOf(false) }
     var showInvitationDialog by remember { mutableStateOf(false) }
     LaunchedEffect(mySeatInvitation?.id, mySeatInvitation?.status) {
         if (mySeatInvitation?.status == "INVITED") showInvitationDialog = true
@@ -643,13 +652,25 @@ internal fun VoiceRoomStageContent(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text(
-                                text = currentRoom.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Surface(
+                                shape = RoundedCornerShape((8 + (roomLevel % 4) * 3).dp),
+                                color = Color.Black.copy(alpha = 0.22f),
+                                border = BorderStroke(
+                                    (1.5f + ((roomLevel - 1L) % 4L) * 0.45f).dp,
+                                    Brush.linearGradient(roomLevelPalette(roomLevel))
+                                ),
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
+                                Text(
+                                    text = currentRoom.title,
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            RoomLevelBadge(level = roomLevel)
                             IconButton(
                                 onClick = { showRoomInfo = true },
                                 modifier = Modifier
@@ -677,6 +698,26 @@ internal fun VoiceRoomStageContent(
                             style = MaterialTheme.typography.labelSmall,
                             color = VibeCyan
                         )
+                        Row(
+                            modifier = Modifier
+                                .clickable { showRoomExpDetails = true }
+                                .testTag("room_exp_details_entry"),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Text("✦", color = roomLevelPalette(roomLevel).first(), fontWeight = FontWeight.Black)
+                            Text(
+                                text = if (roomExpToNextLevel == null) {
+                                    "Room EXP · %,d · MAX LEVEL".format(roomExp)
+                                } else {
+                                    "Room EXP · %,d / %,d".format(roomExpIntoLevel, RoomLevelProgression.EXP_PER_LEVEL)
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text("ⓘ", style = MaterialTheme.typography.labelSmall, color = VibeGold)
+                        }
                         Text(
                             text = "ROOM ID · ${currentRoom.publicRoomId.ifBlank { currentRoom.id }}",
                             style = MaterialTheme.typography.labelSmall,
@@ -1072,6 +1113,46 @@ internal fun VoiceRoomStageContent(
                 onDismiss = { showInvitationDialog = false }
             )
         }
+    }
+
+    if (showRoomExpDetails) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showRoomExpDetails = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    RoomLevelBadge(level = roomLevel)
+                    Text("Room EXP Details", fontWeight = FontWeight.ExtraBold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("Room: ${currentRoom.title}", fontWeight = FontWeight.SemiBold)
+                    Text("Room Level $roomLevel / ${RoomLevelProgression.MAX_LEVEL}", color = VibeGold, fontWeight = FontWeight.Bold)
+                    Text("Total room gift value: %,d coins".format(roomGiftCoins))
+                    Text("Room EXP earned: %,d".format(roomExp))
+                    Text("Conversion: 10 room gift coins = 1 Room EXP")
+                    if (roomExpToNextLevel == null) {
+                        Text("This room has reached the maximum level.")
+                    } else {
+                        Text("Progress in this level: %,d / %,d EXP".format(roomExpIntoLevel, RoomLevelProgression.EXP_PER_LEVEL))
+                        Text("EXP needed for Level ${roomLevel + 1}: %,d".format(roomExpToNextLevel))
+                        androidx.compose.material3.LinearProgressIndicator(
+                            progress = { roomExpIntoLevel.toFloat() / RoomLevelProgression.EXP_PER_LEVEL.toFloat() },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = roomLevelPalette(roomLevel).first()
+                        )
+                    }
+                    Text(
+                        "Room EXP is separate from every user's personal level and EXP.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showRoomExpDetails = false }) { Text("Close") }
+            }
+        )
     }
 
     if (showRoomInfo) {
@@ -1669,3 +1750,45 @@ private fun RoomGiftRankingStrip(
         }
     }
 }
+
+private fun roomLevelPalette(level: Long): List<Color> = when (((level - 1L).coerceIn(0L, 19L)).toInt()) {
+    0 -> listOf(Color(0xFF70E1F5), Color(0xFFFFD194))
+    1 -> listOf(Color(0xFFB8C0CC), Color(0xFF6F8299))
+    2 -> listOf(Color(0xFFCD7F32), Color(0xFFFFD08A))
+    3 -> listOf(Color(0xFF42E695), Color(0xFF3BB2B8))
+    4 -> listOf(Color(0xFF4776E6), Color(0xFF8E54E9))
+    5 -> listOf(Color(0xFFFF512F), Color(0xFFDD2476))
+    6 -> listOf(Color(0xFF00C9FF), Color(0xFF92FE9D))
+    7 -> listOf(Color(0xFFF7971E), Color(0xFFFFD200))
+    8 -> listOf(Color(0xFFDA22FF), Color(0xFF9733EE))
+    9 -> listOf(Color(0xFF11998E), Color(0xFF38EF7D))
+    10 -> listOf(Color(0xFFFC466B), Color(0xFF3F5EFB))
+    11 -> listOf(Color(0xFF654EA3), Color(0xFFEAAFC8))
+    12 -> listOf(Color(0xFF56CCF2), Color(0xFF2F80ED))
+    13 -> listOf(Color(0xFFFDC830), Color(0xFFF37335))
+    14 -> listOf(Color(0xFF00F5A0), Color(0xFF00D9F5))
+    15 -> listOf(Color(0xFFFF6A00), Color(0xFFEE0979))
+    16 -> listOf(Color(0xFFB993D6), Color(0xFF8CA6DB))
+    17 -> listOf(Color(0xFF43C6AC), Color(0xFFF8FFAE))
+    18 -> listOf(Color(0xFFFFD700), Color(0xFFFFFFFF))
+    else -> listOf(Color(0xFFFF00CC), Color(0xFF333399))
+}
+
+@Composable
+private fun RoomLevelBadge(level: Long) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = Color.Black.copy(alpha = 0.3f),
+        border = BorderStroke(1.dp, Brush.linearGradient(roomLevelPalette(level)))
+    ) {
+        Text(
+            text = "✦ LV $level",
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
+            color = roomLevelPalette(level).first(),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.ExtraBold,
+            maxLines = 1
+        )
+    }
+}
+

@@ -965,6 +965,8 @@ private fun formatPublicGiftCount(value: Long): String {
 @Composable
 fun PublicProfileSheet(
     targetUser: UserProfile,
+    liveRooms: List<VoiceRoom> = emptyList(),
+    onJoinUserRoom: (VoiceRoom) -> Unit = {},
     currentUserId: String = "",
     isFollowing: Boolean,
     followersList: List<FollowEdge> = emptyList(),
@@ -987,6 +989,41 @@ fun PublicProfileSheet(
     }
     var showPublicRelationship by remember(targetUser.userId) { mutableStateOf(true) }
     val isSelf = currentUserId.isNotBlank() && targetUser.userId == currentUserId
+    var activeUserRoom by remember(targetUser.userId) { mutableStateOf<VoiceRoom?>(null) }
+
+    DisposableEffect(targetUser.userId, liveRooms.map { it.id }) {
+        activeUserRoom = null
+        val registrations = liveRooms.filter { it.status == "LIVE" }.map { room ->
+            FirebaseFirestore.getInstance()
+                .collection("rooms")
+                .document(room.id)
+                .collection("room_sessions")
+                .whereEqualTo("userId", targetUser.userId)
+                .limit(1)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) return@addSnapshotListener
+                    val session = snapshot?.documents?.firstOrNull()
+                    val lastSeenMillis = session?.getTimestamp("lastSeenAt")?.toDate()?.time
+                        ?: session?.getTimestamp("joinedAt")?.toDate()?.time
+                    val isFresh = session != null && lastSeenMillis != null &&
+                        System.currentTimeMillis() - lastSeenMillis <= 60_000L
+                    if (isFresh) {
+                        activeUserRoom = room
+                    } else if (activeUserRoom?.id == room.id) {
+                        activeUserRoom = null
+                    }
+                }
+        }
+        onDispose { registrations.forEach { it.remove() } }
+    }
+
+    val roomTextTransition = rememberInfiniteTransition(label = "profile_room_presence")
+    val roomTextShake by roomTextTransition.animateFloat(
+        initialValue = -1f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(85), repeatMode = RepeatMode.Reverse),
+        label = "profile_room_presence_shake"
+    )
 
     var firestoreCoverBitmap by remember(targetUser.userId, targetUser.coverUrl) {
         mutableStateOf<Bitmap?>(null)
@@ -1221,6 +1258,34 @@ fun PublicProfileSheet(
                                 Text("$charms  ·  Charm Level $charmLevel", style = MaterialTheme.typography.labelLarge, color = Color(0xFFE9FFFF), fontWeight = FontWeight.ExtraBold)
                             }
                         }
+                    }
+                }
+            }
+
+            if (activeUserRoom != null && !isSelf) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer { translationX = roomTextShake * 2.2f }
+                        .clickable {
+                            activeUserRoom?.let(onJoinUserRoom)
+                        }
+                        .testTag("public_profile_in_chat_room"),
+                    shape = RoundedCornerShape(14.dp),
+                    color = VibeEmerald.copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, VibeEmerald.copy(alpha = 0.75f))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            "●  IN CHAT ROOM · TAP TO JOIN",
+                            color = VibeEmerald,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.ExtraBold
+                        )
                     }
                 }
             }

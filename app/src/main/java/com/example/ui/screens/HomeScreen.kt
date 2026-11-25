@@ -404,7 +404,7 @@ fun HomeScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Claim +150 Coins & +50 XP",
+                                    text = "Claim +100,000 Coins & +50 XP",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

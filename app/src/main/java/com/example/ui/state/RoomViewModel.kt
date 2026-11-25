@@ -22,6 +22,8 @@ import com.example.data.model.VoiceSeat
 import com.example.data.model.VoiceStage
 import com.example.data.repository.RoomRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -514,11 +516,16 @@ class RoomViewModel(
         }
     }
 
+    private var leaveInProgress = false
+
     fun leaveRoom(onLeft: () -> Unit) {
+        if (leaveInProgress) return
+        leaveInProgress = true
         val currentRoom = room.value
         val seats = rawSeats.value
 
-        // Stop the previous visit immediately, even if the presence cleanup later fails.
+        // Stop room listeners immediately and return to the previous screen without
+        // waiting for a multi-document Firestore transaction to finish.
         joinedListenerDone = false
         roomJoinInProgress = false
         roomJoinJob?.cancel()
@@ -527,8 +534,6 @@ class RoomViewModel(
         roomSessionJob = null
         roomHeartbeatJob?.cancel()
         roomHeartbeatJob = null
-        voiceEngine.disconnect()
-        _giftBurst.value = null
         roomMessagesJob?.cancel()
         roomMessagesJob = null
         roomGiftTransactionsJob?.cancel()
@@ -537,18 +542,22 @@ class RoomViewModel(
         _messages.value = emptyList()
         _giftBurst.value = null
 
-        if (currentRoom == null) {
-            onLeft()
-            return
-        }
-        viewModelScope.launch(NonCancellable) {
-            val result = roomRepository.leaveRoom(currentRoom, currentUserId, seats)
-            if (result.isFailure) {
-                _roomError.value = result.exceptionOrNull()?.localizedMessage
-                    ?: "Could not update your room presence. Please try leaving again."
+        // Disconnect audio and clean presence off the UI thread. The screen exits
+        // immediately; cleanup remains best-effort even if the screen is disposed.
+        viewModelScope.launch(NonCancellable + Dispatchers.IO) {
+            voiceEngine.disconnect()
+            if (currentRoom != null) {
+                val result = roomRepository.leaveRoom(currentRoom, currentUserId, seats)
+                if (result.isFailure) {
+                    val message = result.exceptionOrNull()?.localizedMessage
+                        ?: "Could not update your room presence. Please try leaving again."
+                    withContext(Dispatchers.Main.immediate) {
+                        _roomError.value = message
+                    }
+                }
             }
-            onLeft()
         }
+        onLeft()
     }
 
     override fun onCleared() {

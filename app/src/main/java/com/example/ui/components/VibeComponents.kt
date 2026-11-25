@@ -106,6 +106,7 @@ import androidx.compose.ui.unit.sp
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil.request.CachePolicy
 import coil.decode.GifDecoder
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -198,6 +199,36 @@ private object VibeAvatarMemoryCache {
     fun put(key: String, value: ByteArray) {
         entries[key] = value
     }
+
+    private fun diskFile(context: Context, key: String): java.io.File {
+        val safeKey = Base64.encodeToString(key.toByteArray(Charsets.UTF_8), Base64.URL_SAFE or Base64.NO_WRAP)
+        return java.io.File(java.io.File(context.filesDir, "avatar_cache"), "$safeKey.img")
+    }
+
+    suspend fun getOrReadDisk(context: Context, key: String): ByteArray? {
+        get(key)?.let { return it }
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                diskFile(context, key).takeIf { it.isFile && it.length() > 0L }?.readBytes()
+            }.getOrNull()?.also { put(key, it) }
+        }
+    }
+
+    suspend fun putPersistent(context: Context, key: String, value: ByteArray) {
+        put(key, value)
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val file = diskFile(context, key)
+                file.parentFile?.mkdirs()
+                val temp = java.io.File(file.parentFile, file.name + ".tmp")
+                temp.writeBytes(value)
+                if (temp.length() == value.size.toLong()) {
+                    if (file.exists()) file.delete()
+                    temp.renameTo(file)
+                } else temp.delete()
+            }
+        }
+    }
 }
 
 @Composable
@@ -222,7 +253,8 @@ fun VibeAvatar(
     LaunchedEffect(avatarUrl) {
         if (firestoreAvatar && firestoreAvatarUid.isNotBlank()) {
             // Reuse the same decoded photo across profile, room, chat and seat avatars.
-            val cached = VibeAvatarMemoryCache.get(avatarUrl)
+            // Reuse a persisted copy before requesting Firestore again.
+            val cached = VibeAvatarMemoryCache.getOrReadDisk(avatarContext, avatarUrl)
             if (cached != null) {
                 firestoreAvatarBytes = cached
                 return@LaunchedEffect
@@ -240,7 +272,7 @@ fun VibeAvatar(
                     }
                 }.getOrNull()
                 if (loaded != null && loaded.isNotEmpty()) {
-                    VibeAvatarMemoryCache.put(avatarUrl, loaded)
+                    VibeAvatarMemoryCache.putPersistent(avatarContext, avatarUrl, loaded)
                     firestoreAvatarBytes = loaded
                     return@LaunchedEffect
                 }
@@ -362,8 +394,9 @@ fun VibeAvatar(
                 avatarUrl.takeIf { it.isNotBlank() }?.let { url ->
                     ImageRequest.Builder(avatarContext)
                         .data(url)
-                        .crossfade(180)
-                        .memoryCacheKey("$url#retry$avatarRetryCount")
+                        .crossfade(false)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
                         .build()
                 }
             }

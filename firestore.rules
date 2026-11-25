@@ -489,12 +489,6 @@ service cloud.firestore {
           'weeklyGiftCoinsSent', 'weeklyGiftCoinsReceived', 'weeklyGiftCoinsWeek',
           'lastGiftTransactionId', 'xp', 'level', 'updatedAt'
         ]) &&
-        incoming().dailyGiftCoinsSent is int && incoming().dailyGiftCoinsSent >= 0 &&
-        incoming().dailyGiftCoinsReceived is int && incoming().dailyGiftCoinsReceived >= 0 &&
-        incoming().dailyGiftCoinsDate is string && incoming().dailyGiftCoinsDate.size() <= 20 &&
-        incoming().weeklyGiftCoinsSent is int && incoming().weeklyGiftCoinsSent >= 0 &&
-        incoming().weeklyGiftCoinsReceived is int && incoming().weeklyGiftCoinsReceived >= 0 &&
-        incoming().weeklyGiftCoinsWeek is string && incoming().weeklyGiftCoinsWeek.size() <= 20 &&
         gift.coinCost is int && gift.coinCost > 0 &&
         gift.quantity is int && gift.quantity > 0 &&
         (

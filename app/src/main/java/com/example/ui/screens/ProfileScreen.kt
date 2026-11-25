@@ -495,7 +495,7 @@ fun ProfileScreen(
                         compact = true
                     )
                     if (profile.isVipActive) {
-                        VipBadgePill(profile.vipLevel)
+                        VipMiniBadge(profile.vipLevel)
                     }
                 }
 

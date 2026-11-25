@@ -10,6 +10,105 @@ const { createHash } = require("node:crypto");
 initializeApp();
 const db = getFirestore();
 
+const PUBLIC_GIFT_WALL_PAGE_SIZE = 250;
+
+function toPublicGiftWallProjection(gift, transactionId) {
+  if (!gift || typeof transactionId !== "string" || !transactionId ||
+      typeof gift.senderId !== "string" || !gift.senderId ||
+      typeof gift.recipientId !== "string" || !gift.recipientId ||
+      typeof gift.giftId !== "string" || !gift.giftId ||
+      typeof gift.giftName !== "string" || !gift.giftName ||
+      !Number.isSafeInteger(gift.coinCost) || gift.coinCost <= 0 ||
+      !Number.isSafeInteger(gift.quantity) || gift.quantity < 1) {
+    return null;
+  }
+  return {
+    giftTransactionId: transactionId,
+    senderId: gift.senderId,
+    recipientId: gift.recipientId,
+    giftId: gift.giftId,
+    giftName: gift.giftName.slice(0, 60),
+    coinCost: gift.coinCost,
+    quantity: Math.min(gift.quantity, 999),
+    createdAt: gift.createdAt || FieldValue.serverTimestamp()
+  };
+}
+
+// Keep the public projection in sync even when an older app version writes
+// a gift transaction without creating its public Gift Wall document.
+exports.publishGiftWallEntry = onDocumentCreated(
+  {
+    document: "gift_transactions/{transactionId}",
+    region: "asia-south1",
+    retry: true
+  },
+  async (event) => {
+    const gift = event.data && event.data.data();
+    const projection = toPublicGiftWallProjection(gift, event.params.transactionId);
+    if (!projection) {
+      logger.warn("Skipping malformed gift transaction for public Gift Wall", {
+        transactionId: event.params.transactionId
+      });
+      return;
+    }
+    await db.collection("public_gift_wall")
+      .doc(event.params.transactionId)
+      .set(projection, { merge: true });
+    logger.info("Published public Gift Wall entry", {
+      transactionId: event.params.transactionId,
+      recipientId: projection.recipientId
+    });
+  }
+);
+
+// Backfill old gift transactions into the minimal public Gift Wall collection.
+// Existing projections are left untouched; full/private transaction fields are never copied.
+exports.backfillPublicGiftWall = onSchedule(
+  {
+    schedule: "every 15 minutes",
+    timeZone: "Asia/Kolkata",
+    region: "asia-south1",
+    retryCount: 3
+  },
+  async () => {
+    let cursor = null;
+    let scanned = 0;
+    let published = 0;
+    while (true) {
+      let query = db.collection("gift_transactions")
+        .orderBy(FieldPath.documentId(), "asc")
+        .limit(PUBLIC_GIFT_WALL_PAGE_SIZE);
+      if (cursor) query = query.startAfter(cursor);
+      const page = await query.get();
+      if (page.empty) break;
+
+      const projectionRefs = page.docs.map((doc) =>
+        db.collection("public_gift_wall").doc(doc.id)
+      );
+      const existingProjections = await db.getAll(...projectionRefs);
+      const batch = db.batch();
+      let writes = 0;
+      for (let i = 0; i < page.docs.length; i += 1) {
+        scanned += 1;
+        if (existingProjections[i].exists) continue;
+        const source = page.docs[i];
+        const projection = toPublicGiftWallProjection(source.data(), source.id);
+        if (!projection) continue;
+        batch.create(projectionRefs[i], projection);
+        writes += 1;
+      }
+      if (writes > 0) {
+        await batch.commit();
+        published += writes;
+      }
+      cursor = page.docs[page.docs.length - 1];
+      if (page.size < PUBLIC_GIFT_WALL_PAGE_SIZE) break;
+    }
+    logger.info("Public Gift Wall backfill completed", { scanned, published });
+  }
+);
+
+
 const LEVELS = [
   10000, 30000, 60000, 100000, 150000,
   220000, 300000, 400000, 550000, 750000

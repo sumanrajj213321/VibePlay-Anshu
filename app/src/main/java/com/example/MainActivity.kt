@@ -423,6 +423,7 @@ private fun AuthenticatedVibePlayApp(
                 listOf(MainTab.Home, MainTab.Explore, MainTab.Rooms, MainTab.Inbox, MainTab.Profile)
             }
             val showTopLevelNav = (currentRoute ?: MainTab.Home.route) in mainTabs.map { it.route } || activeRoomId != null
+            val isVoiceRoomScreen = currentRoute == ROUTE_VOICE_ROOM || currentRoute?.startsWith("room/") == true
 
             val switchTab: (MainTab) -> Unit = { tab ->
                 if (tab != MainTab.Inbox) {
@@ -490,7 +491,7 @@ private fun AuthenticatedVibePlayApp(
                     contentWindowInsets = WindowInsets.systemBars,
                     snackbarHost = { SnackbarHost(snackbarHostState) },
                     bottomBar = {
-                        if (showTopLevelNav && currentRoute?.startsWith("room/") != true && !useNavigationRail) {
+                        if (showTopLevelNav && !isVoiceRoomScreen && !useNavigationRail) {
                             NavigationBar {
                                 mainTabs.forEach { tab ->
                                     val selected = currentRoute == tab.route
@@ -520,7 +521,7 @@ private fun AuthenticatedVibePlayApp(
                             .padding(innerPadding)
                             .consumeWindowInsets(innerPadding)
                     ) {
-                        if (showTopLevelNav && currentRoute?.startsWith("room/") != true && useNavigationRail) {
+                        if (showTopLevelNav && !isVoiceRoomScreen && useNavigationRail) {
                             NavigationRail(modifier = Modifier.fillMaxHeight()) {
                                 Spacer(modifier = Modifier.height(12.dp))
                                 mainTabs.forEach { tab ->

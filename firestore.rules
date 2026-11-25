@@ -535,42 +535,8 @@ service cloud.firestore {
         incoming().diff(existing()).affectedKeys().hasOnly([
           'coinBalance', 'vipLevel', 'vipExpiresAt', 'updatedAt'
         ]);
-      // Fast, narrowly-scoped profile edit path for legacy accounts.
-      // Place before other update rules to avoid exhausting Firestore's expression budget.
-      allow update: if isSignedIn() &&
-                       request.auth.uid == userId &&
-                       (!('userId' in existing()) || !('vibeId' in existing()) || !('createdAt' in existing())) &&
-                       incoming().role == existing().role &&
-                       incoming().accountStatus == existing().accountStatus &&
-                       incoming().coinBalance == existing().coinBalance &&
-                       incoming().vipLevel == existing().vipLevel &&
-                       incoming().username is string &&
-                       incoming().username.size() >= 2 && incoming().username.size() <= 30 &&
-                       incoming().bio is string && incoming().bio.size() <= 200 &&
-                       incoming().avatarUrl is string && incoming().avatarUrl.size() <= 500 &&
-                       incoming().coverUrl is string && incoming().coverUrl.size() <= 500 &&
-                       incoming().age is int &&
-                       (incoming().age == 0 || (incoming().age >= 13 && incoming().age <= 120)) &&
-                       incoming().showAge is bool &&
-                       incoming().showGender is bool &&
-                       incoming().showOnlineStatus is bool &&
-                       incoming().gender is string &&
-                       incoming().gender in ['UNSPECIFIED', 'FEMALE', 'MALE', 'NON_BINARY'] &&
-                       incoming().genderChangeCount is int &&
-                       incoming().genderChangeCount >= 0 && incoming().genderChangeCount <= 1 &&
-                       (!('online' in incoming()) || incoming().online is bool) &&
-                       isValidTs(incoming().updatedAt) &&
-                       ((('gender' in existing()) && incoming().gender == existing().gender &&
-                         incoming().genderChangeCount == (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0)) ||
-                        ((!('gender' in existing()) || existing().gender == 'UNSPECIFIED') &&
-                         (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0) == 0 &&
-                         incoming().gender in ['UNSPECIFIED', 'FEMALE', 'MALE', 'NON_BINARY'] &&
-                         incoming().genderChangeCount <= 1)) &&
-                       incoming().diff(existing()).affectedKeys().hasOnly([
-                         'username', 'bio', 'avatarUrl', 'coverUrl', 'gender',
-                         'genderChangeCount', 'age', 'ageRange', 'showAge',
-                         'showGender', 'showOnlineStatus', 'online', 'updatedAt'
-                       ]);
+      // Legacy profile documents are already supported by the general profile rule below:
+      // it permits absent userId/createdAt fields and validates only the edited profile fields.
       allow get: if isSignedIn() && isValidId(userId) && (
         request.auth.uid == userId || existing().accountStatus == 'ACTIVE'
       );

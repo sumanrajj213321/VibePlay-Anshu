@@ -357,8 +357,8 @@ fun InboxScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 18.dp)
-                                .heightIn(min = 88.dp),
+                                .padding(horizontal = 14.dp, vertical = 20.dp)
+                                .heightIn(min = 100.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
@@ -366,7 +366,7 @@ fun InboxScreen(
                                 VibeAvatar(
                                     avatarUrl = displayAvatar,
                                     username = displayName,
-                                    size = 58.dp,
+                                    size = 64.dp,
                                     vipLevel = if (conv.isGroupChat) 0L else (peerProfile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L),
                                     online = isOnline,
                                     frameColorArgb = if (conv.isGroupChat) null else peerProfile?.let { profile -> VibeShopCatalog.frames.firstOrNull { it.id == profile.activeFrameId && profile.isFrameActive(it.id) }?.colorArgb }
@@ -401,7 +401,7 @@ fun InboxScreen(
                                     VipShiningNameText(
                                         text = displayName,
                                         vipLevel = if (conv.isGroupChat) 0L else (peerProfile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L),
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f, fill = false)

@@ -407,7 +407,7 @@ fun ProfileScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(165.dp),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Fit
                     )
                 } else if (!isFirestoreCover && profile.coverUrl.isNotBlank() && !coverLoadFailed) {
                     AsyncImage(
@@ -416,7 +416,7 @@ fun ProfileScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(165.dp),
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         onError = { coverLoadFailed = true }
                     )
                 } else {

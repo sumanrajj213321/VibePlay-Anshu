@@ -1,6 +1,7 @@
 package com.example.data.repository
 
 import android.content.Context
+import android.net.Uri
 import com.example.R
 import com.example.data.firebase.OperationType
 import com.example.data.firebase.handleFirestoreError
@@ -12,6 +13,8 @@ import com.example.data.model.UserProfile
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
+import com.google.firebase.Timestamp
+import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -23,7 +26,8 @@ import kotlinx.coroutines.tasks.await
 
 class InboxRepository(
     private val db: FirebaseFirestore,
-    private val auth: FirebaseAuth = Firebase.auth
+    private val auth: FirebaseAuth = Firebase.auth,
+    private val storage: FirebaseStorage = FirebaseStorage.getInstance()
 ) {
     constructor(context: Context) : this(
         FirebaseFirestore.getInstance(
@@ -190,6 +194,7 @@ class InboxRepository(
         imageUri: String? = null
     ): Result<Unit> {
         val path = "conversations/${conversation.id}/messages"
+        var uploadedStoragePath: String? = null
         return try {
             val uid = requireUserId()
             check(uid == sender.userId)
@@ -201,6 +206,20 @@ class InboxRepository(
             val msgRef = convRef.collection("messages").document()
             val preview = if (isImage && cleanText.isEmpty()) "[Photo]" else cleanText.take(120)
             val recipients = conversation.participantIds.filter { it != uid }.take(49)
+            val msgImageRef = if (isImage) {
+                val imageUriValue = Uri.parse(imageUri!!)
+                require(imageUriValue.scheme == "content" || imageUriValue.scheme == "file") {
+                    "Please select the image again."
+                }
+                val objectPath = "inbox-images/${conversation.id}/${msgRef.id}"
+                val imageRef = storage.reference.child(objectPath)
+                imageRef.putFile(imageUriValue).await()
+                uploadedStoragePath = objectPath
+                imageRef.downloadUrl.await().toString()
+            } else null
+            val imageExpiry = if (isImage) {
+                Timestamp(java.util.Date(System.currentTimeMillis() + 7L * 24L * 60L * 60L * 1000L))
+            } else null
 
             val updatedNames = conversation.participantNames.toMutableMap().apply {
                 put(uid, sender.username)
@@ -222,7 +241,9 @@ class InboxRepository(
                 "createdAt" to FieldValue.serverTimestamp()
             )
             if (!imageUri.isNullOrBlank()) {
-                msgPayload["imageUri"] = imageUri.take(600)
+                msgPayload["imageUri"] = msgImageRef!!.take(600)
+                msgPayload["storagePath"] = uploadedStoragePath!!
+                msgPayload["expiresAt"] = imageExpiry!!
             }
             batch.set(msgRef, msgPayload)
             batch.update(
@@ -259,8 +280,14 @@ class InboxRepository(
             batch.commit().await()
             Result.success(Unit)
         } catch (e: CancellationException) {
+            uploadedStoragePath?.let { storagePath ->
+                runCatching { storage.reference.child(storagePath).delete().await() }
+            }
             throw e
         } catch (e: Exception) {
+            uploadedStoragePath?.let { storagePath ->
+                runCatching { storage.reference.child(storagePath).delete().await() }
+            }
             handleFirestoreError(e, OperationType.CREATE, path)
             Result.failure(e)
         }

@@ -26,6 +26,25 @@ service firebase.storage {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Inbox photos are stored in cloud storage so they survive logout and reinstall.
+    // Only signed-in participants of the conversation can read them; only the sender can upload.
+    match /chat-images/{conversationId}/{senderId}/{fileName} {
+      function conversationData() {
+        return firestore.get(/databases/(default)/documents/conversations/$(conversationId)).data;
+      }
+      allow read: if request.auth != null
+                  && request.auth.uid in conversationData().participantIds;
+      allow write: if request.auth != null
+                   && request.auth.uid == senderId
+                   && request.auth.uid in conversationData().participantIds
+                   && request.resource != null
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null
+                    && request.auth.uid == senderId
+                    && request.auth.uid in conversationData().participantIds;
+    }
+
     match /room-covers/{roomId}/{fileName} {
       function roomData() {
         return firestore.get(/databases/(default)/documents/rooms/$(roomId)).data;

@@ -389,7 +389,8 @@ class UserRepository(
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
                 if (showOnlineStatus) updates["online"] = true
-                if (oldGender != gender) updates["gender"] = gender
+                // Always include gender so legacy profiles missing this field can pass profile validation.
+                updates["gender"] = gender
                 transaction.update(profileRef, updates)
             }.await()
             Result.success(Unit)

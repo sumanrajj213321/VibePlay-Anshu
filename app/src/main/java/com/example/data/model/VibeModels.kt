@@ -503,6 +503,7 @@ data class DirectMessage(
     val giftName: String = "",
     val giftEmoji: String = "",
     val giftCoins: Long = 0L,
+    val giftQuantity: Long = 1L,
     val recipientId: String = "",
     val recipientName: String = "",
     val read: Boolean = false,

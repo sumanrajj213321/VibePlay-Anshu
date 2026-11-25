@@ -672,14 +672,14 @@ object VibeCatalogDefaults {
     )
 
     val vipTiers = listOf(
-        VipTier(1, "VIP 1 · Starlight", 200L, 0xFFE53935, "Cyan Ripple Entrance", listOf("VIP 1 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
-        VipTier(2, "VIP 2 · Neon Pulse", 450L, 0xFFFB8C00, "Aurora Wave Banner", listOf("VIP 2 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
-        VipTier(3, "VIP 3 · Coral Crown", 900L, 0xFFFDD835, "Pink Spotlight Arrival", listOf("VIP 3 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
-        VipTier(4, "VIP 4 · Royal Gold", 1800L, 0xFF43A047, "Golden Crown Shower", listOf("VIP 4 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
-        VipTier(5, "VIP 5 · Apex Legend", 3500L, 0xFF00897B, "Full-Screen Galaxy Entrance", listOf("VIP 5 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
-        VipTier(6, "VIP 6 · Aurora", 7000L, 0xFF1E88E5, "Aurora Portal", listOf("VIP 6 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
-        VipTier(7, "VIP 7 · Eclipse", 14000L, 0xFF8E24AA, "Eclipse Spotlight", listOf("VIP 7 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
-        VipTier(8, "VIP 8 · Stellar", 28000L, 0xFFD81B60, "Stellar Burst", listOf("VIP 8 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect"))
+        VipTier(1, "VIP 1 · Starlight", 100_000L, 0xFFE53935, "Cyan Ripple Entrance", listOf("VIP 1 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(2, "VIP 2 · Neon Pulse", 1_000_000L, 0xFFFB8C00, "Aurora Wave Banner", listOf("VIP 2 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(3, "VIP 3 · Coral Crown", 3_000_000L, 0xFFFDD835, "Pink Spotlight Arrival", listOf("VIP 3 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(4, "VIP 4 · Royal Gold", 7_000_000L, 0xFF43A047, "Golden Crown Shower", listOf("VIP 4 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(5, "VIP 5 · Apex Legend", 10_000_000L, 0xFF00897B, "Full-Screen Galaxy Entrance", listOf("VIP 5 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(6, "VIP 6 · Aurora", 14_000_000L, 0xFF1E88E5, "Aurora Portal", listOf("VIP 6 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(7, "VIP 7 · Eclipse", 16_000_000L, 0xFF8E24AA, "Eclipse Spotlight", listOf("VIP 7 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(8, "VIP 8 · Stellar", 20_000_000L, 0xFFD81B60, "Stellar Burst", listOf("VIP 8 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect"))
     )
 }
 

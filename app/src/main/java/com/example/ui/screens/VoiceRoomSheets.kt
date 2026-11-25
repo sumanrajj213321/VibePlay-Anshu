@@ -155,7 +155,6 @@ fun RoomGiftStoreSheet(
                         VibeCoinIcon(modifier = Modifier.size(22.dp))
                         Column {
                             Text("${currentUser.coinBalance}", style = MaterialTheme.typography.titleMedium, color = VibeGold, fontWeight = FontWeight.Bold)
-                            Text("10 coins = 1 charm", style = MaterialTheme.typography.labelSmall, color = VibeGold)
                         }
                     }
                 }

@@ -652,7 +652,7 @@ fun ProfileScreen(
                         CharmEmblem(level = charmLevel.toInt().coerceAtLeast(1), size = 22.dp)
                         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                             Text("CHARMS", style = MaterialTheme.typography.labelSmall, color = Color(0xFF65FFF0), fontWeight = FontWeight.Black, letterSpacing = 1.4.sp)
-                            Text("$charms  ·  Charm Level $charmLevel", style = MaterialTheme.typography.titleSmall, color = Color(0xFFE9FFFF), fontWeight = FontWeight.ExtraBold)
+                            Text("$charms  ·  ${CharmProgression.nameForLevel(charmLevel)}", style = MaterialTheme.typography.titleSmall, color = Color(0xFFE9FFFF), fontWeight = FontWeight.ExtraBold)
                         }
                     }
                 }

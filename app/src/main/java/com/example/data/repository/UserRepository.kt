@@ -482,10 +482,27 @@ class UserRepository(
                     ?.associate { it.key.toString() to (it.value as? Timestamp) } ?: emptyMap()
                 val currentExpiry = expiries[itemId]?.toDate()?.time ?: 0L
                 require(currentExpiry <= System.currentTimeMillis()) { "You already own this item. It expires first." }
+                val now = java.util.Date()
+                val requiredVipLevel = if (
+                    itemId.startsWith("vip_dragon_") || itemId.startsWith("vip_gold_banner_")
+                ) itemId.substringAfterLast('_').toLongOrNull()
+                    ?: throw IllegalArgumentException("Invalid VIP frame level.")
+                else null
+                val vipLevel = snap.getLong("vipLevel") ?: 0L
+                val vipExpiresAt = snap.getTimestamp("vipExpiresAt")
+                val expiresAt = if (requiredVipLevel != null) {
+                    require(vipLevel == requiredVipLevel) {
+                        "This frame is exclusive to VIP $requiredVipLevel."
+                    }
+                    require(vipExpiresAt != null && vipExpiresAt.toDate().after(now)) {
+                        "An active VIP subscription is required for this frame."
+                    }
+                    vipExpiresAt
+                } else {
+                    Timestamp(java.util.Date(now.time + 7L * 24L * 60L * 60L * 1000L))
+                }
                 val coins = snap.getLong("coinBalance") ?: 0L
                 require(coins >= item.coinPrice) { "Not enough coins. Need ${item.coinPrice} coins." }
-                val durationDays = 7L
-                val expiresAt = Timestamp(java.util.Date(System.currentTimeMillis() + durationDays * 24L * 60L * 60L * 1000L))
                 val updatedExpiries = expiries.filterValues { it != null }.mapValues { it.value!! }.toMutableMap()
                 updatedExpiries[itemId] = expiresAt
                 val update = mutableMapOf<String, Any>(

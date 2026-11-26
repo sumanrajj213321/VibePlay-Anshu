@@ -502,7 +502,7 @@ class UserRepository(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            val firestoreError = generateSequence(e) { it.cause }
+            val firestoreError = generateSequence<Throwable>(e) { it.cause }
                 .filterIsInstance<FirebaseFirestoreException>()
                 .firstOrNull()
             val diagnosticItem = com.example.data.model.VibeShopCatalog.frames.firstOrNull { it.id == itemId }

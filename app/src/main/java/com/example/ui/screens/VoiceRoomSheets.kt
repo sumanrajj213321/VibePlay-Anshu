@@ -91,7 +91,7 @@ import com.example.ui.components.GiftCatalogArtwork
 import com.example.ui.components.PreloadGiftVideo
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.coverDrawableRes
-import com.example.ui.components.VipBadgePill
+import com.example.ui.components.VipMiniBadge
 import com.example.ui.theme.VibeCoral
 import com.example.ui.theme.VibeCyan
 import com.example.ui.theme.VibeEmerald
@@ -812,7 +812,7 @@ fun RoomOnlineMembersSheet(
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f, fill = false)
                                     )
-                                    VipBadgePill(vipLevel = member.vipLevel, compact = true)
+                                    VipMiniBadge(vipLevel = member.vipLevel)
                                     if (member.isRoomAdmin && member.stageRole != "HOST") {
                                         Surface(
                                             shape = RoundedCornerShape(50),

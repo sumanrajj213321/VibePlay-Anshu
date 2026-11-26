@@ -1479,3 +1479,5 @@ service cloud.firestore {
     }
   }
 }
+
+// Redeploy current frame purchase validation and price mappings.

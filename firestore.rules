@@ -576,7 +576,8 @@ service cloud.firestore {
            (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
            isValidTs(incoming().updatedAt) &&
            isValidFramePurchase(incoming(), existing()))
-        : ((
+        : (!incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+           ((
                 (isSignedIn() && isValidId(userId) &&
                         !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
                         request.auth.uid == userId &&

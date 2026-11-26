@@ -77,37 +77,64 @@ service cloud.firestore {
              level == 8 ? 275000 : -1;
     }
 
+    function isValidVipFramePurchase(data, oldData) {
+      let level = vipFrameRequiredLevel(data.activeFrameId);
+      let oldOwned = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
+        ? oldData.ownedFrameIds : [];
+      return data.activeFrameId is string &&
+        level >= 1 && level <= 8 &&
+        oldData.vipLevel == level &&
+        oldData.vipExpiresAt is timestamp &&
+        oldData.vipExpiresAt > request.time &&
+        oldData.coinBalance is int &&
+        data.coinBalance is int &&
+        data.coinBalance >= 0 &&
+        data.coinBalance == oldData.coinBalance - vipFramePrice(level) &&
+        data.ownedFrameIds is list &&
+        data.ownedFrameIds.hasAll(oldOwned) &&
+        data.ownedFrameIds.size() == oldOwned.size() + 1 &&
+        data.activeFrameId in data.ownedFrameIds &&
+        data.frameExpiresAt is map &&
+        data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt &&
+        data.lastFramePurchaseAt is timestamp &&
+        data.diff(oldData).affectedKeys().hasOnly([
+          'coinBalance', 'ownedFrameIds', 'activeFrameId',
+          'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt'
+        ]);
+    }
+
+    function isValidLegacyFramePurchase(data, oldData) {
+      let oldOwned = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
+        ? oldData.ownedFrameIds : [];
+      let price = shopFramePrice(data.activeFrameId);
+      return data.activeFrameId is string &&
+        price >= 0 &&
+        oldData.coinBalance is int &&
+        data.coinBalance is int &&
+        data.coinBalance >= 0 &&
+        data.coinBalance == oldData.coinBalance - price &&
+        data.ownedFrameIds is list &&
+        data.ownedFrameIds.hasAll(oldOwned) &&
+        data.ownedFrameIds.size() == oldOwned.size() + 1 &&
+        data.activeFrameId in data.ownedFrameIds &&
+        data.frameExpiresAt is map &&
+        data.frameExpiresAt[data.activeFrameId] is timestamp &&
+        data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(24, 'h') &&
+        data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h') &&
+        data.lastFramePurchaseAt is timestamp &&
+        data.diff(oldData).affectedKeys().hasOnly([
+          'coinBalance', 'ownedFrameIds', 'activeFrameId',
+          'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt'
+        ]);
+    }
+
     function isValidFramePurchase(data, oldData) {
-      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
-        ? oldData.ownedFrameIds
-        : [];
-      let requiredVipLevel = vipFrameRequiredLevel(data.activeFrameId);
-      let framePrice = requiredVipLevel == 0 ? shopFramePrice(data.activeFrameId) : vipFramePrice(requiredVipLevel);
-      return (!('vipLevel' in oldData) || (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
-             ('coinBalance' in oldData) &&
-             oldData.coinBalance is int &&
-             data.coinBalance is int &&
-             data.coinBalance >= 0 &&
-             data.coinBalance < oldData.coinBalance &&
-             data.ownedFrameIds is list &&
-             data.ownedFrameIds.hasAll(oldOwnedFrames) &&
-             data.ownedFrameIds.size() >= oldOwnedFrames.size() &&
-             data.ownedFrameIds.size() <= oldOwnedFrames.size() + 1 &&
-             data.activeFrameId is string &&
-             data.activeFrameId in data.ownedFrameIds &&
-             data.frameExpiresAt is map &&
-             data.frameExpiresAt[data.activeFrameId] is timestamp &&
-             data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(24, 'h') &&
-             (requiredVipLevel == 0
-               ? data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h')
-               : ('vipLevel' in oldData && oldData.vipLevel == requiredVipLevel &&
-                  'vipExpiresAt' in oldData && oldData.vipExpiresAt is timestamp &&
-                  oldData.vipExpiresAt > request.time &&
-                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt)) &&
-             data.lastFramePurchaseAt is timestamp &&
-             framePrice >= 0 &&
-             data.coinBalance == oldData.coinBalance - framePrice &&
-             data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt']);
+      return data.activeFrameId is string &&
+        (vipFrameRequiredLevel(data.activeFrameId) > 0
+          ? isValidVipFramePurchase(data, oldData)
+          : isValidLegacyFramePurchase(data, oldData)) &&
+        (!('vipLevel' in oldData) ||
+          (('vipLevel' in data) && data.vipLevel == oldData.vipLevel));
     }
 
     function isValidUserProfile(data) {

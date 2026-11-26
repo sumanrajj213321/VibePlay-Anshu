@@ -100,6 +100,24 @@ service cloud.firestore {
         ]);
     }
 
+    function isVipFrameId(frameId) {
+      return frameId in [
+        'vip_dragon_1', 'vip_gold_banner_1', 'vip_dragon_2', 'vip_gold_banner_2',
+        'vip_dragon_3', 'vip_gold_banner_3', 'vip_dragon_4', 'vip_gold_banner_4',
+        'vip_dragon_5', 'vip_gold_banner_5', 'vip_dragon_6', 'vip_gold_banner_6',
+        'vip_dragon_7', 'vip_gold_banner_7', 'vip_dragon_8', 'vip_gold_banner_8'
+      ];
+    }
+
+    function isValidFramePurchase(data, oldData) {
+      return data.activeFrameId is string &&
+        (isVipFrameId(data.activeFrameId)
+          ? isValidVipFramePurchase(data, oldData)
+          : ((!('vipLevel' in oldData) ||
+              (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
+             isValidLegacyFramePurchase(data, oldData)));
+    }
+
     function isValidLegacyFramePurchase(data, oldData) {
       let oldOwned = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds : [];
@@ -551,33 +569,19 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Frame purchases are checked first; all other profile mutations share one bounded rule.
-      // Keep frame purchases in a separate bounded rule so the large profile-update
-      // decision tree is not evaluated for purchase requests.
-      allow update: if isSignedIn() && isValidId(userId) &&
-        request.auth.uid == userId &&
-        incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        (!('userId' in existing()) || incoming().userId == existing().userId) &&
-        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-        (!('role' in existing()) || incoming().role == existing().role) &&
-        (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
-        isValidTs(incoming().updatedAt) &&
-        isValidVipFramePurchase(incoming(), existing());
-
-      allow update: if isSignedIn() && isValidId(userId) &&
-        request.auth.uid == userId &&
-        incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        (!('userId' in existing()) || incoming().userId == existing().userId) &&
-        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-        (!('role' in existing()) || incoming().role == existing().role) &&
-        (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
-        isValidTs(incoming().updatedAt) &&
-        (!('vipLevel' in existing()) ||
-          (('vipLevel' in incoming()) && incoming().vipLevel == existing().vipLevel)) &&
-        isValidLegacyFramePurchase(incoming(), existing());
-      allow update: if !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        incoming().diff(existing()).affectedKeys().hasAny(['username','bio','avatarUrl','coverUrl','gender','genderChangeCount','age','ageRange','showAge','showGender','showOnlineStatus','online','activeFrameId']) &&
-        (isSignedIn() && isValidId(userId) &&
+      // Dispatch purchase writes before evaluating the larger profile-update policy.
+      allow update: if incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt'])
+        ? (isSignedIn() && isValidId(userId) &&
+           request.auth.uid == userId &&
+           (!('userId' in existing()) || incoming().userId == existing().userId) &&
+           (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+           (!('role' in existing()) || incoming().role == existing().role) &&
+           (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
+           isValidTs(incoming().updatedAt) &&
+           isValidFramePurchase(incoming(), existing()))
+        : (!incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+        ((
+                (isSignedIn() && isValidId(userId) &&
                         !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
                         request.auth.uid == userId &&
                         (!('userId' in existing()) || incoming().userId == existing().userId) &&
@@ -611,11 +615,8 @@ service cloud.firestore {
                               incoming().frameExpiresAt[incoming().activeFrameId] > request.time)) &&
                             incoming().diff(existing()).affectedKeys().hasOnly(['activeFrameId', 'updatedAt'])
                           )
-                        ));
-
-      allow update: if !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        incoming().diff(existing()).affectedKeys().hasAny(['lastDailyClaimDay','lastDailyClaimAt']) &&
-        (isSignedIn() && request.auth.uid == userId &&
+                        )) ||
+                (isSignedIn() && request.auth.uid == userId &&
                         incoming().role == existing().role &&
                         incoming().accountStatus == existing().accountStatus &&
                         incoming().vipLevel == existing().vipLevel &&
@@ -633,11 +634,8 @@ service cloud.firestore {
                         incoming().level is int && incoming().level >= 1 && incoming().level <= 999 &&
                         incoming().diff(existing()).affectedKeys().hasOnly([
                           'coinBalance', 'lastDailyClaimDay', 'lastDailyClaimAt', 'xp', 'level', 'updatedAt'
-                        ]));
-
-      allow update: if !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        incoming().diff(existing()).affectedKeys().hasAny(['vipLevel','vipExpiresAt']) &&
-        (isSignedIn() && request.auth.uid == userId &&
+                        ])) ||
+                (isSignedIn() && request.auth.uid == userId &&
                         incoming().role == existing().role &&
                         incoming().accountStatus == existing().accountStatus &&
                         incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
@@ -649,11 +647,8 @@ service cloud.firestore {
                         incoming().vipExpiresAt <= request.time + duration.value(30, 'd') + duration.value(1, 'm') &&
                         incoming().diff(existing()).affectedKeys().hasOnly([
                           'coinBalance', 'vipLevel', 'vipExpiresAt', 'updatedAt'
-                        ]));
-
-      allow update: if !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        incoming().diff(existing()).affectedKeys().hasAny(['followingCount']) &&
-        (isSignedIn() && isValidId(userId) &&
+                        ])) ||
+                (isSignedIn() && isValidId(userId) &&
                                        request.auth.uid == userId &&
                                        incoming().role == existing().role &&
                                        incoming().accountStatus == existing().accountStatus &&
@@ -662,11 +657,8 @@ service cloud.firestore {
                                        incoming().followingCount is int &&
                                        incoming().followingCount >= 0 &&
                                        incoming().diff(existing()).affectedKeys().hasOnly(['followingCount', 'updatedAt']) &&
-                                       isValidTs(incoming().updatedAt));
-
-      allow update: if !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        incoming().diff(existing()).affectedKeys().hasAny(['followersCount']) &&
-        (isSignedIn() && isValidId(userId) &&
+                                       isValidTs(incoming().updatedAt)) ||
+                (isSignedIn() && isValidId(userId) &&
                                        request.auth.uid != userId &&
                                        incoming().role == existing().role &&
                                        incoming().accountStatus == existing().accountStatus &&
@@ -675,11 +667,8 @@ service cloud.firestore {
                                        incoming().followersCount is int &&
                                        incoming().followersCount >= 0 &&
                                        incoming().diff(existing()).affectedKeys().hasOnly(['followersCount', 'updatedAt']) &&
-                                       isValidTs(incoming().updatedAt));
-
-      allow update: if !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        incoming().diff(existing()).affectedKeys().hasAny(['hasCreatedRoom','createdRoomId']) &&
-        (isSignedIn() && isValidId(userId) &&
+                                       isValidTs(incoming().updatedAt)) ||
+                (isSignedIn() && isValidId(userId) &&
                                        request.auth.uid == userId &&
                                        (!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false) &&
                                        incoming().hasCreatedRoom == true &&
@@ -690,15 +679,9 @@ service cloud.firestore {
                                        existsAfter(/databases/$(database)/documents/room_creation_locks/$(userId)) &&
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.userId == userId &&
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
-                                       incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt']));
-
-      allow update: if !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        incoming().diff(existing()).affectedKeys().hasAny(['lastGiftTransactionId']) &&
-        (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId));
-
-      allow update: if !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        incoming().diff(existing()).affectedKeys().hasAny(['online','lastSeenAt']) &&
-        (isSignedIn() && request.auth.uid == userId &&
+                                       incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
+                (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
+                (isSignedIn() && request.auth.uid == userId &&
                                        incoming().userId == existing().userId &&
                                        incoming().createdAt == existing().createdAt &&
                                        incoming().role == existing().role &&
@@ -708,11 +691,8 @@ service cloud.firestore {
                                        incoming().lastSeenAt == request.time &&
                                        incoming().updatedAt is timestamp &&
                                        incoming().updatedAt == request.time &&
-                                       incoming().diff(existing()).affectedKeys().hasOnly(['online', 'lastSeenAt', 'updatedAt']));
-
-      allow update: if !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        incoming().diff(existing()).affectedKeys().hasAny(['followersCount']) &&
-        (isSignedIn() && isValidId(userId) &&
+                                       incoming().diff(existing()).affectedKeys().hasOnly(['online', 'lastSeenAt', 'updatedAt'])) ||
+                (isSignedIn() && isValidId(userId) &&
                         request.auth.uid != userId &&
                         (!('userId' in existing()) || incoming().userId == existing().userId) &&
                         (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
@@ -733,11 +713,8 @@ service cloud.firestore {
                              (exists(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)) &&
                               !existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)))
                            ))
-                        ));
-
-      allow update: if !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        incoming().diff(existing()).affectedKeys().hasAny(['followingCount']) &&
-        (isSignedIn() && isValidId(userId) &&
+                        )) ||
+                (isSignedIn() && isValidId(userId) &&
                         request.auth.uid == userId &&
                         (!('userId' in existing()) || incoming().userId == existing().userId) &&
                         (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
@@ -747,8 +724,8 @@ service cloud.firestore {
                         incoming().diff(existing()).affectedKeys().hasOnly(['followingCount', 'updatedAt']) &&
                         incoming().followingCount is int && incoming().followingCount >= 0 &&
                         (incoming().followingCount == (('followingCount' in existing()) ? existing().followingCount : 0) + 1 ||
-                         incoming().followingCount == (('followingCount' in existing()) ? existing().followingCount : 0) - 1));
-
+                         incoming().followingCount == (('followingCount' in existing()) ? existing().followingCount : 0) - 1))
+              )));
       allow get: if isSignedIn() && isValidId(userId) && (
         request.auth.uid == userId || existing().accountStatus == 'ACTIVE'
       );

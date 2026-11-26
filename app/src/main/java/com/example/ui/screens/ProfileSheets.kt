@@ -1237,6 +1237,15 @@ fun PublicProfileSheet(
                         }
                         BiologicalGenderBadge(gender = targetUser.gender, showGender = targetUser.showGender, compact = true)
                     }
+                    if (targetUser.profileTags.isNotEmpty()) {
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            targetUser.profileTags.take(4).forEach { tag ->
+                                Surface(shape = RoundedCornerShape(50), color = Color.Transparent, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))) {
+                                    Text(tag, modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+                    }
                     if (targetUser.isVipActive) VipMiniBadge(targetUser.vipLevel)
                     val ageSuffix = if (targetUser.showAge && targetUser.formattedAge != null) " · ${targetUser.formattedAge}" else ""
                     Surface(

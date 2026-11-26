@@ -75,20 +75,25 @@ service cloud.firestore {
     }
 
     function isValidFramePurchase(data, oldData) {
+      // Some older profiles contain null (rather than a missing field) for ownedFrameIds.
+      // Treat that legacy value as an empty list, matching the Android purchase transaction.
       return (!('vipLevel' in oldData) || (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
+             ('coinBalance' in oldData) &&
+             oldData.coinBalance is int &&
              data.coinBalance is int &&
              data.coinBalance >= 0 &&
              data.coinBalance < oldData.coinBalance &&
              data.ownedFrameIds is list &&
-             data.ownedFrameIds.hasAll(('ownedFrameIds' in oldData) ? oldData.ownedFrameIds : []) &&
-             data.ownedFrameIds.size() >= (('ownedFrameIds' in oldData) ? oldData.ownedFrameIds.size() : 0) &&
-             data.ownedFrameIds.size() <= (('ownedFrameIds' in oldData) ? oldData.ownedFrameIds.size() : 0) + 1 &&
+             data.ownedFrameIds.hasAll((('ownedFrameIds' in oldData && oldData.ownedFrameIds is list) ? oldData.ownedFrameIds : [])) &&
+             data.ownedFrameIds.size() >= (('ownedFrameIds' in oldData && oldData.ownedFrameIds is list) ? oldData.ownedFrameIds.size() : 0) &&
+             data.ownedFrameIds.size() <= (('ownedFrameIds' in oldData && oldData.ownedFrameIds is list) ? oldData.ownedFrameIds.size() : 0) + 1 &&
              data.activeFrameId is string &&
              data.activeFrameId in data.ownedFrameIds &&
              data.frameExpiresAt is map &&
              data.frameExpiresAt[data.activeFrameId] is timestamp &&
-             data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(1, 'm') &&
-             data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(1, 'm') &&
+             data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(5, 'm') &&
+             data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(5, 'm') &&
+             data.lastFramePurchaseAt is timestamp &&
              shopFramePrice(data.activeFrameId) >= 0 &&
              data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&
              data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt']);

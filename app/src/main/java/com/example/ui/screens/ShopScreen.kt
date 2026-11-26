@@ -52,7 +52,8 @@ fun ShopScreen(
     onPurchase: (String, String) -> Unit,
     onEquip: (String, String?) -> Unit
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+    // Open the Shop directly on Frames so VIP users immediately see their matching Golden Banner.
+    var selectedTab by remember { mutableIntStateOf(1) }
     // Keep the five legacy frames available to everyone. For VIP frames, show
     // only the Golden Banner matching the user's current, unexpired VIP level.
     // Dragon frames are not part of this Golden Banner shop offer.

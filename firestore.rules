@@ -75,7 +75,7 @@ service cloud.firestore {
     }
 
     function isValidFramePurchase(data, oldData) {
-      return data.vipLevel == oldData.vipLevel &&
+      return (!('vipLevel' in oldData) || (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
              data.coinBalance is int &&
              data.coinBalance >= 0 &&
              data.coinBalance < oldData.coinBalance &&

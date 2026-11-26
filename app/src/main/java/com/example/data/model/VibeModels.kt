@@ -719,7 +719,8 @@ object VibeShopCatalog {
         ShopCosmeticItem("vip_gold_banner_5", "VIP 5 · Golden Banner", 175_000L, 0xFFF2C14E, "Golden VIP frame with crown and VIP banner"),
         ShopCosmeticItem("vip_gold_banner_6", "VIP 6 · Golden Banner", 200_000L, 0xFFAA771C, "Golden VIP frame with crown and VIP banner"),
         ShopCosmeticItem("vip_gold_banner_7", "VIP 7 · Golden Banner", 230_000L, 0xFFE6BE65, "Golden VIP frame with crown and VIP banner"),
-        ShopCosmeticItem("vip_gold_banner_8", "VIP 8 · Golden Banner", 275_000L, 0xFF967117, "Golden VIP frame with crown and VIP banner")
+        ShopCosmeticItem("vip_gold_banner_8", "VIP 8 · Golden Banner", 275_000L, 0xFF967117, "Golden VIP frame with crown and VIP banner"),
+        ShopCosmeticItem("new_year_2027", "New Year 2027", 500_000L, 0xFF87CEFA, "Sky-blue glitter frame with a shining silver 2027 banner · 30 days")
     )
 }
 

@@ -33,3 +33,5 @@ jobs:
 
       - name: Deploy Firestore rules
         run: firebase deploy --only firestore:rules --project vibeplay-anshu --non-interactive
+
+# Deployment trigger requested by repository maintainer.

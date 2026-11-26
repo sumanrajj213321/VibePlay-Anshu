@@ -3,7 +3,7 @@ name: Build VibePlay APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, 'fix/frame-purchase-rule-short-circuit']
   pull_request:
     branches: [main]
 

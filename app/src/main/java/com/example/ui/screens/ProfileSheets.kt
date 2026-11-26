@@ -113,6 +113,7 @@ import com.example.data.model.VibeCatalogDefaults
 import com.example.ui.components.CharmEmblem
 import com.example.ui.components.GiftCatalogArtwork
 import com.example.data.model.UserProfile
+import com.example.data.model.LevelProgression
 import com.example.data.model.VibeShopCatalog
 import com.example.data.model.VoiceRoom
 import com.example.ui.components.BiologicalGenderBadge
@@ -1238,6 +1239,19 @@ fun PublicProfileSheet(
                         border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.65f))
                     ) {
                         Text("Level ${targetUser.level}", Modifier.padding(horizontal = 10.dp, vertical = 9.dp), style = MaterialTheme.typography.labelSmall, color = VibeGold, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "ID Level",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold
+                        )
+                        LevelBadge(level = LevelProgression.levelForXp(targetUser.xp))
                     }
                     val charms = com.example.data.model.CharmProgression.fromReceivedGiftCoins(targetUser.totalGiftCoinsReceived)
                     val charmLevel = com.example.data.model.CharmProgression.levelFor(charms)

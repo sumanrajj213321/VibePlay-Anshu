@@ -113,7 +113,7 @@ service cloud.firestore {
                : ('vipLevel' in oldData && oldData.vipLevel == requiredVipLevel &&
                   'vipExpiresAt' in oldData && oldData.vipExpiresAt is timestamp &&
                   oldData.vipExpiresAt > request.time &&
-                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt) &&
+                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt)) &&
              data.lastFramePurchaseAt is timestamp &&
              shopFramePrice(data.activeFrameId) >= 0 &&
              data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&

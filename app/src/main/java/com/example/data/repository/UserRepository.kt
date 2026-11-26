@@ -22,6 +22,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.firestore.snapshots
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CancellationException
@@ -464,38 +465,15 @@ class UserRepository(
 
     suspend fun purchaseShopCosmetic(category: String, itemId: String): Result<Unit> {
         val uid = requireUserId()
-        val userRef = db.collection("users").document(uid)
         return try {
             require(category == "FRAME") { "Title purchases are temporarily unavailable." }
-            val item = com.example.data.model.VibeShopCatalog.frames.firstOrNull { it.id == itemId }
-                ?: throw IllegalArgumentException("Invalid frame item.")
-            db.runTransaction { tx ->
-                val snap = tx.get(userRef)
-                require(snap.exists()) { "Profile not found." }
-                val ownedField = "ownedFrameIds"
-                val expiryField = "frameExpiresAt"
-                val activeField = "activeFrameId"
-                val owned = (snap.get(ownedField) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-                val expiries = (snap.get(expiryField) as? Map<*, *>)?.entries
-                    ?.associate { it.key.toString() to (it.value as? Timestamp) } ?: emptyMap()
-                val currentExpiry = expiries[itemId]?.toDate()?.time ?: 0L
-                require(currentExpiry <= System.currentTimeMillis()) { "You already own this item. It expires first." }
-                val coins = snap.getLong("coinBalance") ?: 0L
-                require(coins >= item.coinPrice) { "Not enough coins. Need ${item.coinPrice} coins." }
-                val durationDays = 7L
-                val expiresAt = Timestamp(java.util.Date(System.currentTimeMillis() + durationDays * 24L * 60L * 60L * 1000L))
-                val updatedExpiries = expiries.filterValues { it != null }.mapValues { it.value!! }.toMutableMap()
-                updatedExpiries[itemId] = expiresAt
-                val update = mutableMapOf<String, Any>(
-                    "coinBalance" to coins - item.coinPrice,
-                    ownedField to if (itemId in owned) owned else FieldValue.arrayUnion(itemId),
-                    expiryField to updatedExpiries,
-                    "updatedAt" to FieldValue.serverTimestamp()
-                )
-                update[activeField] = itemId
-                update["lastFramePurchaseAt"] = FieldValue.serverTimestamp()
-                tx.update(userRef, update)
-            }.await()
+            require(com.example.data.model.VibeShopCatalog.frames.any { it.id == itemId }) {
+                "Invalid frame item."
+            }
+            FirebaseFunctions.getInstance("asia-south1")
+                .getHttpsCallable("purchaseShopFrame")
+                .call(mapOf("frameId" to itemId))
+                .await()
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e

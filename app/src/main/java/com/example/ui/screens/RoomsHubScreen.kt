@@ -415,8 +415,20 @@ fun RoomsHubScreen(
                     }
                 }
             }
-            items(filteredLiveRooms, key = { "hub_${it.id}" }) { room ->
-                VoiceRoomCard(room = room, onClick = { onOpenRoom(room) })
+            items(filteredLiveRooms.chunked(2), key = { row -> "hub_row_${row.first().id}" }) { roomRow ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    roomRow.forEach { room ->
+                        VoiceRoomCard(
+                            room = room,
+                            onClick = { onOpenRoom(room) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (roomRow.size == 1) Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }

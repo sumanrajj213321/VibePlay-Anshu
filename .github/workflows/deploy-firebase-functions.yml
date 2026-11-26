@@ -25,6 +25,9 @@ jobs:
       - name: Validate Cloud Functions
         run: node --check functions/index.js
 
+      - name: Test frame purchase validation
+        run: node --test functions/frame-purchase-validation.test.js
+
       - name: Install Firebase CLI
         run: npm install --global firebase-tools
 

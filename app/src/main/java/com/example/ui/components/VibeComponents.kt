@@ -1095,16 +1095,6 @@ private fun NewYear2027FrameOverlay(modifier: Modifier, pulseAlpha: Float) {
                 }
                 drawPath(string, Color.White.copy(alpha = 0.82f), style = Stroke(0.85.dp.toPx()))
             }
-                        }
-                        drawPath(wing, Brush.linearGradient(listOf(Color.White.copy(alpha=.96f), sky, Color(0xFF58B9F0))), style=Stroke(1.8.dp.toPx()))
-                        for (feather in 1..4) {
-                            val start = Offset(pivot.x+side*(feather*2.4f).dp.toPx(), pivot.y-2.dp.toPx())
-                            val end = Offset(pivot.x+side*(feather*4.1f+5f).dp.toPx(), pivot.y-(feather*2.1f+3f).dp.toPx())
-                            drawLine(Color.White.copy(alpha=.88f*pulseAlpha), start, end, 1.35.dp.toPx())
-                        }
-                    }
-                }
-            }
         }
         Box(Modifier.align(Alignment.BottomCenter).padding(horizontal=8.dp).fillMaxWidth(.72f).height(25.dp)
             .background(Brush.horizontalGradient(listOf(Color(0xFF4AAFE8),Color(0xFFDDF6FF),Color(0xFF5BBCEB))),RoundedCornerShape(7.dp))

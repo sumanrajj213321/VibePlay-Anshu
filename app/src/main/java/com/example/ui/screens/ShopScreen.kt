@@ -54,17 +54,18 @@ fun ShopScreen(
 ) {
     // Open the Shop directly on Frames so VIP users immediately see their matching Golden Banner.
     var selectedTab by remember { mutableIntStateOf(1) }
-    // Keep the five legacy frames available to everyone. For VIP frames, show
-    // only the Golden Banner matching the user's current, unexpired VIP level.
-    // Dragon frames are not part of this Golden Banner shop offer.
+    // Profile badges cap legacy VIP values at level 8. Apply the same canonical
+    // level in Shop and require an active VIP subscription before showing its banner.
+    // This keeps legacy records above VIP 8 consistent with the displayed VIP 8 badge.
+    val effectiveVipLevel = if (profile.isVipActive) profile.vipLevel.coerceIn(1L, 8L) else 0L
+    // Keep the five legacy frames available to everyone. Show only the matching
+    // Golden Banner; Dragon frames are not part of this Shop offer.
     val visibleFrames = VibeShopCatalog.frames
         .filter { item ->
             when {
                 item.id.startsWith("vip_gold_banner_") -> {
                     val requiredVipLevel = item.id.substringAfterLast('_').toLongOrNull()
-                    // Display only the banner matching the stored VIP tier.
-                    // Purchase eligibility is checked separately below.
-                    requiredVipLevel != null && profile.vipLevel == requiredVipLevel
+                    requiredVipLevel != null && effectiveVipLevel == requiredVipLevel
                 }
                 item.id.startsWith("vip_dragon_") -> false
                 else -> true
@@ -140,7 +141,7 @@ fun ShopScreen(
                                 item.id.substringAfterLast('_').toLongOrNull()
                             } else null
                             val hasRequiredVip = requiredVipLevel == null ||
-                                (profile.isVipActive && profile.vipLevel == requiredVipLevel)
+                                (profile.isVipActive && effectiveVipLevel == requiredVipLevel)
                             FrameGridCard(
                                 modifier = Modifier.weight(1f),
                                 title = item.title,

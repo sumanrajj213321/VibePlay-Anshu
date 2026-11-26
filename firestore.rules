@@ -86,12 +86,13 @@ service cloud.firestore {
         data.coinBalance is int && data.coinBalance >= 0 &&
         data.coinBalance == oldData.coinBalance - price &&
         data.ownedFrameIds is list &&
+        data.activeFrameId in data.ownedFrameIds &&
+        !(data.activeFrameId in oldOwned) &&
         data.ownedFrameIds.hasAll(oldOwned) &&
         data.ownedFrameIds.size() == oldOwned.size() + 1 &&
-        data.activeFrameId in data.ownedFrameIds &&
         data.frameExpiresAt is map &&
         data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt &&
-        data.lastFramePurchaseAt is timestamp &&
+        data.lastFramePurchaseAt == request.time &&
         data.diff(oldData).affectedKeys().hasOnly([
           'coinBalance', 'ownedFrameIds', 'activeFrameId',
           'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt'
@@ -107,6 +108,20 @@ service cloud.firestore {
               (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
              isValidLegacyFramePurchase(data, oldData)));
     }
+    
+    function isValidFrameEquip(data, oldData) {
+      return data.activeFrameId is string &&
+        data.activeFrameId.size() <= 40 &&
+        data.coinBalance == oldData.coinBalance &&
+        data.vipLevel == oldData.vipLevel &&
+        (data.activeFrameId == '' ||
+          (data.ownedFrameIds is list &&
+           data.activeFrameId in data.ownedFrameIds &&
+           data.frameExpiresAt is map &&
+           data.frameExpiresAt[data.activeFrameId] is timestamp &&
+           data.frameExpiresAt[data.activeFrameId] > request.time)) &&
+        data.diff(oldData).affectedKeys().hasOnly(['activeFrameId', 'updatedAt']);
+    }
 
     function isValidLegacyFramePurchase(data, oldData) {
       let oldOwned = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
@@ -119,14 +134,15 @@ service cloud.firestore {
         data.coinBalance >= 0 &&
         data.coinBalance == oldData.coinBalance - price &&
         data.ownedFrameIds is list &&
+        data.activeFrameId in data.ownedFrameIds &&
+        !(data.activeFrameId in oldOwned) &&
         data.ownedFrameIds.hasAll(oldOwned) &&
         data.ownedFrameIds.size() == oldOwned.size() + 1 &&
-        data.activeFrameId in data.ownedFrameIds &&
         data.frameExpiresAt is map &&
         data.frameExpiresAt[data.activeFrameId] is timestamp &&
-        data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(24, 'h') &&
-        data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h') &&
-        data.lastFramePurchaseAt is timestamp &&
+        data.frameExpiresAt[data.activeFrameId] > request.time + duration.value(7, 'd') - duration.value(1, 'm') &&
+        data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(1, 'm') &&
+        data.lastFramePurchaseAt == request.time &&
         data.diff(oldData).affectedKeys().hasOnly([
           'coinBalance', 'ownedFrameIds', 'activeFrameId',
           'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt'
@@ -559,9 +575,21 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow update: if (!('lastFramePurchaseAt' in incoming()) ||
-                          (('lastFramePurchaseAt' in existing()) &&
-                           incoming().lastFramePurchaseAt == existing().lastFramePurchaseAt)) &&
+      allow update: if (
+                (isSignedIn() && isValidId(userId) &&
+                 request.auth.uid == userId &&
+                 incoming().role == existing().role &&
+                 incoming().accountStatus == existing().accountStatus &&
+                 incoming().vipLevel == existing().vipLevel &&
+                 incoming().updatedAt == request.time &&
+                 incoming().lastFramePurchaseAt == request.time &&
+                 isValidFramePurchase(incoming(), existing())) ||
+                (isSignedIn() && isValidId(userId) &&
+                 request.auth.uid == userId &&
+                 incoming().role == existing().role &&
+                 incoming().accountStatus == existing().accountStatus &&
+                 incoming().updatedAt == request.time &&
+                 isValidFrameEquip(incoming(), existing())) ||
            ((
                 (isSignedIn() && isValidId(userId) &&
                         request.auth.uid == userId &&

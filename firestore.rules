@@ -92,6 +92,9 @@ service cloud.firestore {
         data.ownedFrameIds.size() == oldOwned.size() + 1 &&
         data.frameExpiresAt is map &&
         data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt &&
+        (('frameExpiresAt' in oldData && oldData.frameExpiresAt is map)
+          ? data.frameExpiresAt.diff(oldData.frameExpiresAt).affectedKeys().hasOnly([data.activeFrameId])
+          : data.frameExpiresAt.keys().hasOnly([data.activeFrameId])) &&
         data.lastFramePurchaseAt == request.time &&
         data.diff(oldData).affectedKeys().hasOnly([
           'coinBalance', 'ownedFrameIds', 'activeFrameId',
@@ -142,6 +145,9 @@ service cloud.firestore {
         data.frameExpiresAt[data.activeFrameId] is timestamp &&
         data.frameExpiresAt[data.activeFrameId] > request.time + duration.value(7, 'd') - duration.value(1, 'm') &&
         data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(1, 'm') &&
+        (('frameExpiresAt' in oldData && oldData.frameExpiresAt is map)
+          ? data.frameExpiresAt.diff(oldData.frameExpiresAt).affectedKeys().hasOnly([data.activeFrameId])
+          : data.frameExpiresAt.keys().hasOnly([data.activeFrameId])) &&
         data.lastFramePurchaseAt == request.time &&
         data.diff(oldData).affectedKeys().hasOnly([
           'coinBalance', 'ownedFrameIds', 'activeFrameId',

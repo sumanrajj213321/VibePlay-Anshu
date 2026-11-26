@@ -10,6 +10,89 @@ const { createHash } = require("node:crypto");
 initializeApp();
 const db = getFirestore();
 
+
+// Frame purchases are executed with Admin SDK so client profile rules cannot
+// accidentally block a valid purchase or allow a client to alter coin balances.
+const SHOP_FRAME_PRICES = Object.freeze({
+  neon_cyan: 15000,
+  rose_gold: 25000,
+  royal_gold: 40000,
+  galaxy: 60000,
+  aurora: 80000,
+  vip_dragon_1: 90000,
+  vip_dragon_2: 110000,
+  vip_dragon_3: 130000,
+  vip_dragon_4: 150000,
+  vip_dragon_5: 175000,
+  vip_dragon_6: 200000,
+  vip_dragon_7: 230000,
+  vip_dragon_8: 275000,
+  vip_gold_banner_1: 90000,
+  vip_gold_banner_2: 110000,
+  vip_gold_banner_3: 130000,
+  vip_gold_banner_4: 150000,
+  vip_gold_banner_5: 175000,
+  vip_gold_banner_6: 200000,
+  vip_gold_banner_7: 230000,
+  vip_gold_banner_8: 275000
+});
+
+exports.purchaseShopFrame = onCall({ region: "asia-south1" }, async (request) => {
+  if (!request.auth || !request.auth.uid) {
+    throw new HttpsError("unauthenticated", "Please sign in before purchasing a frame.");
+  }
+  const frameId = request.data && request.data.frameId;
+  const price = typeof frameId === "string" ? SHOP_FRAME_PRICES[frameId] : undefined;
+  if (!Number.isSafeInteger(price) || price <= 0) {
+    throw new HttpsError("invalid-argument", "Invalid frame item.");
+  }
+
+  const uid = request.auth.uid;
+  const userRef = db.collection("users").doc(uid);
+  const now = Timestamp.now();
+  const expiresAt = Timestamp.fromMillis(now.toMillis() + 7 * 24 * 60 * 60 * 1000);
+
+  try {
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(userRef);
+      if (!snap.exists) {
+        throw new HttpsError("not-found", "Profile not found.");
+      }
+      const profile = snap.data();
+      const coins = profile.coinBalance;
+      if (!Number.isSafeInteger(coins) || coins < 0) {
+        throw new HttpsError("failed-precondition", "Coin balance is invalid.");
+      }
+      const expiryMap = profile.frameExpiresAt && typeof profile.frameExpiresAt === "object"
+        ? profile.frameExpiresAt
+        : {};
+      const currentExpiry = expiryMap[frameId];
+      if (currentExpiry && typeof currentExpiry.toMillis === "function" &&
+          currentExpiry.toMillis() > now.toMillis()) {
+        throw new HttpsError("already-exists", "You already own this frame. It expires first.");
+      }
+      if (coins < price) {
+        throw new HttpsError("failed-precondition", `Not enough coins. Need ${price} coins.`);
+      }
+      const owned = Array.isArray(profile.ownedFrameIds) ? profile.ownedFrameIds : [];
+      tx.update(userRef, {
+        coinBalance: coins - price,
+        ownedFrameIds: owned.includes(frameId) ? owned : [...owned, frameId],
+        frameExpiresAt: { ...expiryMap, [frameId]: expiresAt },
+        activeFrameId: frameId,
+        lastFramePurchaseAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      });
+    });
+    logger.info("Frame purchase completed", { uid, frameId, price });
+    return { success: true, frameId, price, expiresAt: expiresAt.toMillis() };
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    logger.error("Frame purchase failed", { uid, frameId, error: error.message });
+    throw new HttpsError("internal", "Frame purchase failed. Please try again.");
+  }
+});
+
 const LEVELS = [
   10000, 30000, 60000, 100000, 150000,
   220000, 300000, 400000, 550000, 750000

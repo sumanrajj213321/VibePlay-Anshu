@@ -177,8 +177,13 @@ service cloud.firestore {
         ]);
     }
 
+    function isValidProfileTags(data) {
+      return !('profileTags' in data) || (data.profileTags is list && data.profileTags.size() <= 4);
+    }
+
     function isValidUserProfile(data) {
-      return (!('userId' in data) || (data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128)) &&
+      return isValidProfileTags(data) &&
+             (!('userId' in data) || (data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128)) &&
              (!('vibeId' in data) || (data.vibeId is string && data.vibeId.size() >= 3 && data.vibeId.size() <= 24)) &&
              data.username is string && data.username.size() >= 2 && data.username.size() <= 30 &&
              (!('bio' in data) || (data.bio is string && data.bio.size() <= 200)) &&
@@ -640,7 +645,6 @@ service cloud.firestore {
                               'genderChangeCount', 'age', 'ageRange', 'showAge',
                               'showGender', 'showOnlineStatus', 'profileTags', 'online', 'updatedAt'
                             ]) &&
-                            incoming().profileTags is list && incoming().profileTags.size() <= 4 &&
                             isValidUserProfile(incoming()) &&
                             ((incoming().gender == (('gender' in existing()) ? existing().gender : 'UNSPECIFIED') &&
                               incoming().genderChangeCount == (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0)) ||

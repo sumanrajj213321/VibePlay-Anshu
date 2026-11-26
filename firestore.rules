@@ -568,6 +568,8 @@ service cloud.firestore {
 
     match /users/{userId} {
       // Frame purchases are checked first; all other profile mutations share one bounded rule.
+      // Keep frame purchases in a separate bounded rule so the large profile-update
+      // decision tree is not evaluated for purchase requests.
       allow update: if isSignedIn() && isValidId(userId) &&
         request.auth.uid == userId &&
         incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
@@ -576,9 +578,8 @@ service cloud.firestore {
         (!('role' in existing()) || incoming().role == existing().role) &&
         (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
         isValidTs(incoming().updatedAt) &&
-        isValidFramePurchase(incoming(), existing()) ||
-      (
-        !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+        isValidFramePurchase(incoming(), existing());
+      allow update: if         !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
         ((
                 (isSignedIn() && isValidId(userId) &&
                         !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
@@ -724,8 +725,7 @@ service cloud.firestore {
                         incoming().followingCount is int && incoming().followingCount >= 0 &&
                         (incoming().followingCount == (('followingCount' in existing()) ? existing().followingCount : 0) + 1 ||
                          incoming().followingCount == (('followingCount' in existing()) ? existing().followingCount : 0) - 1))
-              )) 
-      );
+              ));
       allow get: if isSignedIn() && isValidId(userId) && (
         request.auth.uid == userId || existing().accountStatus == 'ACTIVE'
       );

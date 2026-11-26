@@ -60,8 +60,9 @@ fun ShopScreen(
         when {
             item.id.startsWith("vip_gold_banner_") -> {
                 val requiredVipLevel = item.id.substringAfterLast('_').toLongOrNull()
-                requiredVipLevel != null && profile.isVipActive &&
-                    profile.vipLevel == requiredVipLevel
+                // Display the banner matching the stored VIP tier even if its
+                // subscription has expired; purchase remains disabled below.
+                requiredVipLevel != null && profile.vipLevel == requiredVipLevel
             }
             item.id.startsWith("vip_dragon_") -> false
             else -> true
@@ -143,6 +144,7 @@ fun ShopScreen(
                                 status = when {
                                     equipped -> "Equipped"
                                     owned -> "Equip"
+                                    !hasRequiredVip && requiredVipLevel == profile.vipLevel -> "VIP expired"
                                     !hasRequiredVip -> "Only VIP $requiredVipLevel"
                                     else -> "Buy"
                                 },

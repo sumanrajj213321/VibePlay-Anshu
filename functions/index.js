@@ -20,14 +20,11 @@ exports.purchaseShopFrame = onCall({ region: "asia-south1" }, async (request) =>
     throw new HttpsError("unauthenticated", "Please sign in before purchasing a frame.");
   }
   const frameId = request.data && request.data.frameId;
-  const price = typeof frameId === "string" ? SHOP_FRAME_PRICES[frameId] : undefined;
-  if (!Number.isSafeInteger(price) || price <= 0) {
-    throw new HttpsError("invalid-argument", "Invalid frame item.");
-  }
-
   const uid = request.auth.uid;
   const userRef = db.collection("users").doc(uid);
   const now = Timestamp.now();
+  let finalPrice = 0;
+  let finalExpiryMillis = 0;
 
   try {
     await db.runTransaction(async (tx) => {
@@ -58,6 +55,8 @@ exports.purchaseShopFrame = onCall({ region: "asia-south1" }, async (request) =>
       }
       const price = purchase.price;
       const frameExpiresAt = Timestamp.fromMillis(purchase.expiresAtMillis);
+      finalPrice = price;
+      finalExpiryMillis = purchase.expiresAtMillis;
 
       if (coins < price) {
         throw new HttpsError("failed-precondition", `Not enough coins. Need ${price} coins.`);
@@ -72,8 +71,8 @@ exports.purchaseShopFrame = onCall({ region: "asia-south1" }, async (request) =>
         updatedAt: FieldValue.serverTimestamp()
       });
     });
-    logger.info("Frame purchase completed", { uid, frameId, price });
-    return { success: true, frameId, price, expiresAt: expiresAt.toMillis() };
+    logger.info("Frame purchase completed", { uid, frameId, price: finalPrice });
+    return { success: true, frameId, price: finalPrice, expiresAt: finalExpiryMillis };
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     logger.error("Frame purchase failed", { uid, frameId, error: error.message });

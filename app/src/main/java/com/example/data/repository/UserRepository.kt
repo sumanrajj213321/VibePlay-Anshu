@@ -485,7 +485,8 @@ class UserRepository(
                 val now = Timestamp.now()
                 val frameExpiry = if (vipMatch != null) {
                     val requiredLevel = vipMatch.groupValues[1].toInt()
-                    val currentVipLevel = (snapshot.getLong("vipLevel") ?: 0L).toInt()
+                    // Match the VIP level shown in Profile/Shop for legacy records above VIP 8.
+                    val currentVipLevel = (snapshot.getLong("vipLevel") ?: 0L).coerceIn(0L, 8L).toInt()
                     val vipExpiry = snapshot.getTimestamp("vipExpiresAt")
                     require(currentVipLevel == requiredLevel) {
                         "This frame is exclusive to VIP $requiredLevel."

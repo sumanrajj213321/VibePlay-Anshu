@@ -596,7 +596,7 @@ service cloud.firestore {
                  incoming().accountStatus == existing().accountStatus &&
                  incoming().updatedAt == request.time &&
                  isValidFrameEquip(incoming(), existing())) ||
-           ((
+           (
                 (isSignedIn() && isValidId(userId) &&
                         request.auth.uid == userId &&
                         (!('userId' in existing()) || incoming().userId == existing().userId) &&

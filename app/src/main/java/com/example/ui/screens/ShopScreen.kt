@@ -56,7 +56,7 @@ fun ShopScreen(
     val visibleFrames = VibeShopCatalog.frames.filter { item ->
         val requiredVipLevel = if (
             item.id.startsWith("vip_dragon_") || item.id.startsWith("vip_gold_banner_")
-        ) item.id.substringAfterLast('_').toIntOrNull() else null
+        ) item.id.substringAfterLast('_').toLongOrNull() else null
         requiredVipLevel == null ||
             (profile.isVipActive && profile.vipLevel == requiredVipLevel)
     }

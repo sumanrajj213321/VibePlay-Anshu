@@ -401,7 +401,17 @@ class VibePlayViewModel(
         viewModelScope.launch {
             userRepository.purchaseShopCosmetic(category, itemId)
                 .onSuccess { _statusMessage.value = "Purchase successful!" }
-                .onFailure { _statusMessage.value = it.localizedMessage ?: "Purchase failed." }
+                .onFailure { error ->
+                    val firestoreError = generateSequence<Throwable>(error) { it.cause }
+                        .filterIsInstance<com.google.firebase.firestore.FirebaseFirestoreException>()
+                        .firstOrNull()
+                    val code = firestoreError?.code?.name ?: "NOT_FIRESTORE"
+                    val detail = firestoreError?.localizedMessage
+                        ?: error.localizedMessage
+                        ?: "No error details returned"
+                    _statusMessage.value = "Frame purchase failed [$code] · $itemId: $detail"
+                    Log.e(TAG, "Frame purchase failed: category=$category itemId=$itemId code=$code", error)
+                }
         }
     }
 

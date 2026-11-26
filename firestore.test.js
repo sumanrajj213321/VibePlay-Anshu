@@ -1795,20 +1795,34 @@ test("Android-style frame purchase transforms are accepted (arrayUnion + serverT
   }));
 });
 
-test("New VIP Gold Banner 3 frame purchase is permitted with Android transaction transforms", async () => {
-  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
-  const userRef = aliceDb.collection("users").doc(ALICE_UID);
-  await assertSucceeds(userRef.set(makeUserPayload(ALICE_UID, "Alice", "VP-100001")));
+test("All 16 newly added VIP frames are purchasable with Android transaction transforms", async () => {
+  const frames = [
+    ["vip_dragon_1", 90000], ["vip_dragon_2", 110000],
+    ["vip_dragon_3", 130000], ["vip_dragon_4", 150000],
+    ["vip_dragon_5", 175000], ["vip_dragon_6", 200000],
+    ["vip_dragon_7", 230000], ["vip_dragon_8", 275000],
+    ["vip_gold_banner_1", 90000], ["vip_gold_banner_2", 110000],
+    ["vip_gold_banner_3", 130000], ["vip_gold_banner_4", 150000],
+    ["vip_gold_banner_5", 175000], ["vip_gold_banner_6", 200000],
+    ["vip_gold_banner_7", 230000], ["vip_gold_banner_8", 275000],
+  ];
 
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  await assertSucceeds(userRef.update({
-    coinBalance: 1000500 - 130000,
-    ownedFrameIds: firebase.firestore.FieldValue.arrayUnion("vip_gold_banner_3"),
-    activeFrameId: "vip_gold_banner_3",
-    frameExpiresAt: { vip_gold_banner_3: expiresAt },
-    lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-  }));
+  for (const [index, [frameId, price]] of frames.entries()) {
+    const uid = `frame_buyer_${index}`;
+    const db = testEnv.authenticatedContext(uid).firestore();
+    const userRef = db.collection("users").doc(uid);
+    await assertSucceeds(userRef.set(makeUserPayload(uid, `Buyer ${index}`, `VP-${100001 + index}`)));
+
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await assertSucceeds(userRef.update({
+      coinBalance: 1000500 - price,
+      ownedFrameIds: firebase.firestore.FieldValue.arrayUnion(frameId),
+      activeFrameId: frameId,
+      frameExpiresAt: { [frameId]: expiresAt },
+      lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    }));
+  }
 });
 
 test("Legacy profile missing userId, createdAt, role and accountStatus can purchase a frame", async () => {

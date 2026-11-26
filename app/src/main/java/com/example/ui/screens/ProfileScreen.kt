@@ -602,39 +602,18 @@ fun ProfileScreen(
                             )
                         }
                     }
-                    Surface(
+                    Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clickable { showLevelInfo = true }
                             .testTag("profile_level_card"),
-                        shape = RoundedCornerShape(13.dp),
-                        color = Color(0xFF211A42),
-                        border = BorderStroke(
-                            1.dp,
-                            Brush.linearGradient(listOf(Color(0xFFB58CFF), Color(0xFF55C7FF), Color(0xFF8D79FF)))
-                        )
+                        contentAlignment = Alignment.CenterStart
                     ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                            verticalArrangement = Arrangement.spacedBy(1.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(
-                                    text = "ID LEVEL",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color(0xFFE8D9FF),
-                                    fontWeight = FontWeight.ExtraBold,
-                                    maxLines = 1
-                                )
-                                LevelBadge(level = LevelProgression.levelForXp(profile.xp))
-                            }
-                            Text(
-                                text = "Tap for XP details",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF9EDFFF),
-                                maxLines = 1
-                            )
-                        }
+                        LevelBadge(
+                            level = LevelProgression.levelForXp(profile.xp),
+                            modifier = Modifier
+                                .clickable { showLevelInfo = true }
+                                .padding(2.dp)
+                        )
                     }
                 }
 

@@ -78,14 +78,17 @@ service cloud.firestore {
     }
 
     function vipFrameRequiredLevel(itemId) {
-      return itemId == 'vip_dragon_1' || itemId == 'vip_gold_banner_1' ? 1 :
-             itemId == 'vip_dragon_2' || itemId == 'vip_gold_banner_2' ? 2 :
-             itemId == 'vip_dragon_3' || itemId == 'vip_gold_banner_3' ? 3 :
-             itemId == 'vip_dragon_4' || itemId == 'vip_gold_banner_4' ? 4 :
-             itemId == 'vip_dragon_5' || itemId == 'vip_gold_banner_5' ? 5 :
-             itemId == 'vip_dragon_6' || itemId == 'vip_gold_banner_6' ? 6 :
-             itemId == 'vip_dragon_7' || itemId == 'vip_gold_banner_7' ? 7 :
-             itemId == 'vip_dragon_8' || itemId == 'vip_gold_banner_8' ? 8 : 0;
+      let levels = {
+        'vip_dragon_1': 1, 'vip_gold_banner_1': 1,
+        'vip_dragon_2': 2, 'vip_gold_banner_2': 2,
+        'vip_dragon_3': 3, 'vip_gold_banner_3': 3,
+        'vip_dragon_4': 4, 'vip_gold_banner_4': 4,
+        'vip_dragon_5': 5, 'vip_gold_banner_5': 5,
+        'vip_dragon_6': 6, 'vip_gold_banner_6': 6,
+        'vip_dragon_7': 7, 'vip_gold_banner_7': 7,
+        'vip_dragon_8': 8, 'vip_gold_banner_8': 8
+      };
+      return itemId in levels ? levels[itemId] : 0;
     }
 
     function isValidFramePurchase(data, oldData) {

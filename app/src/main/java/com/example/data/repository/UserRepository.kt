@@ -466,80 +466,112 @@ class UserRepository(
 
     suspend fun purchaseShopCosmetic(category: String, itemId: String): Result<Unit> {
         val uid = requireUserId()
-        val userRef = db.collection("users").document(uid)
+        val docPath = "users/$uid"
         return try {
             require(category == "FRAME") { "Title purchases are temporarily unavailable." }
             val item = com.example.data.model.VibeShopCatalog.frames.firstOrNull { it.id == itemId }
                 ?: throw IllegalArgumentException("Invalid frame item.")
-            db.runTransaction { tx ->
-                val snap = tx.get(userRef)
-                require(snap.exists()) { "Profile not found." }
-                val ownedField = "ownedFrameIds"
-                val expiryField = "frameExpiresAt"
-                val activeField = "activeFrameId"
-                val owned = (snap.get(ownedField) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-                val expiries = (snap.get(expiryField) as? Map<*, *>)?.entries
-                    ?.associate { it.key.toString() to (it.value as? Timestamp) } ?: emptyMap()
-                val currentExpiry = expiries[itemId]?.toDate()?.time ?: 0L
-                require(currentExpiry <= System.currentTimeMillis()) { "You already own this item. It expires first." }
-                val coins = snap.getLong("coinBalance") ?: 0L
-                require(coins >= item.coinPrice) { "Not enough coins. Need ${item.coinPrice} coins." }
-                val durationDays = 7L
-                val expiresAt = Timestamp(java.util.Date(System.currentTimeMillis() + durationDays * 24L * 60L * 60L * 1000L))
-                val updatedExpiries = expiries.filterValues { it != null }.mapValues { it.value!! }.toMutableMap()
-                updatedExpiries[itemId] = expiresAt
-                val update = mutableMapOf<String, Any>(
-                    "coinBalance" to coins - item.coinPrice,
-                    ownedField to if (itemId in owned) owned else FieldValue.arrayUnion(itemId),
-                    expiryField to updatedExpiries,
-                    "updatedAt" to FieldValue.serverTimestamp()
+            val profileRef = db.collection("users").document(uid)
+            db.runTransaction { transaction ->
+                val snapshot = transaction.get(profileRef)
+                require(snapshot.exists()) { "Profile not found." }
+                val ownedFrames = (snapshot.get("ownedFrameIds") as? List<*>)
+                    ?.filterIsInstance<String>() ?: emptyList()
+                require(itemId !in ownedFrames) { "You already own this frame." }
+                val coinBalance = snapshot.getLong("coinBalance") ?: 0L
+                require(coinBalance >= item.coinPrice) { "Insufficient coins. Need ${item.coinPrice} coins." }
+
+                val vipMatch = Regex("^(?:vip_dragon_|vip_gold_banner_)([1-8])$").matchEntire(itemId)
+                val now = Timestamp.now()
+                val frameExpiry = if (vipMatch != null) {
+                    val requiredLevel = vipMatch.groupValues[1].toInt()
+                    val currentVipLevel = (snapshot.getLong("vipLevel") ?: 0L).toInt()
+                    val vipExpiry = snapshot.getTimestamp("vipExpiresAt")
+                    require(currentVipLevel == requiredLevel) {
+                        "This frame is exclusive to VIP $requiredLevel."
+                    }
+                    require(vipExpiry != null && vipExpiry.toDate().after(Date())) {
+                        "An active VIP subscription is required for this frame."
+                    }
+                    vipExpiry
+                } else {
+                    Timestamp(Date(now.toDate().time + 7L * 24L * 60L * 60L * 1000L))
+                }
+
+                val frameExpiries = (snapshot.get("frameExpiresAt") as? Map<*, *>)
+                    ?.entries
+                    ?.mapNotNull { entry ->
+                        val key = entry.key as? String ?: return@mapNotNull null
+                        val value = entry.value ?: return@mapNotNull null
+                        key to value
+                    }
+                    ?.toMap()
+                    ?.toMutableMap() ?: mutableMapOf()
+                frameExpiries[itemId] = frameExpiry
+
+                transaction.update(
+                    profileRef,
+                    mapOf(
+                        "coinBalance" to (coinBalance - item.coinPrice),
+                        "ownedFrameIds" to (ownedFrames + itemId),
+                        "activeFrameId" to itemId,
+                        "frameExpiresAt" to frameExpiries,
+                        "lastFramePurchaseAt" to FieldValue.serverTimestamp(),
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
                 )
-                update[activeField] = itemId
-                update["lastFramePurchaseAt"] = FieldValue.serverTimestamp()
-                tx.update(userRef, update)
             }.await()
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            val firestoreError = generateSequence<Throwable>(e) { it.cause }
-                .filterIsInstance<FirebaseFirestoreException>()
-                .firstOrNull()
-            val diagnosticItem = com.example.data.model.VibeShopCatalog.frames.firstOrNull { it.id == itemId }
-            Log.e(
-                "FramePurchaseDiagnostic",
-                "category=$category itemId=$itemId price=${diagnosticItem?.coinPrice} " +
-                    "firestoreCode=${firestoreError?.code?.name ?: "NO_FIRESTORE_CODE"} " +
-                    "exception=${e.javaClass.name} message=${e.message}",
-                e
-            )
-            handleFirestoreError(e, OperationType.UPDATE, "users/$uid")
+            handleFirestoreError(e, OperationType.UPDATE, docPath)
             Result.failure(e)
         }
     }
 
     suspend fun equipShopCosmetic(category: String, itemId: String?): Result<Unit> {
         val uid = requireUserId()
-        val userRef = db.collection("users").document(uid)
+        val docPath = "users/$uid"
         return try {
             require(category == "FRAME") { "Title equipping is temporarily unavailable." }
-            db.runTransaction { tx ->
-                val snap = tx.get(userRef)
-                require(snap.exists()) { "Profile not found." }
-                val ownedField = "ownedFrameIds"
-                val activeField = "activeFrameId"
-                val expiryField = "frameExpiresAt"
-                val owned = (snap.get(ownedField) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-                val expiryMap = (snap.get(expiryField) as? Map<*, *>) ?: emptyMap<Any, Any>()
-                val expiry = itemId?.let { expiryMap[it] as? Timestamp }
-                require(itemId.isNullOrBlank() || (itemId in owned && expiry?.toDate()?.after(java.util.Date()) == true)) { "This item has expired. Purchase it again." }
-                tx.update(userRef, mapOf(activeField to (itemId ?: ""), "updatedAt" to FieldValue.serverTimestamp()))
+            val profileRef = db.collection("users").document(uid)
+            db.runTransaction { transaction ->
+                val snapshot = transaction.get(profileRef)
+                require(snapshot.exists()) { "Profile not found." }
+                val frameId = itemId?.takeIf { it.isNotBlank() }
+                if (frameId == null) {
+                    transaction.update(
+                        profileRef,
+                        mapOf(
+                            "activeFrameId" to "",
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                } else {
+                    require(com.example.data.model.VibeShopCatalog.frames.any { it.id == frameId }) {
+                        "Invalid frame item."
+                    }
+                    val ownedFrames = (snapshot.get("ownedFrameIds") as? List<*>)
+                        ?.filterIsInstance<String>() ?: emptyList()
+                    require(frameId in ownedFrames) { "Purchase this frame before equipping it." }
+                    val frameExpiries = snapshot.get("frameExpiresAt") as? Map<*, *>
+                    val expiry = frameExpiries?.get(frameId) as? Timestamp
+                    require(expiry != null && expiry.toDate().after(Date())) { "This frame has expired." }
+                    transaction.update(
+                        profileRef,
+                        mapOf(
+                            "activeFrameId" to frameId,
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                }
             }.await()
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.UPDATE, "users/$uid")
+            handleFirestoreError(e, OperationType.UPDATE, docPath)
             Result.failure(e)
         }
     }

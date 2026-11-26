@@ -13,44 +13,50 @@ const db = getFirestore();
 
 // Frame purchases are executed with Admin SDK so client profile rules cannot
 // accidentally block a valid purchase or allow a client to alter coin balances.
-const SHOP_FRAME_PRICES = Object.freeze({
-  neon_cyan: 15000,
-  rose_gold: 25000,
-  royal_gold: 40000,
-  galaxy: 60000,
-  aurora: 80000,
-  vip_dragon_1: 90000,
-  vip_dragon_2: 110000,
-  vip_dragon_3: 130000,
-  vip_dragon_4: 150000,
-  vip_dragon_5: 175000,
-  vip_dragon_6: 200000,
-  vip_dragon_7: 230000,
-  vip_dragon_8: 275000,
-  vip_gold_banner_1: 90000,
-  vip_gold_banner_2: 110000,
-  vip_gold_banner_3: 130000,
-  vip_gold_banner_4: 150000,
-  vip_gold_banner_5: 175000,
-  vip_gold_banner_6: 200000,
-  vip_gold_banner_7: 230000,
-  vip_gold_banner_8: 275000
+const { validateShopFramePurchase, SHOP_FRAME_PRICES } = require("./frame-purchase-validation");
+
+exports.equipShopFrame = onCall({ region: "asia-south1" }, async (request) => {
+  if (!request.auth || !request.auth.uid) {
+    throw new HttpsError("unauthenticated", "Please sign in before equipping a frame.");
+  }
+  const frameId = request.data && request.data.frameId;
+  if (frameId !== null && frameId !== "" &&
+      (typeof frameId !== "string" || !Object.prototype.hasOwnProperty.call(SHOP_FRAME_PRICES, frameId))) {
+    throw new HttpsError("invalid-argument", "Invalid frame item.");
+  }
+
+  const userRef = db.collection("users").doc(request.auth.uid);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    if (!snap.exists) throw new HttpsError("not-found", "Profile not found.");
+    if (frameId !== null && frameId !== "") {
+      const profile = snap.data();
+      const owned = Array.isArray(profile.ownedFrameIds) ? profile.ownedFrameIds : [];
+      const expiry = profile.frameExpiresAt && profile.frameExpiresAt[frameId];
+      if (!owned.includes(frameId) || !expiry || typeof expiry.toMillis !== "function" ||
+          expiry.toMillis() <= Date.now()) {
+        throw new HttpsError("failed-precondition", "This item has expired. Purchase it again.");
+      }
+    }
+    tx.update(userRef, {
+      activeFrameId: frameId || "",
+      updatedAt: FieldValue.serverTimestamp()
+    });
+  });
+  return { success: true, activeFrameId: frameId || "" };
 });
+
 
 exports.purchaseShopFrame = onCall({ region: "asia-south1" }, async (request) => {
   if (!request.auth || !request.auth.uid) {
     throw new HttpsError("unauthenticated", "Please sign in before purchasing a frame.");
   }
   const frameId = request.data && request.data.frameId;
-  const price = typeof frameId === "string" ? SHOP_FRAME_PRICES[frameId] : undefined;
-  if (!Number.isSafeInteger(price) || price <= 0) {
-    throw new HttpsError("invalid-argument", "Invalid frame item.");
-  }
-
   const uid = request.auth.uid;
   const userRef = db.collection("users").doc(uid);
   const now = Timestamp.now();
-  const expiresAt = Timestamp.fromMillis(now.toMillis() + 7 * 24 * 60 * 60 * 1000);
+  let finalPrice = 0;
+  let finalExpiryMillis = 0;
 
   try {
     await db.runTransaction(async (tx) => {
@@ -71,6 +77,19 @@ exports.purchaseShopFrame = onCall({ region: "asia-south1" }, async (request) =>
           currentExpiry.toMillis() > now.toMillis()) {
         throw new HttpsError("already-exists", "You already own this frame. It expires first.");
       }
+
+      let purchase;
+      try {
+        purchase = validateShopFramePurchase(frameId, profile, now.toMillis());
+      } catch (validationError) {
+        const code = validationError.code === "invalid-argument" ? "invalid-argument" : "failed-precondition";
+        throw new HttpsError(code, validationError.message);
+      }
+      const price = purchase.price;
+      const frameExpiresAt = Timestamp.fromMillis(purchase.expiresAtMillis);
+      finalPrice = price;
+      finalExpiryMillis = purchase.expiresAtMillis;
+
       if (coins < price) {
         throw new HttpsError("failed-precondition", `Not enough coins. Need ${price} coins.`);
       }
@@ -78,14 +97,14 @@ exports.purchaseShopFrame = onCall({ region: "asia-south1" }, async (request) =>
       tx.update(userRef, {
         coinBalance: coins - price,
         ownedFrameIds: owned.includes(frameId) ? owned : [...owned, frameId],
-        frameExpiresAt: { ...expiryMap, [frameId]: expiresAt },
+        frameExpiresAt: { ...expiryMap, [frameId]: frameExpiresAt },
         activeFrameId: frameId,
         lastFramePurchaseAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()
       });
     });
-    logger.info("Frame purchase completed", { uid, frameId, price });
-    return { success: true, frameId, price, expiresAt: expiresAt.toMillis() };
+    logger.info("Frame purchase completed", { uid, frameId, price: finalPrice });
+    return { success: true, frameId, price: finalPrice, expiresAt: finalExpiryMillis };
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     logger.error("Frame purchase failed", { uid, frameId, error: error.message });

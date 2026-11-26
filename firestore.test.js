@@ -1754,7 +1754,7 @@ test("New user can create a room with the exact atomic app transaction", async (
   await assertSucceeds(batch.commit());
 });
 
-test("Own and public profile reads plus frame purchases are permitted only through valid updates", async () => {
+test("Own and public profile reads work; valid direct frame purchase succeeds", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
   await assertSucceeds(aliceDb.collection("users").doc(ALICE_UID).set(makeUserPayload(ALICE_UID, "Alice", "VP-100001")));
@@ -1772,14 +1772,14 @@ test("Own and public profile reads plus frame purchases are permitted only throu
     ownedFrameIds: ["neon_cyan"],
     activeFrameId: "neon_cyan",
     frameExpiresAt: { neon_cyan: frameExpiry },
-    lastFramePurchaseAt: new Date(),
-    updatedAt: pastDate(),
+    lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   }));
 
 });
 
 
-test("Android-style frame purchase transforms are accepted (arrayUnion + serverTimestamp)", async () => {
+test("Duplicate Android-style frame purchase transforms are rejected", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const userRef = aliceDb.collection("users").doc(ALICE_UID);
   await assertSucceeds(userRef.set(makeUserPayload(ALICE_UID, "Alice", "VP-100001")));
@@ -1793,44 +1793,24 @@ test("Android-style frame purchase transforms are accepted (arrayUnion + serverT
     lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   }));
+  await assertFails(userRef.update({
+    coinBalance: 1000500 - 30000,
+    ownedFrameIds: firebase.firestore.FieldValue.arrayUnion("neon_cyan"),
+    activeFrameId: "neon_cyan",
+    frameExpiresAt: { neon_cyan: expiresAt },
+    lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
 });
 
-test("All 16 newly added VIP frames are purchasable with Android transaction transforms", async () => {
-  const frames = [
-    ["vip_dragon_1", 90000], ["vip_dragon_2", 110000],
-    ["vip_dragon_3", 130000], ["vip_dragon_4", 150000],
-    ["vip_dragon_5", 175000], ["vip_dragon_6", 200000],
-    ["vip_dragon_7", 230000], ["vip_dragon_8", 275000],
-    ["vip_gold_banner_1", 90000], ["vip_gold_banner_2", 110000],
-    ["vip_gold_banner_3", 130000], ["vip_gold_banner_4", 150000],
-    ["vip_gold_banner_5", 175000], ["vip_gold_banner_6", 200000],
-    ["vip_gold_banner_7", 230000], ["vip_gold_banner_8", 275000],
-  ];
-
-  for (const [index, [frameId, price]] of frames.entries()) {
-    const uid = `frame_buyer_${index}`;
-    const db = testEnv.authenticatedContext(uid).firestore();
-    const userRef = db.collection("users").doc(uid);
-    await assertSucceeds(userRef.set(makeUserPayload(uid, `Buyer ${index}`, `VP-${100001 + index}`)));
-
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await assertSucceeds(userRef.update({
-      coinBalance: 1000500 - price,
-      ownedFrameIds: firebase.firestore.FieldValue.arrayUnion(frameId),
-      activeFrameId: frameId,
-      frameExpiresAt: { [frameId]: expiresAt },
-      lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    }));
-  }
-});
-
-test("Legacy profile missing userId, createdAt, role and accountStatus can purchase a frame", async () => {
+test("Legacy profiles can purchase a priced frame with coins", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const userRef = aliceDb.collection("users").doc(ALICE_UID);
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     await ctx.firestore().doc(`users/${ALICE_UID}`).set({
       username: "Alice",
+      role: "USER",
+      accountStatus: "ACTIVE",
       coinBalance: 100000,
       vipLevel: 0,
     });
@@ -1840,8 +1820,72 @@ test("Legacy profile missing userId, createdAt, role and accountStatus can purch
     ownedFrameIds: ["neon_cyan"],
     activeFrameId: "neon_cyan",
     frameExpiresAt: { neon_cyan: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
-    lastFramePurchaseAt: new Date(),
-    updatedAt: pastDate(),
+    lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+});
+
+
+test("VIP Golden Banner purchase requires matching active VIP and exact VIP expiry", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const userRef = aliceDb.collection("users").doc(ALICE_UID);
+  const vipExpiry = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await ctx.firestore().doc(`users/${ALICE_UID}`).set({
+      ...makeUserPayload(ALICE_UID, "Alice", "VP-100001"),
+      vipLevel: 3,
+      vipExpiresAt: vipExpiry,
+    });
+  });
+  await assertSucceeds(userRef.update({
+    coinBalance: 1000500 - 130000,
+    ownedFrameIds: ["vip_gold_banner_3"],
+    activeFrameId: "vip_gold_banner_3",
+    frameExpiresAt: { vip_gold_banner_3: vipExpiry },
+    lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+  await assertFails(userRef.update({
+    coinBalance: 1000500 - 260000,
+    ownedFrameIds: ["vip_gold_banner_3", "vip_gold_banner_2"],
+    activeFrameId: "vip_gold_banner_2",
+    frameExpiresAt: { vip_gold_banner_3: vipExpiry, vip_gold_banner_2: vipExpiry },
+    lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+});
+
+test("Equipping requires an owned unexpired frame and does not change coins", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const userRef = aliceDb.collection("users").doc(ALICE_UID);
+  const validExpiry = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+  const expiredExpiry = new Date(Date.now() - 60 * 1000);
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await ctx.firestore().doc(`users/${ALICE_UID}`).set({
+      ...makeUserPayload(ALICE_UID, "Alice", "VP-100001"),
+      ownedFrameIds: ["neon_cyan", "galaxy", "rose_gold"],
+      frameExpiresAt: {
+        neon_cyan: validExpiry,
+        galaxy: expiredExpiry,
+        rose_gold: validExpiry,
+      },
+    });
+  });
+  await assertSucceeds(userRef.update({
+    activeFrameId: "rose_gold",
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+  await assertFails(userRef.update({
+    activeFrameId: "aurora",
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+  await assertFails(userRef.update({
+    activeFrameId: "galaxy",
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+  await assertSucceeds(userRef.update({
+    activeFrameId: "",
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   }));
 });
 

@@ -52,7 +52,27 @@ fun ShopScreen(
     onPurchase: (String, String) -> Unit,
     onEquip: (String, String?) -> Unit
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+    // Open the Shop directly on Frames so VIP users immediately see their matching Golden Banner.
+    var selectedTab by remember { mutableIntStateOf(1) }
+    // Keep the five legacy frames available to everyone. For VIP frames, show
+    // only the Golden Banner matching the user's current, unexpired VIP level.
+    // Dragon frames are not part of this Golden Banner shop offer.
+    val visibleFrames = VibeShopCatalog.frames
+        .filter { item ->
+            when {
+                item.id.startsWith("vip_gold_banner_") -> {
+                    val requiredVipLevel = item.id.substringAfterLast('_').toLongOrNull()
+                    // Display only the banner matching the stored VIP tier.
+                    // Purchase eligibility is checked separately below.
+                    requiredVipLevel != null && profile.vipLevel == requiredVipLevel
+                }
+                item.id.startsWith("vip_dragon_") -> false
+                else -> true
+            }
+        }
+        // Put the user's matching Golden Banner first so it is visible
+        // immediately, above the five legacy frames.
+        .sortedBy { if (it.id.startsWith("vip_gold_banner_")) 0 else 1 }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp),
@@ -107,7 +127,7 @@ fun ShopScreen(
                         vipLevel = tier.level
                     )
                 }
-                1 -> items(VibeShopCatalog.frames.chunked(4)) { frameRow ->
+                1 -> items(visibleFrames.chunked(4)) { frameRow ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -116,13 +136,25 @@ fun ShopScreen(
                         frameRow.forEach { item ->
                             val owned = profile.isFrameActive(item.id)
                             val equipped = profile.activeFrameId == item.id && owned
+                            val requiredVipLevel = if (item.id.startsWith("vip_gold_banner_")) {
+                                item.id.substringAfterLast('_').toLongOrNull()
+                            } else null
+                            val hasRequiredVip = requiredVipLevel == null ||
+                                (profile.isVipActive && profile.vipLevel == requiredVipLevel)
                             FrameGridCard(
                                 modifier = Modifier.weight(1f),
                                 title = item.title,
                                 price = item.coinPrice,
                                 accent = Color(item.colorArgb),
-                                status = when { equipped -> "Equipped"; owned -> "Equip"; else -> "Buy" },
-                                enabled = !equipped && (owned || profile.coinBalance >= item.coinPrice),
+                                status = when {
+                                    equipped -> "Equipped"
+                                    owned -> "Equip"
+                                    !hasRequiredVip && requiredVipLevel == profile.vipLevel -> "VIP expired"
+                                    !hasRequiredVip -> "Only VIP $requiredVipLevel"
+                                    else -> "Buy"
+                                },
+                                enabled = !equipped && hasRequiredVip &&
+                                    (owned || profile.coinBalance >= item.coinPrice),
                                 onClick = { if (owned) onEquip("FRAME", item.id) else onPurchase("FRAME", item.id) },
                                 avatarUrl = profile.avatarUrl,
                                 frameColorArgb = item.colorArgb

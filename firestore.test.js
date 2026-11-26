@@ -498,10 +498,10 @@ test("User profile creation, private subcollection isolation, daily reward, and 
     })
   );
 
-  // Valid VIP 1 upgrade (650 - 200 = 450)
+  // Valid VIP 1 upgrade (100,000 coins)
   await assertSucceeds(
     aliceDb.collection("users").doc(ALICE_UID).update({
-      coinBalance: 1100450,
+      coinBalance: 1000500,
       vipLevel: 1,
       vipExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       updatedAt: pastDate(),

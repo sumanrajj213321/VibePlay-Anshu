@@ -502,7 +502,7 @@ class UserRepository(
                     ?.entries
                     ?.mapNotNull { entry ->
                         val key = entry.key as? String ?: return@mapNotNull null
-                        val value = entry.value as? Timestamp ?: return@mapNotNull null
+                        val value = entry.value ?: return@mapNotNull null
                         key to value
                     }
                     ?.toMap()

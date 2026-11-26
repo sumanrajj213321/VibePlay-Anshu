@@ -767,6 +767,9 @@ private fun NeonAuroraFrameOverlay(
     modifier: Modifier = Modifier,
     pulseAlpha: Float
 ) {
+    val motion = rememberInfiniteTransition(label = "neon_aurora_motion")
+    val sweep by motion.animateFloat(0f, 360f, animationSpec = infiniteRepeatable(tween(2600, easing = LinearEasing)), label = "neon_sweep")
+    val sparkle by motion.animateFloat(0f, 1f, animationSpec = infiniteRepeatable(tween(1500, easing = LinearEasing)), label = "neon_sparkle")
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
@@ -781,6 +784,7 @@ private fun NeonAuroraFrameOverlay(
         drawCircle(cyan, ring, androidx.compose.ui.geometry.Offset(cx, cy), style = Stroke(3.2.dp.toPx()))
         drawCircle(ice, ring - 5.dp.toPx(), androidx.compose.ui.geometry.Offset(cx, cy), style = Stroke(1.2.dp.toPx()))
         drawCircle(blue.copy(alpha = 0.55f), ring + 4.dp.toPx(), androidx.compose.ui.geometry.Offset(cx, cy), style = Stroke(1.4.dp.toPx()))
+        drawArc(brush = Brush.sweepGradient(listOf(Color.Transparent, ice, cyan, Color.Transparent)), startAngle = sweep, sweepAngle = 82f, useCenter = false, topLeft = androidx.compose.ui.geometry.Offset(cx-ring-4.dp.toPx(),cy-ring-4.dp.toPx()), size = androidx.compose.ui.geometry.Size((ring+4.dp.toPx())*2f,(ring+4.dp.toPx())*2f), style = Stroke(width=5.dp.toPx(), cap=androidx.compose.ui.graphics.StrokeCap.Round))
 
         // Crown above the avatar.
         val crown = Path().apply {
@@ -850,6 +854,9 @@ private fun AuroraPremiumFrameOverlay(
     modifier: Modifier = Modifier,
     pulseAlpha: Float
 ) {
+    val motion = rememberInfiniteTransition(label = "aurora_premium_motion")
+    val sweep by motion.animateFloat(0f, 360f, animationSpec = infiniteRepeatable(tween(3200, easing = LinearEasing)), label = "aurora_sweep")
+    val shimmer by motion.animateFloat(0.35f, 1f, animationSpec = infiniteRepeatable(tween(1100, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse), label = "aurora_shimmer")
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
@@ -866,6 +873,7 @@ private fun AuroraPremiumFrameOverlay(
         drawCircle(gold, r + 3.dp.toPx(), center, style = Stroke(3.8.dp.toPx()))
         drawCircle(champagne, r - 3.dp.toPx(), center, style = Stroke(1.4.dp.toPx()))
         drawCircle(emerald.copy(alpha = 0.72f * pulseAlpha), r + 8.dp.toPx(), center, style = Stroke(1.1.dp.toPx()))
+        drawArc(brush = Brush.sweepGradient(listOf(Color.Transparent, champagne, emerald, amethyst, Color.Transparent)), startAngle=sweep, sweepAngle=95f, useCenter=false, topLeft=androidx.compose.ui.geometry.Offset(cx-r-8.dp.toPx(),cy-r-8.dp.toPx()), size=androidx.compose.ui.geometry.Size((r+8.dp.toPx())*2f,(r+8.dp.toPx())*2f), style=Stroke(width=4.dp.toPx(),cap=androidx.compose.ui.graphics.StrokeCap.Round))
 
         // Elegant fan-shaped sunburst crest instead of a crown.
         val crest = Path().apply {
@@ -978,11 +986,16 @@ private fun RoyalGoldFrameOverlay(modifier: Modifier, pulseAlpha: Float) {
 
 @Composable
 private fun RoseGoldFrameOverlay(modifier: Modifier, pulseAlpha: Float) {
+    val motion = rememberInfiniteTransition(label = "rose_gold_frame_motion")
+    val sweep by motion.animateFloat(0f, 360f, animationSpec = infiniteRepeatable(tween(2800, easing = LinearEasing)), label = "rose_gold_sweep")
+    val glow by motion.animateFloat(0.35f, 1f, animationSpec = infiniteRepeatable(tween(950, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse), label = "rose_gold_glow")
     Canvas(modifier) {
         val cx=size.width/2f; val cy=size.height/2f; val r=size.minDimension*.322f
         val rose=Color(0xFFFF9DB7).copy(alpha=pulseAlpha); val blush=Color(0xFFFFE0E8).copy(alpha=pulseAlpha); val copper=Color(0xFFB96878).copy(alpha=pulseAlpha)
         drawCircle(rose,r,androidx.compose.ui.geometry.Offset(cx,cy),style=Stroke(3.dp.toPx()))
         drawCircle(blush,r-5.dp.toPx(),androidx.compose.ui.geometry.Offset(cx,cy),style=Stroke(1.1.dp.toPx()))
+        drawCircle(Color(0xFFFFC6D4).copy(alpha=0.45f+glow*0.35f),r+7.dp.toPx(),androidx.compose.ui.geometry.Offset(cx,cy),style=Stroke(1.2.dp.toPx()))
+        drawArc(brush=Brush.sweepGradient(listOf(Color.Transparent,blush,rose,copper,Color.Transparent)),startAngle=sweep,sweepAngle=88f,useCenter=false,topLeft=androidx.compose.ui.geometry.Offset(cx-r-7.dp.toPx(),cy-r-7.dp.toPx()),size=androidx.compose.ui.geometry.Size((r+7.dp.toPx())*2f,(r+7.dp.toPx())*2f),style=Stroke(width=4.5.dp.toPx(),cap=androidx.compose.ui.graphics.StrokeCap.Round))
         // Floral garlands: paired petals create a soft feminine filigree silhouette.
         for(side in listOf(-1f,1f)) {
             for(i in 0..3) {

@@ -55,7 +55,7 @@ fun ShopScreen(
     // Open the Shop directly on Frames so VIP users immediately see their matching Golden Banner.
     var selectedTab by remember { mutableIntStateOf(1) }
     // Normalize legacy VIP values to the same 1–8 range used by Profile.
-    val effectiveVipLevel = if (profile.isVipActive) profile.vipLevel.coerceIn(1L, 8L) else 0L
+    val effectiveVipLevel = profile.vipLevel
     // Show only the Golden Banner matching this user's active VIP tier.
     // Do not expose other VIP tiers in this user's Shop.
     val visibleFrames = VibeShopCatalog.frames
@@ -63,7 +63,7 @@ fun ShopScreen(
             when {
                 item.id.startsWith("vip_gold_banner_") -> {
                     val requiredVipLevel = item.id.substringAfterLast('_').toLongOrNull()
-                    profile.isVipActive && requiredVipLevel != null && effectiveVipLevel == requiredVipLevel
+                    requiredVipLevel != null && effectiveVipLevel == requiredVipLevel
                 }
                 item.id.startsWith("vip_dragon_") -> false
                 else -> true
@@ -145,7 +145,7 @@ fun ShopScreen(
                                 status = when {
                                     equipped -> "Equipped"
                                     owned -> "Equip"
-                                    !hasRequiredVip && requiredVipLevel == effectiveVipLevel && !profile.isVipActive -> "VIP expired"
+                                    !hasRequiredVip && requiredVipLevel == effectiveVipLevel -> "VIP expired"
                                     !hasRequiredVip -> "Only VIP $requiredVipLevel"
                                     else -> "Buy"
                                 },

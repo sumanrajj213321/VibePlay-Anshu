@@ -135,7 +135,7 @@ fun CharmLevelsScreen(
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                             Text("Need ${(nextGoal - charms).coerceAtLeast(0)} to reach ${CharmProgression.nameForLevel(level + 1L)}", color = Color(0xFF6255B5), fontSize = 14.sp, fontWeight = FontWeight.Medium)
                             Spacer(Modifier.width(5.dp))
-                            CharmEmblem(level = (level + 1L).toInt(), size = 19.dp, showLevel = true)
+                            CharmEmblem(level = (level + 1L).toInt(), size = 19.dp)
                         }
                         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(top = 7.dp).height(4.dp).clip(CircleShape), color = CharmPurple, trackColor = Color.White)
                     }
@@ -175,7 +175,7 @@ fun CharmLevelsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(CharmProgression.nameForLevel(index + 1L) + "  ·  " + formatCharmGoal(milestone), color = CharmMuted, fontSize = 18.sp)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.dp)) { CharmEmblem(level = index + 1, size = 38.dp, showLevel = true) }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.dp)) { CharmEmblem(level = index + 1, size = 38.dp, showLevel = false) }
                     }
                 }
             }
@@ -193,7 +193,7 @@ fun CharmLevelsScreen(
                         modifier = Modifier.fillMaxWidth().background(Color(0xFFF6F4FA), RoundedCornerShape(14.dp)).padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.dp)) { val charmIndex = CharmProgression.milestones.indexOf(milestone) + 1; CharmEmblem(level = charmIndex, size = 40.dp, showLevel = true) }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.dp)) { val charmIndex = CharmProgression.milestones.indexOf(milestone) + 1; CharmEmblem(level = charmIndex, size = 40.dp, showLevel = false) }
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
                             Text(CharmProgression.nameForLevel(CharmProgression.milestones.indexOf(milestone) + 1L), fontWeight = FontWeight.Bold, color = CharmInk)

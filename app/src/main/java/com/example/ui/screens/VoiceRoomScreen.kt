@@ -1458,7 +1458,6 @@ private fun HostSeatTile(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (seat.occupantVipLevel > 0L) VipMiniBadge(seat.occupantVipLevel)
             }
         }
     }

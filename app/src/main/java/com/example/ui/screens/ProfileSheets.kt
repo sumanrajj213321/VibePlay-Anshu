@@ -120,7 +120,7 @@ import com.example.ui.components.BiologicalGenderBadge
 import com.example.ui.components.LevelBadge
 import com.example.ui.components.ReportUserOrRoomDialog
 import com.example.ui.components.VibeAvatar
-import com.example.ui.components.VipBadgePill
+import com.example.ui.components.VipMiniBadge
 import com.example.ui.theme.VibeCoral
 import com.example.ui.theme.VibeCyan
 import com.example.ui.theme.VibeEmerald
@@ -1208,7 +1208,7 @@ fun PublicProfileSheet(
                         }
                         BiologicalGenderBadge(gender = targetUser.gender, showGender = targetUser.showGender, compact = true)
                     }
-                    if (targetUser.isVipActive) Row(Modifier.fillMaxWidth()) { VipBadgePill(targetUser.vipLevel) }
+                    if (targetUser.isVipActive) VipMiniBadge(targetUser.vipLevel)
                     val ageSuffix = if (targetUser.showAge && targetUser.formattedAge != null) " · ${targetUser.formattedAge}" else ""
                     Surface(
                         Modifier.fillMaxWidth(),

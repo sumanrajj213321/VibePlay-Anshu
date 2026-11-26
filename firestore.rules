@@ -581,22 +581,27 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow update: if (
-                (isSignedIn() && isValidId(userId) &&
-                 request.auth.uid == userId &&
-                 incoming().role == existing().role &&
-                 incoming().accountStatus == existing().accountStatus &&
-                 incoming().vipLevel == existing().vipLevel &&
-                 incoming().updatedAt == request.time &&
-                 incoming().lastFramePurchaseAt == request.time &&
-                 isValidFramePurchase(incoming(), existing())) ||
-                (isSignedIn() && isValidId(userId) &&
-                 request.auth.uid == userId &&
-                 incoming().role == existing().role &&
-                 incoming().accountStatus == existing().accountStatus &&
-                 incoming().updatedAt == request.time &&
-                 isValidFrameEquip(incoming(), existing())) ||
-           (
+      allow update: if isSignedIn() && (
+        incoming().diff(existing()).affectedKeys().hasAny([
+          'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'lastFramePurchaseAt'
+        ])
+        ? (
+            (isValidId(userId) &&
+             request.auth.uid == userId &&
+             incoming().role == existing().role &&
+             incoming().accountStatus == existing().accountStatus &&
+             incoming().vipLevel == existing().vipLevel &&
+             incoming().updatedAt == request.time &&
+             incoming().lastFramePurchaseAt == request.time &&
+             isValidFramePurchase(incoming(), existing())) ||
+            (isValidId(userId) &&
+             request.auth.uid == userId &&
+             incoming().role == existing().role &&
+             incoming().accountStatus == existing().accountStatus &&
+             incoming().updatedAt == request.time &&
+             isValidFrameEquip(incoming(), existing()))
+          )
+        : (
                 (isSignedIn() && isValidId(userId) &&
                         request.auth.uid == userId &&
                         (!('userId' in existing()) || incoming().userId == existing().userId) &&

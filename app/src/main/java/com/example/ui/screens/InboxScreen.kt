@@ -108,6 +108,7 @@ import com.example.ui.components.GiftCatalogArtwork
 import com.example.ui.components.ReportUserOrRoomDialog
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.VipShiningNameText
+import com.example.ui.components.VipMiniBadge
 import com.example.ui.theme.VibeCoral
 import com.example.ui.theme.VibeCyan
 import com.example.ui.theme.VibeEmerald
@@ -410,6 +411,9 @@ fun InboxScreen(
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f, fill = false)
                                     )
+                                    if (!conv.isGroupChat) {
+                                        VipMiniBadge(peerProfile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L)
+                                    }
                                     if (isOfficialBot) {
                                         Surface(
                                             shape = RoundedCornerShape(50),
@@ -730,13 +734,16 @@ private fun ChatDetailScreen(
                         online = if (isGroup) false else (peerProfile?.let { it.online && it.showOnlineStatus } ?: false)
                     )
                     Column {
-                        VipShiningNameText(
-                            text = headerTitle,
-                            vipLevel = if (isGroup) 0L else (peerProfile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L),
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            VipShiningNameText(
+                                text = headerTitle,
+                                vipLevel = if (isGroup) 0L else (peerProfile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L),
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (!isGroup) VipMiniBadge(peerProfile?.let { if (it.isVipActive) it.vipLevel else 0L } ?: 0L)
+                        }
                         Text(
                             text = when {
                                 isGroup -> "${conversation.participantIds.size} members · Tap for info"
@@ -930,12 +937,14 @@ private fun ChatDetailScreen(
                                         .then(if (isOfficialBotMessage) Modifier else Modifier.clickable { onInspectPeer(msg.senderId) })
                                         .testTag("dm_sender_name_${msg.id}")
                                 ) {
+                                    val senderVipLevel = senderProfile?.let { if (it.isVipActive) it.vipLevel else 0L }
+                                        ?: if (isMine && currentUser.isVipActive) currentUser.vipLevel else 0L
                                     VipShiningNameText(
                                         text = senderName,
-                                        vipLevel = senderProfile?.let { if (it.isVipActive) it.vipLevel else 0L }
-                                            ?: if (isMine && currentUser.isVipActive) currentUser.vipLevel else 0L,
+                                        vipLevel = senderVipLevel,
                                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
                                     )
+                                    VipMiniBadge(senderVipLevel)
                                 }
                             }
                             if (msg.type == "GIFT") {

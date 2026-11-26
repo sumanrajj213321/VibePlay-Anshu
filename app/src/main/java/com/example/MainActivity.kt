@@ -488,6 +488,7 @@ private fun AuthenticatedVibePlayApp(
                 val useNavigationRail = maxWidth >= 600.dp
 
                 Scaffold(
+                    containerColor = if (currentRoute == MainTab.Home.route) androidx.compose.ui.graphics.Color(0xFF08080A) else MaterialTheme.colorScheme.background,
                     contentWindowInsets = WindowInsets.systemBars,
                     snackbarHost = { SnackbarHost(snackbarHostState) },
                     bottomBar = {

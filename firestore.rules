@@ -638,8 +638,9 @@ service cloud.firestore {
                             incoming().diff(existing()).affectedKeys().hasOnly([
                               'username', 'bio', 'avatarUrl', 'coverUrl', 'gender',
                               'genderChangeCount', 'age', 'ageRange', 'showAge',
-                              'showGender', 'showOnlineStatus', 'online', 'updatedAt'
+                              'showGender', 'showOnlineStatus', 'profileTags', 'online', 'updatedAt'
                             ]) &&
+                            incoming().profileTags is list && incoming().profileTags.size() <= 4 &&
                             isValidUserProfile(incoming()) &&
                             ((incoming().gender == (('gender' in existing()) ? existing().gender : 'UNSPECIFIED') &&
                               incoming().genderChangeCount == (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0)) ||

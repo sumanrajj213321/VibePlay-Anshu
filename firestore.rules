@@ -547,7 +547,8 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Fast-path frame purchase before the large profile-update validator.
+      // Fast-path frame purchase is the FIRST branch of the single update rule.
+      // Separate allow update statements are independently evaluated by Firestore.
       allow update: if isSignedIn() && isValidId(userId) &&
         request.auth.uid == userId &&
         incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
@@ -557,8 +558,17 @@ service cloud.firestore {
         (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
         isValidTs(incoming().updatedAt) &&
         isValidFramePurchase(incoming(), existing());
-      // Dispatch common profile and frame writes before transaction-heavy branches.
-      allow update: if (
+      // Single update expression: the fast path short-circuits the expensive profile branches.
+      allow update: if isSignedIn() && isValidId(userId) &&
+        request.auth.uid == userId &&
+        incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+        (!('userId' in existing()) || incoming().userId == existing().userId) &&
+        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+        (!('role' in existing()) || incoming().role == existing().role) &&
+        (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
+        isValidTs(incoming().updatedAt) &&
+        isValidFramePurchase(incoming(), existing()) ||
+      (
         ((
                 (isSignedIn() && isValidId(userId) &&
                         !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&

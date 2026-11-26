@@ -58,41 +58,35 @@ service cloud.firestore {
              itemId == 'aurora' ? 80000 : -1;
     }
 
-    function vipFrameRequiredLevel(frameId) {
-      return (frameId == 'vip_dragon_1' || frameId == 'vip_gold_banner_1') ? 1 :
-             (frameId == 'vip_dragon_2' || frameId == 'vip_gold_banner_2') ? 2 :
-             (frameId == 'vip_dragon_3' || frameId == 'vip_gold_banner_3') ? 3 :
-             (frameId == 'vip_dragon_4' || frameId == 'vip_gold_banner_4') ? 4 :
-             (frameId == 'vip_dragon_5' || frameId == 'vip_gold_banner_5') ? 5 :
-             (frameId == 'vip_dragon_6' || frameId == 'vip_gold_banner_6') ? 6 :
-             (frameId == 'vip_dragon_7' || frameId == 'vip_gold_banner_7') ? 7 :
-             (frameId == 'vip_dragon_8' || frameId == 'vip_gold_banner_8') ? 8 : 0;
-    }
-
-    function vipFramePrice(level) {
-      return level == 1 ? 90000 :
-             level == 2 ? 110000 :
-             level == 3 ? 130000 :
-             level == 4 ? 150000 :
-             level == 5 ? 175000 :
-             level == 6 ? 200000 :
-             level == 7 ? 230000 :
-             level == 8 ? 275000 : -1;
-    }
-
     function isValidVipFramePurchase(data, oldData) {
-      let level = vipFrameRequiredLevel(data.activeFrameId);
+      let level = oldData.vipLevel;
       let oldOwned = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds : [];
+      let price = level == 1 ? 90000 :
+                  level == 2 ? 110000 :
+                  level == 3 ? 130000 :
+                  level == 4 ? 150000 :
+                  level == 5 ? 175000 :
+                  level == 6 ? 200000 :
+                  level == 7 ? 230000 :
+                  level == 8 ? 275000 : -1;
+      let exactFrameLevel =
+        (level == 1 && data.activeFrameId in ['vip_dragon_1', 'vip_gold_banner_1']) ||
+        (level == 2 && data.activeFrameId in ['vip_dragon_2', 'vip_gold_banner_2']) ||
+        (level == 3 && data.activeFrameId in ['vip_dragon_3', 'vip_gold_banner_3']) ||
+        (level == 4 && data.activeFrameId in ['vip_dragon_4', 'vip_gold_banner_4']) ||
+        (level == 5 && data.activeFrameId in ['vip_dragon_5', 'vip_gold_banner_5']) ||
+        (level == 6 && data.activeFrameId in ['vip_dragon_6', 'vip_gold_banner_6']) ||
+        (level == 7 && data.activeFrameId in ['vip_dragon_7', 'vip_gold_banner_7']) ||
+        (level == 8 && data.activeFrameId in ['vip_dragon_8', 'vip_gold_banner_8']);
       return data.activeFrameId is string &&
-        level >= 1 && level <= 8 &&
-        oldData.vipLevel == level &&
+        level is int && level >= 1 && level <= 8 &&
+        exactFrameLevel &&
         oldData.vipExpiresAt is timestamp &&
         oldData.vipExpiresAt > request.time &&
         oldData.coinBalance is int &&
-        data.coinBalance is int &&
-        data.coinBalance >= 0 &&
-        data.coinBalance == oldData.coinBalance - vipFramePrice(level) &&
+        data.coinBalance is int && data.coinBalance >= 0 &&
+        data.coinBalance == oldData.coinBalance - price &&
         data.ownedFrameIds is list &&
         data.ownedFrameIds.hasAll(oldOwned) &&
         data.ownedFrameIds.size() == oldOwned.size() + 1 &&
@@ -129,16 +123,6 @@ service cloud.firestore {
           'coinBalance', 'ownedFrameIds', 'activeFrameId',
           'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt'
         ]);
-    }
-
-    function isValidFramePurchase(data, oldData) {
-      let level = vipFrameRequiredLevel(data.activeFrameId);
-      return data.activeFrameId is string &&
-        (level == 0
-          ? isValidLegacyFramePurchase(data, oldData)
-          : isValidVipFramePurchase(data, oldData)) &&
-        (!('vipLevel' in oldData) ||
-          (('vipLevel' in data) && data.vipLevel == oldData.vipLevel));
     }
 
     function isValidUserProfile(data) {
@@ -578,7 +562,19 @@ service cloud.firestore {
         (!('role' in existing()) || incoming().role == existing().role) &&
         (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
         isValidTs(incoming().updatedAt) &&
-        isValidFramePurchase(incoming(), existing());
+        isValidVipFramePurchase(incoming(), existing());
+
+      allow update: if isSignedIn() && isValidId(userId) &&
+        request.auth.uid == userId &&
+        incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+        (!('userId' in existing()) || incoming().userId == existing().userId) &&
+        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+        (!('role' in existing()) || incoming().role == existing().role) &&
+        (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
+        isValidTs(incoming().updatedAt) &&
+        (!('vipLevel' in existing()) ||
+          (('vipLevel' in incoming()) && incoming().vipLevel == existing().vipLevel)) &&
+        isValidLegacyFramePurchase(incoming(), existing());
       allow update: if         !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
         ((
                 (isSignedIn() && isValidId(userId) &&

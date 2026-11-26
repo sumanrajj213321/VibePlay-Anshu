@@ -588,6 +588,9 @@ service cloud.firestore {
                               incoming().genderChangeCount == 1))
                           ) ||
                           (
+                            (!('lastFramePurchaseAt' in incoming()) ||
+                             (('lastFramePurchaseAt' in existing()) &&
+                              incoming().lastFramePurchaseAt == existing().lastFramePurchaseAt)) &&
                             incoming().activeFrameId is string &&
                             (incoming().activeFrameId == '' ||
                              (incoming().ownedFrameIds is list &&

@@ -1779,6 +1779,26 @@ test("Own and public profile reads plus frame purchases are permitted only throu
 });
 
 
+test("Legacy profile missing userId, createdAt, role and accountStatus can purchase a frame", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const userRef = aliceDb.collection("users").doc(ALICE_UID);
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await ctx.firestore().doc(`users/${ALICE_UID}`).set({
+      username: "Alice",
+      coinBalance: 100000,
+      vipLevel: 0,
+    });
+  });
+  await assertSucceeds(userRef.update({
+    coinBalance: 85000,
+    ownedFrameIds: ["neon_cyan"],
+    activeFrameId: "neon_cyan",
+    frameExpiresAt: { neon_cyan: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+    lastFramePurchaseAt: new Date(),
+    updatedAt: pastDate(),
+  }));
+});
+
 test("public gift wall exposes only transaction-linked gift projections", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();

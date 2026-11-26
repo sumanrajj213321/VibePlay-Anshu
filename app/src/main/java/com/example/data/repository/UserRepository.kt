@@ -494,21 +494,12 @@ class UserRepository(
 
     suspend fun equipShopCosmetic(category: String, itemId: String?): Result<Unit> {
         val uid = requireUserId()
-        val userRef = db.collection("users").document(uid)
         return try {
             require(category == "FRAME") { "Title equipping is temporarily unavailable." }
-            db.runTransaction { tx ->
-                val snap = tx.get(userRef)
-                require(snap.exists()) { "Profile not found." }
-                val ownedField = "ownedFrameIds"
-                val activeField = "activeFrameId"
-                val expiryField = "frameExpiresAt"
-                val owned = (snap.get(ownedField) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-                val expiryMap = (snap.get(expiryField) as? Map<*, *>) ?: emptyMap<Any, Any>()
-                val expiry = itemId?.let { expiryMap[it] as? Timestamp }
-                require(itemId.isNullOrBlank() || (itemId in owned && expiry?.toDate()?.after(java.util.Date()) == true)) { "This item has expired. Purchase it again." }
-                tx.update(userRef, mapOf(activeField to (itemId ?: ""), "updatedAt" to FieldValue.serverTimestamp()))
-            }.await()
+            com.google.firebase.functions.FirebaseFunctions.getInstance("asia-south1")
+                .getHttpsCallable("equipShopFrame")
+                .call(mapOf("frameId" to (itemId ?: "")))
+                .await()
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e

@@ -142,7 +142,8 @@ fun EditProfileSheet(
         age: Long,
         showAge: Boolean,
         showGender: Boolean,
-        showOnlineStatus: Boolean
+        showOnlineStatus: Boolean,
+        profileTags: List<String>
     ) -> Unit
 ) {
     var username by remember(profile.username) { mutableStateOf(profile.username) }
@@ -157,6 +158,9 @@ fun EditProfileSheet(
     var showAge by remember(profile.showAge) { mutableStateOf(profile.showAge) }
     var showGender by remember(profile.showGender) { mutableStateOf(profile.showGender) }
     var showOnline by remember(profile.showOnlineStatus) { mutableStateOf(profile.showOnlineStatus) }
+    var selectedProfileTags by remember(profile.userId) { mutableStateOf(profile.profileTags.map { it.trim() }.filter { it.isNotBlank() }.distinct().take(4)) }
+    var customProfileTag by remember { mutableStateOf("") }
+    val recommendedProfileTags = listOf("Diva", "Social", "Detective", "Lucky", "2000's Kid", "Music Lover", "Traveller", "Gamer", "Introvert", "Extrovert", "Foodie", "Dreamer", "Fashionista", "Bookworm", "Anime Lover", "Artist", "Nature Lover", "Funny")
 
     var pendingAvatarUri by remember { mutableStateOf<Uri?>(null) }
     var pendingCoverUri by remember { mutableStateOf<Uri?>(null) }
@@ -203,6 +207,31 @@ fun EditProfileSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("Edit Profile & Privacy", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Profile Tags · Choose up to 4", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Recommended tags", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                recommendedProfileTags.forEach { tag ->
+                    FilterChip(selected = tag in selectedProfileTags, onClick = {
+                        selectedProfileTags = if (tag in selectedProfileTags) selectedProfileTags - tag
+                        else if (selectedProfileTags.size < 4) selectedProfileTags + tag else selectedProfileTags
+                    }, label = { Text(tag) })
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(value = customProfileTag, onValueChange = { customProfileTag = it.take(24) }, modifier = Modifier.weight(1f), label = { Text("Create your own tag") }, singleLine = true)
+                Button(onClick = {
+                    val tag = customProfileTag.trim().replace(Regex("\\s+"), " ")
+                    if (tag.isNotBlank() && selectedProfileTags.size < 4 && selectedProfileTags.none { it.equals(tag, true) }) {
+                        selectedProfileTags = selectedProfileTags + tag
+                        customProfileTag = ""
+                    }
+                }, enabled = selectedProfileTags.size < 4 && customProfileTag.isNotBlank()) { Text("Add") }
+            }
+            if (selectedProfileTags.isNotEmpty()) {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    selectedProfileTags.forEach { tag -> FilterChip(selected = true, onClick = { selectedProfileTags = selectedProfileTags - tag }, label = { Text("$tag ×") }) }
+                }
+            }
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
@@ -337,7 +366,7 @@ fun EditProfileSheet(
                     if (parsedAge != 0L && parsedAge !in 13L..120L) {
                         ageError = "Enter an exact age between 13 and 120, or clear the field."
                     } else {
-                        onSave(username, bio, avatarUrl, coverUrl, gender, parsedAge, showAge, showGender, showOnline)
+                        onSave(username, bio, avatarUrl, coverUrl, gender, parsedAge, showAge, showGender, showOnline, selectedProfileTags)
                         onDismiss()
                     }
                 },

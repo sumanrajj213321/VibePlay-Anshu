@@ -297,6 +297,7 @@ fun VibeAvatar(
     val isRoseGoldFrame = frameColorArgb == 0xFFF472B6L
     val isRoyalGoldFrame = frameColorArgb == 0xFFFBBF24L
     val isGalaxyFrame = frameColorArgb == 0xFFA78BFAL
+    val isNewYear2027Frame = frameColorArgb == 0xFF87CEFA
     val luxuryVipLevel = when (frameColorArgb) {
         0xFFFF5A36L -> 1
         0xFFE83252L -> 2
@@ -462,6 +463,9 @@ fun VibeAvatar(
                     )
                 }
             }
+        }
+        if (isNewYear2027Frame) {
+            NewYear2027FrameOverlay(Modifier.align(Alignment.Center).requiredSize(size * 1.82f), pulseAlpha)
         }
         if (isNeonCyanFrame) {
             NeonAuroraFrameOverlay(
@@ -1016,6 +1020,50 @@ private fun RoseGoldFrameOverlay(modifier: Modifier, pulseAlpha: Float) {
         drawCircle(blush,r*.075f,androidx.compose.ui.geometry.Offset(cx,cy-r*1.28f))
         val drop=Path().apply { moveTo(cx,cy+r*1.10f); cubicTo(cx+r*.36f,cy+r*1.40f,cx+r*.12f,cy+r*1.65f,cx,cy+r*1.68f); cubicTo(cx-r*.12f,cy+r*1.65f,cx-r*.36f,cy+r*1.40f,cx,cy+r*1.10f) }
         drawPath(drop,rose,style=Stroke(2.6.dp.toPx())); drawCircle(blush,r*.045f,androidx.compose.ui.geometry.Offset(cx,cy+r*1.40f))
+    }
+}
+
+
+@Composable
+private fun NewYear2027FrameOverlay(modifier: Modifier, pulseAlpha: Float) {
+    val motion = rememberInfiniteTransition(label = "new_year_2027_glitter")
+    val sweep by motion.animateFloat(0f, 360f, animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing)), label = "new_year_sweep")
+    val shimmer by motion.animateFloat(0.35f, 1f, animationSpec = infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse), label = "new_year_shimmer")
+    Box(modifier = modifier) {
+        Canvas(Modifier.fillMaxSize()) {
+            val cx = size.width / 2f; val cy = size.height / 2f
+            val r = size.minDimension * 0.322f
+            val sky = Color(0xFF87CEFA); val ice = Color(0xFFEAF9FF)
+            drawCircle(Color(0xFF42B9F5).copy(alpha = 0.92f * pulseAlpha), r + 2.dp.toPx(), Offset(cx, cy), style = Stroke(4.5.dp.toPx()))
+            drawCircle(ice.copy(alpha = 0.92f * shimmer), r - 3.dp.toPx(), Offset(cx, cy), style = Stroke(1.8.dp.toPx()))
+            drawCircle(sky.copy(alpha = 0.85f * pulseAlpha), r + 8.dp.toPx(), Offset(cx, cy), style = Stroke(1.4.dp.toPx()))
+            drawArc(Brush.sweepGradient(listOf(Color.Transparent, ice, sky, Color.White, Color.Transparent)), sweep, 100f, false,
+                Offset(cx-r-8.dp.toPx(), cy-r-8.dp.toPx()), androidx.compose.ui.geometry.Size((r+8.dp.toPx())*2f, (r+8.dp.toPx())*2f),
+                style = Stroke(5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            for (i in 0..27) {
+                val angle = Math.toRadians(i * 12.85 + sweep * (if (i % 2 == 0) 1.0 else -0.55))
+                val radius = r * (1.12f + (i % 4) * 0.10f)
+                val twinkle = (0.28f + 0.72f * (0.5f + 0.5f * kotlin.math.sin(Math.toRadians(sweep.toDouble()) + i))).toFloat()
+                val p = Offset(cx + kotlin.math.cos(angle).toFloat() * radius, cy + kotlin.math.sin(angle).toFloat() * radius)
+                drawCircle(if (i % 3 == 0) Color.White.copy(alpha = twinkle) else ice.copy(alpha = twinkle), (1.2f + (i % 3) * 0.8f).dp.toPx(), p)
+                if (i % 5 == 0) {
+                    drawLine(Color.White.copy(alpha = twinkle), Offset(p.x-4.dp.toPx(),p.y), Offset(p.x+4.dp.toPx(),p.y), 1.dp.toPx())
+                    drawLine(Color.White.copy(alpha = twinkle), Offset(p.x,p.y-4.dp.toPx()), Offset(p.x,p.y+4.dp.toPx()), 1.dp.toPx())
+                }
+            }
+            for (side in listOf(-1f,1f)) {
+                val flourish = Path().apply {
+                    moveTo(cx + side*r*.82f, cy-r*.10f)
+                    cubicTo(cx+side*r*1.28f,cy-r*.65f,cx+side*r*1.55f,cy+r*.05f,cx+side*r*1.05f,cy+r*.48f)
+                }
+                drawPath(flourish, sky.copy(alpha=pulseAlpha), style=Stroke(2.5.dp.toPx()))
+            }
+        }
+        Box(Modifier.align(Alignment.BottomCenter).padding(horizontal=8.dp).fillMaxWidth(.72f).height(25.dp)
+            .background(Brush.horizontalGradient(listOf(Color(0xFF4AAFE8),Color(0xFFDDF6FF),Color(0xFF5BBCEB))),RoundedCornerShape(7.dp))
+            .border(1.dp,Color.White.copy(alpha=.9f*shimmer),RoundedCornerShape(7.dp)),contentAlignment=Alignment.Center) {
+            Text("2027",color=Color(0xFFF8FCFF),fontWeight=FontWeight.Black,style=MaterialTheme.typography.labelLarge,letterSpacing=3.sp)
+        }
     }
 }
 

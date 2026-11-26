@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
+import android.util.Log
 import com.example.R
 import com.example.data.firebase.OperationType
 import com.example.data.firebase.handleFirestoreError
@@ -22,6 +23,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.snapshots
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CancellationException
@@ -500,6 +502,17 @@ class UserRepository(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            val firestoreError = generateSequence(e) { it.cause }
+                .filterIsInstance<FirebaseFirestoreException>()
+                .firstOrNull()
+            val diagnosticItem = com.example.data.model.VibeShopCatalog.frames.firstOrNull { it.id == itemId }
+            Log.e(
+                "FramePurchaseDiagnostic",
+                "category=$category itemId=$itemId price=${diagnosticItem?.coinPrice} " +
+                    "firestoreCode=${firestoreError?.code?.name ?: "NO_FIRESTORE_CODE"} " +
+                    "exception=${e.javaClass.name} message=${e.message}",
+                e
+            )
             handleFirestoreError(e, OperationType.UPDATE, "users/$uid")
             Result.failure(e)
         }

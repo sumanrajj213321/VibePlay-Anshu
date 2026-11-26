@@ -53,12 +53,19 @@ fun ShopScreen(
     onEquip: (String, String?) -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    // Keep the five legacy frames available to everyone. For VIP frames, show
+    // only the Golden Banner matching the user's current, unexpired VIP level.
+    // Dragon frames are not part of this Golden Banner shop offer.
     val visibleFrames = VibeShopCatalog.frames.filter { item ->
-        val requiredVipLevel = if (
-            item.id.startsWith("vip_dragon_") || item.id.startsWith("vip_gold_banner_")
-        ) item.id.substringAfterLast('_').toLongOrNull() else null
-        requiredVipLevel == null ||
-            (profile.isVipActive && profile.vipLevel == requiredVipLevel)
+        when {
+            item.id.startsWith("vip_gold_banner_") -> {
+                val requiredVipLevel = item.id.substringAfterLast('_').toLongOrNull()
+                requiredVipLevel != null && profile.isVipActive &&
+                    profile.vipLevel == requiredVipLevel
+            }
+            item.id.startsWith("vip_dragon_") -> false
+            else -> true
+        }
     }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(
@@ -123,9 +130,9 @@ fun ShopScreen(
                         frameRow.forEach { item ->
                             val owned = profile.isFrameActive(item.id)
                             val equipped = profile.activeFrameId == item.id && owned
-                            val requiredVipLevel = if (
-                                item.id.startsWith("vip_dragon_") || item.id.startsWith("vip_gold_banner_")
-                            ) item.id.substringAfterLast('_').toLongOrNull() else null
+                            val requiredVipLevel = if (item.id.startsWith("vip_gold_banner_")) {
+                                item.id.substringAfterLast('_').toLongOrNull()
+                            } else null
                             val hasRequiredVip = requiredVipLevel == null ||
                                 (profile.isVipActive && profile.vipLevel == requiredVipLevel)
                             FrameGridCard(

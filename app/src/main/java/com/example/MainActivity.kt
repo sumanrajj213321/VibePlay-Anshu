@@ -719,8 +719,8 @@ private fun AuthenticatedVibePlayApp(
                                         blockedUsers = blockedProfiles,
                                         onToggleDarkTheme = { viewModel.setDarkTheme(it) },
                                         onToggleRoomEffects = { viewModel.setRoomEffects(it) },
-                                        onEditProfile = { name, bio, avatar, cover, gender, age, showAge, showGender, showOnline ->
-                                            viewModel.updateProfile(name, bio, avatar, cover, gender, age, showAge, showGender, showOnline)
+                                        onEditProfile = { name, bio, avatar, cover, gender, age, showAge, showGender, showOnline, profileTags ->
+                                            viewModel.updateProfile(name, bio, avatar, cover, gender, age, showAge, showGender, showOnline, profileTags)
                                         },
                                         onUpgradeVip = { tier -> viewModel.upgradeVip(currentUser, tier) },
                                         onClaimDailyReward = { viewModel.claimDailyReward(currentUser) },

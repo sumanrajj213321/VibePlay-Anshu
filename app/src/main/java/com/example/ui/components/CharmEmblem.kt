@@ -28,12 +28,31 @@ import androidx.compose.ui.unit.sp
 /** Original VibePlay luxury Charm crest: animated faceted crystal and halo, no emoji. */
 @Composable
 fun CharmEmblem(level: Int = 1, modifier: Modifier = Modifier, size: Dp = 24.dp, showLevel: Boolean = false) {
-    val tier = when {
-        level >= 16 -> listOf(Color(0xFFFFB5F1), Color(0xFF9B62FF), Color(0xFFFFD88A))
-        level >= 7 -> listOf(Color(0xFFFFE18A), Color(0xFFFF963F), Color(0xFFFFF0B5))
-        level >= 4 -> listOf(Color(0xFF9AF3FF), Color(0xFF397DFF), Color(0xFFE8FDFF))
-        else -> listOf(Color(0xFF9BFFF1), Color(0xFF557CFF), Color(0xFFF1FFFF))
-    }
+    // Each Charm level gets its own three-tone badge palette.
+    val levelPalettes = listOf(
+        listOf(Color(0xFF8CF5FF), Color(0xFF2878D8), Color(0xFFE8FFFF)),
+        listOf(Color(0xFF72E8D1), Color(0xFF247C9A), Color(0xFFD7FFF5)),
+        listOf(Color(0xFF9BAAFF), Color(0xFF4B4BD8), Color(0xFFE9E9FF)),
+        listOf(Color(0xFFB5F4FF), Color(0xFF248CCB), Color(0xFFF1FDFF)),
+        listOf(Color(0xFF8BC7FF), Color(0xFF315EC7), Color(0xFFE2F1FF)),
+        listOf(Color(0xFFB7B0FF), Color(0xFF6652D8), Color(0xFFF0ECFF)),
+        listOf(Color(0xFFFFE28A), Color(0xFFD68A25), Color(0xFFFFF5C9)),
+        listOf(Color(0xFFFFC46B), Color(0xFFC65B24), Color(0xFFFFE7B8)),
+        listOf(Color(0xFFFFA96B), Color(0xFFB94D36), Color(0xFFFFE2C9)),
+        listOf(Color(0xFFFFD0A1), Color(0xFFBA7845), Color(0xFFFFF0DA)),
+        listOf(Color(0xFFFFB77D), Color(0xFF9D542F), Color(0xFFFFE0C4)),
+        listOf(Color(0xFFFFD36E), Color(0xFF9F6A19), Color(0xFFFFF2BD)),
+        listOf(Color(0xFFD6B2FF), Color(0xFF8051C8), Color(0xFFF5E8FF)),
+        listOf(Color(0xFFC69BFF), Color(0xFF673DB5), Color(0xFFEBDDFF)),
+        listOf(Color(0xFFE5A9FF), Color(0xFF923CB8), Color(0xFFFFE7FF)),
+        listOf(Color(0xFFFFB5F1), Color(0xFF9B62FF), Color(0xFFFFD88A)),
+        listOf(Color(0xFFB9A5FF), Color(0xFF6847D6), Color(0xFFFFD2F4)),
+        listOf(Color(0xFFFFA9D6), Color(0xFFB73D9C), Color(0xFFFFE6F5)),
+        listOf(Color(0xFFB8F7FF), Color(0xFF4D9ED6), Color(0xFFFFFFFF)),
+        listOf(Color(0xFFFFE7A1), Color(0xFFB68A37), Color(0xFFFFFFFF)),
+        listOf(Color(0xFFFFC5F5), Color(0xFF8D55D9), Color(0xFFFFFFFF))
+    )
+    val tier = levelPalettes[(level - 1).coerceIn(0, levelPalettes.lastIndex)]
     val transition = rememberInfiniteTransition(label = "charm_luxury")
     val pulse by transition.animateFloat(
         initialValue = 0.94f, targetValue = 1.06f,

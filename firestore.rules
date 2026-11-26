@@ -572,7 +572,9 @@ service cloud.firestore {
            isValidTs(incoming().updatedAt) &&
            isValidFramePurchase(incoming(), existing());
 
-      allow update: if !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+      allow update: if (!('lastFramePurchaseAt' in incoming()) ||
+                          (('lastFramePurchaseAt' in existing()) &&
+                           incoming().lastFramePurchaseAt == existing().lastFramePurchaseAt)) &&
            ((
                 (isSignedIn() && isValidId(userId) &&
                         !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&

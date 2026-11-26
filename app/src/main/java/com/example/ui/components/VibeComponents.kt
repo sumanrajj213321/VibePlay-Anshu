@@ -1029,6 +1029,7 @@ private fun NewYear2027FrameOverlay(modifier: Modifier, pulseAlpha: Float) {
     val motion = rememberInfiniteTransition(label = "new_year_2027_glitter")
     val sweep by motion.animateFloat(0f, 360f, animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing)), label = "new_year_sweep")
     val shimmer by motion.animateFloat(0.35f, 1f, animationSpec = infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse), label = "new_year_shimmer")
+    val wingFlap by motion.animateFloat(-1f, 1f, animationSpec = infiniteRepeatable(tween(85, easing = LinearEasing), repeatMode = RepeatMode.Reverse), label = "new_year_wing_flap")
     Box(modifier = modifier) {
         Canvas(Modifier.fillMaxSize()) {
             val cx = size.width / 2f; val cy = size.height / 2f
@@ -1051,12 +1052,34 @@ private fun NewYear2027FrameOverlay(modifier: Modifier, pulseAlpha: Float) {
                     drawLine(Color.White.copy(alpha = twinkle), Offset(p.x,p.y-4.dp.toPx()), Offset(p.x,p.y+4.dp.toPx()), 1.dp.toPx())
                 }
             }
-            for (side in listOf(-1f,1f)) {
-                val flourish = Path().apply {
-                    moveTo(cx + side*r*.82f, cy-r*.10f)
-                    cubicTo(cx+side*r*1.28f,cy-r*.65f,cx+side*r*1.55f,cy+r*.05f,cx+side*r*1.05f,cy+r*.48f)
+            // Four feathered wing pairs around the frame. The quick flap
+            // reverses every 85 ms, giving a continuous rapid bird-wing motion.
+            val wingCenters = listOf(
+                Offset(cx, cy-r*1.16f), Offset(cx+r*1.16f, cy),
+                Offset(cx, cy+r*1.16f), Offset(cx-r*1.16f, cy)
+            )
+            wingCenters.forEachIndexed { index, pivot ->
+                val direction = if (index % 2 == 0) 1f else -1f
+                val flap = wingFlap * 24f * direction
+                androidx.compose.ui.graphics.drawscope.rotate(flap, pivot) {
+                    for (side in listOf(-1f, 1f)) {
+                        val root = Offset(pivot.x + side*2.dp.toPx(), pivot.y)
+                        val tip = Offset(pivot.x + side*19.dp.toPx(), pivot.y - 10.dp.toPx())
+                        val wing = Path().apply {
+                            moveTo(root.x, root.y)
+                            cubicTo(pivot.x+side*8.dp.toPx(), pivot.y-17.dp.toPx(),
+                                pivot.x+side*19.dp.toPx(), pivot.y-21.dp.toPx(), tip.x, tip.y)
+                            cubicTo(pivot.x+side*14.dp.toPx(), pivot.y-3.dp.toPx(),
+                                pivot.x+side*7.dp.toPx(), pivot.y+3.dp.toPx(), root.x, root.y)
+                        }
+                        drawPath(wing, Brush.linearGradient(listOf(Color.White.copy(alpha=.96f), sky, Color(0xFF58B9F0))), style=Stroke(1.8.dp.toPx()))
+                        for (feather in 1..4) {
+                            val start = Offset(pivot.x+side*(feather*2.4f).dp.toPx(), pivot.y-2.dp.toPx())
+                            val end = Offset(pivot.x+side*(feather*4.1f+5f).dp.toPx(), pivot.y-(feather*2.1f+3f).dp.toPx())
+                            drawLine(Color.White.copy(alpha=.88f*pulseAlpha), start, end, 1.35.dp.toPx())
+                        }
+                    }
                 }
-                drawPath(flourish, sky.copy(alpha=pulseAlpha), style=Stroke(2.5.dp.toPx()))
             }
         }
         Box(Modifier.align(Alignment.BottomCenter).padding(horizontal=8.dp).fillMaxWidth(.72f).height(25.dp)

@@ -53,6 +53,13 @@ fun ShopScreen(
     onEquip: (String, String?) -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    val visibleFrames = VibeShopCatalog.frames.filter { item ->
+        val requiredVipLevel = if (
+            item.id.startsWith("vip_dragon_") || item.id.startsWith("vip_gold_banner_")
+        ) item.id.substringAfterLast('_').toIntOrNull() else null
+        requiredVipLevel == null ||
+            (profile.isVipActive && profile.vipLevel == requiredVipLevel)
+    }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp),
@@ -107,7 +114,7 @@ fun ShopScreen(
                         vipLevel = tier.level
                     )
                 }
-                1 -> items(VibeShopCatalog.frames.chunked(4)) { frameRow ->
+                1 -> items(visibleFrames.chunked(4)) { frameRow ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),

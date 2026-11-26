@@ -115,7 +115,7 @@ fun ProfileScreen(
     blockedUsers: List<UserProfile>,
     onToggleDarkTheme: (Boolean) -> Unit,
     onToggleRoomEffects: (Boolean) -> Unit = {},
-    onEditProfile: (String, String, String, String, String, Long, Boolean, Boolean, Boolean) -> Unit,
+    onEditProfile: (String, String, String, String, String, Long, Boolean, Boolean, Boolean, List<String>) -> Unit,
     onUpgradeVip: (Int) -> Unit,
     onClaimDailyReward: () -> Unit,
     onInspectUserById: ((String) -> Unit)? = null,
@@ -496,6 +496,15 @@ fun ProfileScreen(
                     )
                     if (profile.isVipActive) {
                         VipMiniBadge(profile.vipLevel)
+                    }
+                }
+                if (profile.profileTags.isNotEmpty()) {
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        profile.profileTags.take(4).forEach { tag ->
+                            Surface(shape = RoundedCornerShape(50), color = Color.Transparent, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))) {
+                                Text(tag, modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp), style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
                     }
                 }
 

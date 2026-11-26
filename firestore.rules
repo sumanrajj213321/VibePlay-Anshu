@@ -59,16 +59,10 @@ service cloud.firestore {
     }
 
     function vipFrameLevel(frameId) {
-      return {
-        'vip_dragon_1': 1, 'vip_gold_banner_1': 1,
-        'vip_dragon_2': 2, 'vip_gold_banner_2': 2,
-        'vip_dragon_3': 3, 'vip_gold_banner_3': 3,
-        'vip_dragon_4': 4, 'vip_gold_banner_4': 4,
-        'vip_dragon_5': 5, 'vip_gold_banner_5': 5,
-        'vip_dragon_6': 6, 'vip_gold_banner_6': 6,
-        'vip_dragon_7': 7, 'vip_gold_banner_7': 7,
-        'vip_dragon_8': 8, 'vip_gold_banner_8': 8
-      }.get(frameId, 0);
+      return frameId is string && frameId.matches('vip_dragon_[1-8]')
+        ? int(frameId.split('_')[2])
+        : frameId is string && frameId.matches('vip_gold_banner_[1-8]')
+          ? int(frameId.split('_')[3]) : 0;
     }
 
     function isValidVipFramePurchase(data, oldData, frameLevel) {

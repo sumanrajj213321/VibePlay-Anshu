@@ -57,18 +57,22 @@ fun ShopScreen(
     // Keep the five legacy frames available to everyone. For VIP frames, show
     // only the Golden Banner matching the user's current, unexpired VIP level.
     // Dragon frames are not part of this Golden Banner shop offer.
-    val visibleFrames = VibeShopCatalog.frames.filter { item ->
-        when {
-            item.id.startsWith("vip_gold_banner_") -> {
-                val requiredVipLevel = item.id.substringAfterLast('_').toLongOrNull()
-                // Display the banner matching the stored VIP tier even if its
-                // subscription has expired; purchase remains disabled below.
-                requiredVipLevel != null && profile.vipLevel == requiredVipLevel
+    val visibleFrames = VibeShopCatalog.frames
+        .filter { item ->
+            when {
+                item.id.startsWith("vip_gold_banner_") -> {
+                    val requiredVipLevel = item.id.substringAfterLast('_').toLongOrNull()
+                    // Display only the banner matching the stored VIP tier.
+                    // Purchase eligibility is checked separately below.
+                    requiredVipLevel != null && profile.vipLevel == requiredVipLevel
+                }
+                item.id.startsWith("vip_dragon_") -> false
+                else -> true
             }
-            item.id.startsWith("vip_dragon_") -> false
-            else -> true
         }
-    }
+        // Put the user's matching Golden Banner first so it is visible
+        // immediately, above the five legacy frames.
+        .sortedBy { if (it.id.startsWith("vip_gold_banner_")) 0 else 1 }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp),

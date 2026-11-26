@@ -495,7 +495,8 @@ class UserRepository(
                     }
                     vipExpiry
                 } else {
-                    Timestamp(Date(now.toDate().time + 7L * 24L * 60L * 60L * 1000L))
+                    val durationDays = if (itemId == "new_year_2027") 30L else 7L
+                    Timestamp(Date(now.toDate().time + durationDays * 24L * 60L * 60L * 1000L))
                 }
 
                 val frameExpiries = (snapshot.get("frameExpiresAt") as? Map<*, *>)

@@ -140,9 +140,10 @@ service cloud.firestore {
     }
 
     function isValidLegacyFramePurchase(data, oldData) {
+      let price = shopFramePrice(data.activeFrameId);
       let oldOwned = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds : [];
-      let alreadyOwned = data.activeFrameId in oldOwned;
+      let alreadyOwned = data.activeFrameId is string && data.activeFrameId in oldOwned;
       let oldExpiryMap = ('frameExpiresAt' in oldData && oldData.frameExpiresAt is map)
         ? oldData.frameExpiresAt : {};
       let oldExpiry = alreadyOwned && data.activeFrameId in oldExpiryMap

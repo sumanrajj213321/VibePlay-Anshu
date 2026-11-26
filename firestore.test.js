@@ -1779,6 +1779,22 @@ test("Own and public profile reads plus frame purchases are permitted only throu
 });
 
 
+test("Android-style frame purchase transforms are accepted (arrayUnion + serverTimestamp)", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const userRef = aliceDb.collection("users").doc(ALICE_UID);
+  await assertSucceeds(userRef.set(makeUserPayload(ALICE_UID, "Alice", "VP-100001")));
+
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await assertSucceeds(userRef.update({
+    coinBalance: 1000500 - 15000,
+    ownedFrameIds: firebase.firestore.FieldValue.arrayUnion("neon_cyan"),
+    activeFrameId: "neon_cyan",
+    frameExpiresAt: { neon_cyan: expiresAt },
+    lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+});
+
 test("Legacy profile missing userId, createdAt, role and accountStatus can purchase a frame", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const userRef = aliceDb.collection("users").doc(ALICE_UID);

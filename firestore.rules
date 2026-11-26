@@ -602,6 +602,7 @@ service cloud.firestore {
         );
     }
 
+    // Profile tags are optional for legacy accounts; updates validate the four-tag cap when present.
     match /users/{userId} {
       allow update: if isSignedIn() && (
         incoming().diff(existing()).affectedKeys().hasAny([
@@ -638,8 +639,9 @@ service cloud.firestore {
                             incoming().diff(existing()).affectedKeys().hasOnly([
                               'username', 'bio', 'avatarUrl', 'coverUrl', 'gender',
                               'genderChangeCount', 'age', 'ageRange', 'showAge',
-                              'showGender', 'showOnlineStatus', 'online', 'updatedAt'
+                              'showGender', 'showOnlineStatus', 'profileTags', 'online', 'updatedAt'
                             ]) &&
+                            (!('profileTags' in incoming()) || (incoming().profileTags is list && incoming().profileTags.size() <= 4)) &&
                             isValidUserProfile(incoming()) &&
                             ((incoming().gender == (('gender' in existing()) ? existing().gender : 'UNSPECIFIED') &&
                               incoming().genderChangeCount == (('genderChangeCount' in existing()) ? existing().genderChangeCount : 0)) ||

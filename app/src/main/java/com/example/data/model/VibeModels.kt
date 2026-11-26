@@ -102,6 +102,7 @@ data class UserProfile(
     val vibeId: String = "",
     val username: String = "",
     val bio: String = "",
+    val profileTags: List<String> = emptyList(),
     val avatarUrl: String = "",
     val coverUrl: String = "",
     val gender: String = "UNSPECIFIED",

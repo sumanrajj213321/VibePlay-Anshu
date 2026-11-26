@@ -1754,7 +1754,7 @@ test("New user can create a room with the exact atomic app transaction", async (
   await assertSucceeds(batch.commit());
 });
 
-test("Own and public profile reads plus frame purchases are permitted only through valid updates", async () => {
+test("Own and public profile reads work; direct frame purchase writes are blocked", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
   await assertSucceeds(aliceDb.collection("users").doc(ALICE_UID).set(makeUserPayload(ALICE_UID, "Alice", "VP-100001")));
@@ -1767,7 +1767,7 @@ test("Own and public profile reads plus frame purchases are permitted only throu
 
   const userRef = aliceDb.collection("users").doc(ALICE_UID);
   const frameExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  await assertSucceeds(userRef.update({
+  await assertFails(userRef.update({
     coinBalance: 1000500 - 15000,
     ownedFrameIds: ["neon_cyan"],
     activeFrameId: "neon_cyan",
@@ -1779,13 +1779,13 @@ test("Own and public profile reads plus frame purchases are permitted only throu
 });
 
 
-test("Android-style frame purchase transforms are accepted (arrayUnion + serverTimestamp)", async () => {
+test("Android-style direct frame purchase transforms are blocked", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const userRef = aliceDb.collection("users").doc(ALICE_UID);
   await assertSucceeds(userRef.set(makeUserPayload(ALICE_UID, "Alice", "VP-100001")));
 
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  await assertSucceeds(userRef.update({
+  await assertFails(userRef.update({
     coinBalance: 1000500 - 15000,
     ownedFrameIds: firebase.firestore.FieldValue.arrayUnion("neon_cyan"),
     activeFrameId: "neon_cyan",
@@ -1795,7 +1795,7 @@ test("Android-style frame purchase transforms are accepted (arrayUnion + serverT
   }));
 });
 
-test("All 16 VIP frames require the exact active VIP level and expire with that VIP", async () => {
+test("Direct client writes for all 16 VIP frames are blocked", async () => {
   const frames = [
     ["vip_dragon_1", 90000], ["vip_dragon_2", 110000],
     ["vip_dragon_3", 130000], ["vip_dragon_4", 150000],
@@ -1819,7 +1819,7 @@ test("All 16 VIP frames require the exact active VIP level and expire with that 
       vipExpiresAt: vipExpiry,
     }));
 
-    await assertSucceeds(userRef.update({
+    await assertFails(userRef.update({
       coinBalance: 1000500 - price,
       ownedFrameIds: firebase.firestore.FieldValue.arrayUnion(frameId),
       activeFrameId: frameId,
@@ -1868,7 +1868,7 @@ test("VIP frames reject a different VIP level and an expired VIP", async () => {
   }));
 });
 
-test("Legacy profile missing userId, createdAt, role and accountStatus can purchase a frame", async () => {
+test("Legacy profiles cannot bypass callable-only frame purchases", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const userRef = aliceDb.collection("users").doc(ALICE_UID);
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
@@ -1878,7 +1878,7 @@ test("Legacy profile missing userId, createdAt, role and accountStatus can purch
       vipLevel: 0,
     });
   });
-  await assertSucceeds(userRef.update({
+  await assertFails(userRef.update({
     coinBalance: 85000,
     ownedFrameIds: ["neon_cyan"],
     activeFrameId: "neon_cyan",

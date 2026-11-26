@@ -92,8 +92,8 @@ service cloud.firestore {
              data.activeFrameId in data.ownedFrameIds &&
              data.frameExpiresAt is map &&
              data.frameExpiresAt[data.activeFrameId] is timestamp &&
-             data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(5, 'm') &&
-             data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(5, 'm') &&
+             data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(24, 'h') &&
+             data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h') &&
              data.lastFramePurchaseAt is timestamp &&
              shopFramePrice(data.activeFrameId) >= 0 &&
              data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&

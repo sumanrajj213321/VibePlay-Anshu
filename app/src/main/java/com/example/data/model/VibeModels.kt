@@ -11,6 +11,7 @@ import com.google.firebase.firestore.IgnoreExtraProperties
  */
 object CharmProgression {
     const val COINS_PER_CHARM = 10L
+    // Thresholds are measured in Charm units (not raw gift coins); 10 received gift coins = 1 Charm.
     // Total charm thresholds for each named rank, from Star 1 through Divine 3.
     val milestones = listOf(
         100_000L, 500_000L, 10_000_000L,

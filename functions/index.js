@@ -71,6 +71,24 @@ exports.purchaseShopFrame = onCall({ region: "asia-south1" }, async (request) =>
           currentExpiry.toMillis() > now.toMillis()) {
         throw new HttpsError("already-exists", "You already own this frame. It expires first.");
       }
+
+      const isVipFrame = frameId.startsWith("vip_dragon_") || frameId.startsWith("vip_gold_banner_");
+      let frameExpiresAt = expiresAt;
+      if (isVipFrame) {
+        const match = frameId.match(/^(?:vip_dragon_|vip_gold_banner_)([1-8])$/);
+        const requiredLevel = match ? Number(match[1]) : 0;
+        const vipLevel = profile.vipLevel;
+        const vipExpiry = profile.vipExpiresAt;
+        if (!requiredLevel || !Number.isInteger(vipLevel) || vipLevel !== requiredLevel) {
+          throw new HttpsError("failed-precondition", "This frame is exclusive to its matching VIP level.");
+        }
+        if (!vipExpiry || typeof vipExpiry.toMillis !== "function" ||
+            vipExpiry.toMillis() <= now.toMillis()) {
+          throw new HttpsError("failed-precondition", "An active VIP subscription is required for this frame.");
+        }
+        frameExpiresAt = vipExpiry;
+      }
+
       if (coins < price) {
         throw new HttpsError("failed-precondition", `Not enough coins. Need ${price} coins.`);
       }
@@ -78,7 +96,7 @@ exports.purchaseShopFrame = onCall({ region: "asia-south1" }, async (request) =>
       tx.update(userRef, {
         coinBalance: coins - price,
         ownedFrameIds: owned.includes(frameId) ? owned : [...owned, frameId],
-        frameExpiresAt: { ...expiryMap, [frameId]: expiresAt },
+        frameExpiresAt: { ...expiryMap, [frameId]: frameExpiresAt },
         activeFrameId: frameId,
         lastFramePurchaseAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()

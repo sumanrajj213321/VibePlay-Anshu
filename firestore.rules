@@ -58,6 +58,19 @@ service cloud.firestore {
              itemId == 'aurora' ? 80000 : -1;
     }
 
+    function vipFrameLevel(frameId) {
+      return {
+        'vip_dragon_1': 1, 'vip_gold_banner_1': 1,
+        'vip_dragon_2': 2, 'vip_gold_banner_2': 2,
+        'vip_dragon_3': 3, 'vip_gold_banner_3': 3,
+        'vip_dragon_4': 4, 'vip_gold_banner_4': 4,
+        'vip_dragon_5': 5, 'vip_gold_banner_5': 5,
+        'vip_dragon_6': 6, 'vip_gold_banner_6': 6,
+        'vip_dragon_7': 7, 'vip_gold_banner_7': 7,
+        'vip_dragon_8': 8, 'vip_gold_banner_8': 8
+      }.get(frameId, 0);
+    }
+
     function isValidVipFramePurchase(data, oldData) {
       let level = oldData.vipLevel;
       let oldOwned = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
@@ -70,18 +83,9 @@ service cloud.firestore {
                   level == 6 ? 200000 :
                   level == 7 ? 230000 :
                   level == 8 ? 275000 : -1;
-      let exactFrameLevel =
-        (level == 1 && data.activeFrameId in ['vip_dragon_1', 'vip_gold_banner_1']) ||
-        (level == 2 && data.activeFrameId in ['vip_dragon_2', 'vip_gold_banner_2']) ||
-        (level == 3 && data.activeFrameId in ['vip_dragon_3', 'vip_gold_banner_3']) ||
-        (level == 4 && data.activeFrameId in ['vip_dragon_4', 'vip_gold_banner_4']) ||
-        (level == 5 && data.activeFrameId in ['vip_dragon_5', 'vip_gold_banner_5']) ||
-        (level == 6 && data.activeFrameId in ['vip_dragon_6', 'vip_gold_banner_6']) ||
-        (level == 7 && data.activeFrameId in ['vip_dragon_7', 'vip_gold_banner_7']) ||
-        (level == 8 && data.activeFrameId in ['vip_dragon_8', 'vip_gold_banner_8']);
       return data.activeFrameId is string &&
         level is int && level >= 1 && level <= 8 &&
-        exactFrameLevel &&
+        vipFrameLevel(data.activeFrameId) == level &&
         oldData.vipExpiresAt is timestamp &&
         oldData.vipExpiresAt > request.time &&
         oldData.coinBalance is int &&
@@ -100,18 +104,9 @@ service cloud.firestore {
         ]);
     }
 
-    function isVipFrameId(frameId) {
-      return frameId in [
-        'vip_dragon_1', 'vip_gold_banner_1', 'vip_dragon_2', 'vip_gold_banner_2',
-        'vip_dragon_3', 'vip_gold_banner_3', 'vip_dragon_4', 'vip_gold_banner_4',
-        'vip_dragon_5', 'vip_gold_banner_5', 'vip_dragon_6', 'vip_gold_banner_6',
-        'vip_dragon_7', 'vip_gold_banner_7', 'vip_dragon_8', 'vip_gold_banner_8'
-      ];
-    }
-
     function isValidFramePurchase(data, oldData) {
       return data.activeFrameId is string &&
-        (isVipFrameId(data.activeFrameId)
+        (vipFrameLevel(data.activeFrameId) > 0
           ? isValidVipFramePurchase(data, oldData)
           : ((!('vipLevel' in oldData) ||
               (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&

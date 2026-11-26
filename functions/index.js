@@ -13,7 +13,7 @@ const db = getFirestore();
 
 // Frame purchases are executed with Admin SDK so client profile rules cannot
 // accidentally block a valid purchase or allow a client to alter coin balances.
-const { validateShopFramePurchase } = require("./frame-purchase-validation");
+const { validateShopFramePurchase, SHOP_FRAME_PRICES } = require("./frame-purchase-validation");
 
 exports.equipShopFrame = onCall({ region: "asia-south1" }, async (request) => {
   if (!request.auth || !request.auth.uid) {

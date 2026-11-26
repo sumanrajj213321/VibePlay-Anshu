@@ -1795,6 +1795,22 @@ test("Android-style frame purchase transforms are accepted (arrayUnion + serverT
   }));
 });
 
+test("New VIP Gold Banner 3 frame purchase is permitted with Android transaction transforms", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const userRef = aliceDb.collection("users").doc(ALICE_UID);
+  await assertSucceeds(userRef.set(makeUserPayload(ALICE_UID, "Alice", "VP-100001")));
+
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await assertSucceeds(userRef.update({
+    coinBalance: 1000500 - 130000,
+    ownedFrameIds: firebase.firestore.FieldValue.arrayUnion("vip_gold_banner_3"),
+    activeFrameId: "vip_gold_banner_3",
+    frameExpiresAt: { vip_gold_banner_3: expiresAt },
+    lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+});
+
 test("Legacy profile missing userId, createdAt, role and accountStatus can purchase a frame", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const userRef = aliceDb.collection("users").doc(ALICE_UID);

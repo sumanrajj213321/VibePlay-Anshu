@@ -559,19 +559,20 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Detect purchase writes without an expensive full-map diff.
-      allow update: if (('lastFramePurchaseAt' in incoming()) &&
-                       (!('lastFramePurchaseAt' in existing()) ||
-                        incoming().lastFramePurchaseAt != existing().lastFramePurchaseAt))
-        ? (isSignedIn() && isValidId(userId) &&
+      // Isolate purchases from the large profile-update expression.
+      allow update: if ('lastFramePurchaseAt' in incoming()) &&
+           (!('lastFramePurchaseAt' in existing()) ||
+            incoming().lastFramePurchaseAt != existing().lastFramePurchaseAt) &&
+           isSignedIn() && isValidId(userId) &&
            request.auth.uid == userId &&
            (!('userId' in existing()) || incoming().userId == existing().userId) &&
            (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
            (!('role' in existing()) || incoming().role == existing().role) &&
            (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
            isValidTs(incoming().updatedAt) &&
-           isValidFramePurchase(incoming(), existing()))
-        : (!incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+           isValidFramePurchase(incoming(), existing());
+
+      allow update: if !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
            ((
                 (isSignedIn() && isValidId(userId) &&
                         !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
@@ -717,7 +718,7 @@ service cloud.firestore {
                         incoming().followingCount is int && incoming().followingCount >= 0 &&
                         (incoming().followingCount == (('followingCount' in existing()) ? existing().followingCount : 0) + 1 ||
                          incoming().followingCount == (('followingCount' in existing()) ? existing().followingCount : 0) - 1))
-              )));
+              ));
       allow get: if isSignedIn() && isValidId(userId) && (
         request.auth.uid == userId || existing().accountStatus == 'ACTIVE'
       );

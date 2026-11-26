@@ -477,7 +477,19 @@ class UserRepository(
                 require(snapshot.exists()) { "Profile not found." }
                 val ownedFrames = (snapshot.get("ownedFrameIds") as? List<*>)
                     ?.filterIsInstance<String>() ?: emptyList()
-                require(itemId !in ownedFrames) { "You already own this frame." }
+                val frameExpiries = (snapshot.get("frameExpiresAt") as? Map<*, *>)
+                    ?.entries
+                    ?.mapNotNull { entry ->
+                        val key = entry.key as? String ?: return@mapNotNull null
+                        val value = entry.value ?: return@mapNotNull null
+                        key to value
+                    }
+                    ?.toMap()
+                    ?.toMutableMap() ?: mutableMapOf()
+                val existingExpiry = frameExpiries[itemId] as? Timestamp
+                require(itemId !in ownedFrames || existingExpiry == null || !existingExpiry.toDate().after(Date())) {
+                    "You already own this frame."
+                }
                 val coinBalance = snapshot.getLong("coinBalance") ?: 0L
                 require(coinBalance >= item.coinPrice) { "Insufficient coins. Need ${item.coinPrice} coins." }
 
@@ -485,9 +497,10 @@ class UserRepository(
                 val now = Timestamp.now()
                 val frameExpiry = if (vipMatch != null) {
                     val requiredLevel = vipMatch.groupValues[1].toInt()
-                    val currentVipLevel = (snapshot.getLong("vipLevel") ?: 0L).toInt()
+                    val storedVipLevel = snapshot.getLong("vipLevel") ?: 0L
+                    val currentVipLevel = storedVipLevel.coerceIn(1L, 8L).toInt()
                     val vipExpiry = snapshot.getTimestamp("vipExpiresAt")
-                    require(currentVipLevel == requiredLevel) {
+                    require(storedVipLevel > 0L && currentVipLevel == requiredLevel) {
                         "This frame is exclusive to VIP $requiredLevel."
                     }
                     require(vipExpiry != null && vipExpiry.toDate().after(Date())) {
@@ -499,15 +512,6 @@ class UserRepository(
                     Timestamp(Date(now.toDate().time + durationDays * 24L * 60L * 60L * 1000L))
                 }
 
-                val frameExpiries = (snapshot.get("frameExpiresAt") as? Map<*, *>)
-                    ?.entries
-                    ?.mapNotNull { entry ->
-                        val key = entry.key as? String ?: return@mapNotNull null
-                        val value = entry.value ?: return@mapNotNull null
-                        key to value
-                    }
-                    ?.toMap()
-                    ?.toMutableMap() ?: mutableMapOf()
                 frameExpiries[itemId] = frameExpiry
 
                 transaction.update(

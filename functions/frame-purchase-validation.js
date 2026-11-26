@@ -4,6 +4,7 @@ const SHOP_FRAME_PRICES = Object.freeze({
   royal_gold: 40000,
   galaxy: 60000,
   aurora: 80000,
+  new_year_2027: 500000,
   vip_dragon_1: 90000,
   vip_dragon_2: 110000,
   vip_dragon_3: 130000,
@@ -25,6 +26,7 @@ const SHOP_FRAME_PRICES = Object.freeze({
 const VIP_FRAME_PATTERN = /^(?:vip_dragon_|vip_gold_banner_)([1-8])$/;
 const LEGACY_FRAME_IDS = new Set(["neon_cyan", "rose_gold", "royal_gold", "galaxy", "aurora"]);
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 function validateShopFramePurchase(frameId, profile, nowMillis) {
   const price = typeof frameId === "string" ? SHOP_FRAME_PRICES[frameId] : undefined;
@@ -48,6 +50,9 @@ function validateShopFramePurchase(frameId, profile, nowMillis) {
     return { price, expiresAtMillis: vipExpiry.toMillis() };
   }
 
+  if (frameId === "new_year_2027") {
+    return { price, expiresAtMillis: nowMillis + THIRTY_DAYS_MS };
+  }
   if (!LEGACY_FRAME_IDS.has(frameId)) {
     const error = new Error("Invalid frame item.");
     error.code = "invalid-argument";

@@ -498,10 +498,10 @@ test("User profile creation, private subcollection isolation, daily reward, and 
     })
   );
 
-  // Valid VIP 1 upgrade (650 - 200 = 450)
+  // Valid VIP 1 upgrade (100,000 coins)
   await assertSucceeds(
     aliceDb.collection("users").doc(ALICE_UID).update({
-      coinBalance: 1100450,
+      coinBalance: 1000500,
       vipLevel: 1,
       vipExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       updatedAt: pastDate(),
@@ -1850,6 +1850,40 @@ test("VIP Golden Banner purchase requires matching active VIP and exact VIP expi
     ownedFrameIds: ["vip_gold_banner_3", "vip_gold_banner_2"],
     activeFrameId: "vip_gold_banner_2",
     frameExpiresAt: { vip_gold_banner_3: vipExpiry, vip_gold_banner_2: vipExpiry },
+    lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+});
+
+test("New Year 2027 frame purchase costs 500,000 coins and grants 30 days", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const userRef = aliceDb.collection("users").doc(ALICE_UID);
+  await assertSucceeds(userRef.set(makeUserPayload(ALICE_UID, "Alice", "VP-100001")));
+  await assertSucceeds(userRef.update({
+    coinBalance: 1000500 - 500000,
+    ownedFrameIds: ["new_year_2027"],
+    activeFrameId: "new_year_2027",
+    frameExpiresAt: { new_year_2027: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+    lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+});
+
+test("Expired New Year 2027 frame can be purchased again without duplicating ownership", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const userRef = aliceDb.collection("users").doc(ALICE_UID);
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await ctx.firestore().doc(`users/${ALICE_UID}`).set({
+      ...makeUserPayload(ALICE_UID, "Alice", "VP-100001"),
+      ownedFrameIds: ["new_year_2027"],
+      frameExpiresAt: { new_year_2027: pastDate(60_000) },
+    });
+  });
+  await assertSucceeds(userRef.update({
+    coinBalance: 1000500 - 500000,
+    ownedFrameIds: ["new_year_2027"],
+    activeFrameId: "new_year_2027",
+    frameExpiresAt: { new_year_2027: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
     lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   }));

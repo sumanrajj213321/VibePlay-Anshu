@@ -56,6 +56,12 @@ test("legacy five frames retain their prices and seven-day expiry", () => {
   }
 });
 
+test("New Year 2027 costs 500,000 coins and expires after 30 days", () => {
+  const result = validateShopFramePurchase("new_year_2027", {}, NOW);
+  assert.equal(result.price, 500000);
+  assert.equal(result.expiresAtMillis, NOW + 30 * 24 * 60 * 60 * 1000);
+});
+
 test("unknown and malformed VIP frame IDs are rejected", () => {
   for (const frameId of ["vip_dragon_0", "vip_dragon_9", "vip_gold_banner_10", "neon_blue"]) {
     assert.throws(() => validateShopFramePurchase(frameId, {}, NOW), /Invalid frame item/);

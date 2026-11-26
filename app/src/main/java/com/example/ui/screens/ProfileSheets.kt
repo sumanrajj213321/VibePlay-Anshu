@@ -1255,7 +1255,7 @@ fun PublicProfileSheet(
                             CharmEmblem(level = charmLevel.toInt().coerceAtLeast(1), size = 24.dp)
                             Column {
                                 Text("CHARMS", style = MaterialTheme.typography.labelSmall, color = Color(0xFF65FFF0), fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
-                                Text("$charms  ·  Charm Level $charmLevel", style = MaterialTheme.typography.labelLarge, color = Color(0xFFE9FFFF), fontWeight = FontWeight.ExtraBold)
+                                Text("$charms  ·  ${com.example.data.model.CharmProgression.nameForLevel(charmLevel)}", style = MaterialTheme.typography.labelLarge, color = Color(0xFFE9FFFF), fontWeight = FontWeight.ExtraBold)
                             }
                         }
                     }

@@ -1029,7 +1029,7 @@ private fun NewYear2027FrameOverlay(modifier: Modifier, pulseAlpha: Float) {
     val motion = rememberInfiniteTransition(label = "new_year_2027_glitter")
     val sweep by motion.animateFloat(0f, 360f, animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing)), label = "new_year_sweep")
     val shimmer by motion.animateFloat(0.35f, 1f, animationSpec = infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), repeatMode = RepeatMode.Reverse), label = "new_year_shimmer")
-    val wingFlap by motion.animateFloat(-1f, 1f, animationSpec = infiniteRepeatable(tween(85, easing = LinearEasing), repeatMode = RepeatMode.Reverse), label = "new_year_wing_flap")
+    val balloonFloat by motion.animateFloat(0f, 1f, animationSpec = infiniteRepeatable(tween(6200, easing = LinearEasing), repeatMode = RepeatMode.Reverse), label = "new_year_balloon_float")
     Box(modifier = modifier) {
         Canvas(Modifier.fillMaxSize()) {
             val cx = size.width / 2f; val cy = size.height / 2f
@@ -1052,34 +1052,48 @@ private fun NewYear2027FrameOverlay(modifier: Modifier, pulseAlpha: Float) {
                     drawLine(Color.White.copy(alpha = twinkle), Offset(p.x,p.y-4.dp.toPx()), Offset(p.x,p.y+4.dp.toPx()), 1.dp.toPx())
                 }
             }
-            // Four feathered wing pairs around the frame. The quick flap
-            // reverses every 85 ms, giving a continuous rapid bird-wing motion.
-            val wingCenters = listOf(
-                Offset(cx, cy-r*1.16f), Offset(cx+r*1.16f, cy),
-                Offset(cx, cy+r*1.16f), Offset(cx-r*1.16f, cy)
+            // Colorful balloons drift gently around the frame instead of flapping wings.
+            val balloonColors = listOf(
+                Color(0xFFFF5D8F), Color(0xFFFFC857), Color(0xFF55DDE0),
+                Color(0xFF9B7EDE), Color(0xFF72D6A0), Color(0xFFFF8C42)
             )
-            wingCenters.forEachIndexed { index, pivot ->
-                val direction = if (index % 2 == 0) 1f else -1f
-                val flap = wingFlap * 24f * direction
-                rotate(flap, pivot) {
-                    for (side in listOf(-1f, 1f)) {
-                        val root = Offset(pivot.x + side*2.dp.toPx(), pivot.y)
-                        val tip = Offset(pivot.x + side*19.dp.toPx(), pivot.y - 10.dp.toPx())
-                        val wing = Path().apply {
-                            moveTo(root.x, root.y)
-                            cubicTo(pivot.x+side*8.dp.toPx(), pivot.y-17.dp.toPx(),
-                                pivot.x+side*19.dp.toPx(), pivot.y-21.dp.toPx(), tip.x, tip.y)
-                            cubicTo(pivot.x+side*14.dp.toPx(), pivot.y-3.dp.toPx(),
-                                pivot.x+side*7.dp.toPx(), pivot.y+3.dp.toPx(), root.x, root.y)
-                        }
-                        drawPath(wing, Brush.linearGradient(listOf(Color.White.copy(alpha=.96f), sky, Color(0xFF58B9F0))), style=Stroke(1.8.dp.toPx()))
-                        for (feather in 1..4) {
-                            val start = Offset(pivot.x+side*(feather*2.4f).dp.toPx(), pivot.y-2.dp.toPx())
-                            val end = Offset(pivot.x+side*(feather*4.1f+5f).dp.toPx(), pivot.y-(feather*2.1f+3f).dp.toPx())
-                            drawLine(Color.White.copy(alpha=.88f*pulseAlpha), start, end, 1.35.dp.toPx())
-                        }
-                    }
+            for (i in 0 until 12) {
+                val angle = Math.toRadians(i * 30.0 - 90.0)
+                val drift = kotlin.math.sin(balloonFloat * Math.PI * 2.0 + i * 0.72).toFloat()
+                val radius = r * (1.20f + (i % 3) * 0.055f)
+                val x = cx + kotlin.math.cos(angle).toFloat() * radius + drift * 3.5.dp.toPx()
+                val y = cy + kotlin.math.sin(angle).toFloat() * radius + drift * 4.5.dp.toPx()
+                val balloonWidth = (8.5f + (i % 3) * 1.7f).dp.toPx()
+                val balloonHeight = balloonWidth * 1.28f
+                val color = balloonColors[i % balloonColors.size]
+                drawOval(
+                    brush = Brush.linearGradient(
+                        listOf(Color.White.copy(alpha = 0.95f), color, color.copy(alpha = 0.82f)),
+                        start = Offset(x - balloonWidth / 2f, y - balloonHeight / 2f),
+                        end = Offset(x + balloonWidth / 2f, y + balloonHeight / 2f)
+                    ),
+                    topLeft = Offset(x - balloonWidth / 2f, y - balloonHeight / 2f),
+                    size = androidx.compose.ui.geometry.Size(balloonWidth, balloonHeight)
+                )
+                drawOval(
+                    Color.White.copy(alpha = 0.72f),
+                    topLeft = Offset(x - balloonWidth * 0.22f, y - balloonHeight * 0.30f),
+                    size = androidx.compose.ui.geometry.Size(balloonWidth * 0.16f, balloonHeight * 0.32f)
+                )
+                val knot = Path().apply {
+                    moveTo(x - 2.dp.toPx(), y + balloonHeight * 0.43f)
+                    lineTo(x + 2.dp.toPx(), y + balloonHeight * 0.43f)
+                    lineTo(x, y + balloonHeight * 0.58f)
+                    close()
                 }
+                drawPath(knot, color)
+                val string = Path().apply {
+                    moveTo(x, y + balloonHeight * 0.58f)
+                    cubicTo(x + drift * 2.dp.toPx(), y + balloonHeight * 0.82f,
+                        x - drift * 2.dp.toPx(), y + balloonHeight * 1.05f,
+                        x + drift * 1.5.dp.toPx(), y + balloonHeight * 1.24f)
+                }
+                drawPath(string, Color.White.copy(alpha = 0.82f), style = Stroke(0.85.dp.toPx()))
             }
         }
         Box(Modifier.align(Alignment.BottomCenter).padding(horizontal=8.dp).fillMaxWidth(.72f).height(25.dp)

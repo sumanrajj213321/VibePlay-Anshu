@@ -28,6 +28,18 @@ service cloud.firestore {
       return ts is timestamp && ts <= request.time;
     }
 
+    function vipTierPrice(level) {
+      return level == 1 ? 100000 :
+             level == 2 ? 1000000 :
+             level == 3 ? 5000000 :
+             level == 4 ? 10000000 :
+             level == 5 ? 100000000 :
+             level == 6 ? 150000000 :
+             level == 7 ? 500000000 :
+             level == 8 ? 1000000000 : -1;
+    }
+
+
 
     function isNotAlreadyOnAnotherSpeakerSeat(roomId, seatIndex) {
       return (seatIndex == '1' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId != request.auth.uid) &&
@@ -55,7 +67,8 @@ service cloud.firestore {
              itemId == 'rose_gold' ? 25000 :
              itemId == 'royal_gold' ? 40000 :
              itemId == 'galaxy' ? 60000 :
-             itemId == 'aurora' ? 80000 : -1;
+             itemId == 'aurora' ? 80000 :
+             itemId == 'new_year_2027' ? 500000 : -1;
     }
 
     function vipFrameLevel(frameId) {
@@ -127,9 +140,16 @@ service cloud.firestore {
     }
 
     function isValidLegacyFramePurchase(data, oldData) {
+      let price = shopFramePrice(data.activeFrameId);
       let oldOwned = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds : [];
-      let price = shopFramePrice(data.activeFrameId);
+      let alreadyOwned = data.activeFrameId is string && data.activeFrameId in oldOwned;
+      let oldExpiryMap = ('frameExpiresAt' in oldData && oldData.frameExpiresAt is map)
+        ? oldData.frameExpiresAt : {};
+      let oldExpiry = alreadyOwned && data.activeFrameId in oldExpiryMap
+        ? oldExpiryMap[data.activeFrameId] : null;
+      let durationDays = data.activeFrameId == 'new_year_2027' ? 30 : 7;
+      let expectedExpiry = request.time + duration.value(durationDays, 'd');
       return data.activeFrameId is string &&
         price >= 0 &&
         oldData.coinBalance is int &&
@@ -138,13 +158,15 @@ service cloud.firestore {
         data.coinBalance == oldData.coinBalance - price &&
         data.ownedFrameIds is list &&
         data.activeFrameId in data.ownedFrameIds &&
-        !(data.activeFrameId in oldOwned) &&
         data.ownedFrameIds.hasAll(oldOwned) &&
-        data.ownedFrameIds.size() == oldOwned.size() + 1 &&
+        (alreadyOwned
+          ? (oldExpiry is timestamp && oldExpiry <= request.time &&
+             data.ownedFrameIds.size() == oldOwned.size())
+          : data.ownedFrameIds.size() == oldOwned.size() + 1) &&
         data.frameExpiresAt is map &&
         data.frameExpiresAt[data.activeFrameId] is timestamp &&
-        data.frameExpiresAt[data.activeFrameId] > request.time + duration.value(7, 'd') - duration.value(1, 'm') &&
-        data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(1, 'm') &&
+        data.frameExpiresAt[data.activeFrameId] > expectedExpiry - duration.value(1, 'm') &&
+        data.frameExpiresAt[data.activeFrameId] <= expectedExpiry + duration.value(1, 'm') &&
         (('frameExpiresAt' in oldData && oldData.frameExpiresAt is map)
           ? data.frameExpiresAt.diff(oldData.frameExpiresAt).affectedKeys().hasOnly([data.activeFrameId])
           : data.frameExpiresAt.keys().hasOnly([data.activeFrameId])) &&
@@ -653,8 +675,8 @@ service cloud.firestore {
                 (isSignedIn() && request.auth.uid == userId &&
                         incoming().role == existing().role &&
                         incoming().accountStatus == existing().accountStatus &&
-                        incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
                         incoming().vipLevel is int && incoming().vipLevel >= 1 && incoming().vipLevel <= 8 &&
+                        existing().coinBalance is int && incoming().coinBalance == existing().coinBalance - vipTierPrice(incoming().vipLevel) &&
                         (incoming().vipLevel > existing().vipLevel ||
                           (!('vipExpiresAt' in existing()) || existing().vipExpiresAt <= request.time)) &&
                         incoming().vipExpiresAt is timestamp &&

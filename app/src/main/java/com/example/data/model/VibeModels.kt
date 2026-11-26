@@ -11,12 +11,15 @@ import com.google.firebase.firestore.IgnoreExtraProperties
  */
 object CharmProgression {
     const val COINS_PER_CHARM = 10L
+    // Total charm thresholds for each named rank, from Star 1 through Divine 3.
     val milestones = listOf(
-        1_000L, 4_000L, 12_000L, 30_000L, 80_000L, 160_000L,
-        300_000L, 500_000L, 1_000_000L, 2_000_000L, 3_500_000L,
-        6_000_000L, 8_500_000L, 12_000_000L, 16_000_000L,
-        26_000_000L, 48_000_000L, 86_000_000L, 120_000_000L,
-        240_000_000L, 360_000_000L
+        100_000L, 400_000L, 800_000L,
+        1_600_000L, 2_400_000L, 3_200_000L,
+        4_500_000L, 6_000_000L, 8_000_000L,
+        10_000_000L, 13_000_000L, 16_000_000L,
+        20_000_000L, 25_000_000L, 30_000_000L,
+        40_000_000L, 50_000_000L, 65_000_000L,
+        80_000_000L, 100_000_000L, 125_000_000L
     )
     val levelNames = listOf(
         "Star 1", "Star 2", "Star 3",
@@ -735,12 +738,12 @@ object VibeCatalogDefaults {
     val vipTiers = listOf(
         VipTier(1, "VIP 1 · Starlight", 100_000L, 0xFFE53935, "Cyan Ripple Entrance", listOf("VIP 1 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
         VipTier(2, "VIP 2 · Neon Pulse", 1_000_000L, 0xFFFB8C00, "Aurora Wave Banner", listOf("VIP 2 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
-        VipTier(3, "VIP 3 · Coral Crown", 3_000_000L, 0xFFFDD835, "Pink Spotlight Arrival", listOf("VIP 3 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
-        VipTier(4, "VIP 4 · Royal Gold", 7_000_000L, 0xFF43A047, "Golden Crown Shower", listOf("VIP 4 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
-        VipTier(5, "VIP 5 · Apex Legend", 10_000_000L, 0xFF00897B, "Full-Screen Galaxy Entrance", listOf("VIP 5 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
-        VipTier(6, "VIP 6 · Aurora", 14_000_000L, 0xFF1E88E5, "Aurora Portal", listOf("VIP 6 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
-        VipTier(7, "VIP 7 · Eclipse", 16_000_000L, 0xFF8E24AA, "Eclipse Spotlight", listOf("VIP 7 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
-        VipTier(8, "VIP 8 · Stellar", 20_000_000L, 0xFFD81B60, "Stellar Burst", listOf("VIP 8 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect"))
+        VipTier(3, "VIP 3 · Coral Crown", 5_000_000L, 0xFFFDD835, "Pink Spotlight Arrival", listOf("VIP 3 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(4, "VIP 4 · Royal Gold", 10_000_000L, 0xFF43A047, "Golden Crown Shower", listOf("VIP 4 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(5, "VIP 5 · Apex Legend", 100_000_000L, 0xFF00897B, "Full-Screen Galaxy Entrance", listOf("VIP 5 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(6, "VIP 6 · Aurora", 150_000_000L, 0xFF1E88E5, "Aurora Portal", listOf("VIP 6 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(7, "VIP 7 · Eclipse", 500_000_000L, 0xFF8E24AA, "Eclipse Spotlight", listOf("VIP 7 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect")),
+        VipTier(8, "VIP 8 · Stellar", 1_000_000_000L, 0xFFD81B60, "Stellar Burst", listOf("VIP 8 Exclusive Badge", "Premium Profile Frame", "Special Room Entrance Effect"))
     )
 }
 

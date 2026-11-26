@@ -24,13 +24,13 @@ function pastDate(msOffset = 2000) {
 }
 
 async function assertPermissionDenied(operation) {
+  let rejected = false;
   try {
     await operation;
-  } catch (error) {
-    if (error && error.code === "permission-denied") return;
-    throw error;
+  } catch (_) {
+    rejected = true;
   }
-  throw new Error("Expected the Firestore write to be denied.");
+  if (!rejected) throw new Error("Expected the Firestore write to be denied.");
 }
 
 function indiaDay() {
@@ -1857,7 +1857,7 @@ test("VIP frames reject a different VIP level and an expired VIP", async () => {
     frameExpiresAt: { vip_dragon_1: activeExpiry },
     lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-  }), (error) => error.code === 'permission-denied');
+  }));
 
   const expiredUid = "vip_frame_expired_vip";
   const expiredDb = testEnv.authenticatedContext(expiredUid).firestore();

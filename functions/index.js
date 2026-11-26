@@ -13,29 +13,7 @@ const db = getFirestore();
 
 // Frame purchases are executed with Admin SDK so client profile rules cannot
 // accidentally block a valid purchase or allow a client to alter coin balances.
-const SHOP_FRAME_PRICES = Object.freeze({
-  neon_cyan: 15000,
-  rose_gold: 25000,
-  royal_gold: 40000,
-  galaxy: 60000,
-  aurora: 80000,
-  vip_dragon_1: 90000,
-  vip_dragon_2: 110000,
-  vip_dragon_3: 130000,
-  vip_dragon_4: 150000,
-  vip_dragon_5: 175000,
-  vip_dragon_6: 200000,
-  vip_dragon_7: 230000,
-  vip_dragon_8: 275000,
-  vip_gold_banner_1: 90000,
-  vip_gold_banner_2: 110000,
-  vip_gold_banner_3: 130000,
-  vip_gold_banner_4: 150000,
-  vip_gold_banner_5: 175000,
-  vip_gold_banner_6: 200000,
-  vip_gold_banner_7: 230000,
-  vip_gold_banner_8: 275000
-});
+const { validateShopFramePurchase } = require("./frame-purchase-validation");
 
 exports.purchaseShopFrame = onCall({ region: "asia-south1" }, async (request) => {
   if (!request.auth || !request.auth.uid) {
@@ -50,7 +28,6 @@ exports.purchaseShopFrame = onCall({ region: "asia-south1" }, async (request) =>
   const uid = request.auth.uid;
   const userRef = db.collection("users").doc(uid);
   const now = Timestamp.now();
-  const expiresAt = Timestamp.fromMillis(now.toMillis() + 7 * 24 * 60 * 60 * 1000);
 
   try {
     await db.runTransaction(async (tx) => {
@@ -72,22 +49,15 @@ exports.purchaseShopFrame = onCall({ region: "asia-south1" }, async (request) =>
         throw new HttpsError("already-exists", "You already own this frame. It expires first.");
       }
 
-      const isVipFrame = frameId.startsWith("vip_dragon_") || frameId.startsWith("vip_gold_banner_");
-      let frameExpiresAt = expiresAt;
-      if (isVipFrame) {
-        const match = frameId.match(/^(?:vip_dragon_|vip_gold_banner_)([1-8])$/);
-        const requiredLevel = match ? Number(match[1]) : 0;
-        const vipLevel = profile.vipLevel;
-        const vipExpiry = profile.vipExpiresAt;
-        if (!requiredLevel || !Number.isInteger(vipLevel) || vipLevel !== requiredLevel) {
-          throw new HttpsError("failed-precondition", "This frame is exclusive to its matching VIP level.");
-        }
-        if (!vipExpiry || typeof vipExpiry.toMillis !== "function" ||
-            vipExpiry.toMillis() <= now.toMillis()) {
-          throw new HttpsError("failed-precondition", "An active VIP subscription is required for this frame.");
-        }
-        frameExpiresAt = vipExpiry;
+      let purchase;
+      try {
+        purchase = validateShopFramePurchase(frameId, profile, now.toMillis());
+      } catch (validationError) {
+        const code = validationError.code === "invalid-argument" ? "invalid-argument" : "failed-precondition";
+        throw new HttpsError(code, validationError.message);
       }
+      const price = purchase.price;
+      const frameExpiresAt = Timestamp.fromMillis(purchase.expiresAtMillis);
 
       if (coins < price) {
         throw new HttpsError("failed-precondition", `Not enough coins. Need ${price} coins.`);

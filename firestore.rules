@@ -782,16 +782,6 @@ service cloud.firestore {
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.userId == userId &&
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
                                        incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
-                (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
-                (isSignedIn() && isValidId(userId) &&
-                                       request.auth.uid == userId &&
-                                       incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-                                       (!('userId' in existing()) || incoming().userId == existing().userId) &&
-                                       (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-                                       (!('role' in existing()) || incoming().role == existing().role) &&
-                                       (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
-                                       isValidTs(incoming().updatedAt) &&
-                                       isValidFramePurchase(incoming(), existing())) ||
                 (isSignedIn() && request.auth.uid == userId &&
                                        incoming().userId == existing().userId &&
                                        incoming().createdAt == existing().createdAt &&

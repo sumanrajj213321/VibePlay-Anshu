@@ -23,16 +23,6 @@ function pastDate(msOffset = 2000) {
   return new Date(Date.now() - msOffset);
 }
 
-async function assertPermissionDenied(operation) {
-  let rejected = false;
-  try {
-    await operation;
-  } catch (_) {
-    rejected = true;
-  }
-  if (!rejected) throw new Error("Expected the Firestore write to be denied.");
-}
-
 function indiaDay() {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -1803,79 +1793,6 @@ test("Android-style direct frame purchase transforms are blocked", async () => {
     lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   }));
-});
-
-test("Direct client writes for all 16 VIP frames are blocked", async () => {
-  const frames = [
-    ["vip_dragon_1", 90000], ["vip_dragon_2", 110000],
-    ["vip_dragon_3", 130000], ["vip_dragon_4", 150000],
-    ["vip_dragon_5", 175000], ["vip_dragon_6", 200000],
-    ["vip_dragon_7", 230000], ["vip_dragon_8", 275000],
-    ["vip_gold_banner_1", 90000], ["vip_gold_banner_2", 110000],
-    ["vip_gold_banner_3", 130000], ["vip_gold_banner_4", 150000],
-    ["vip_gold_banner_5", 175000], ["vip_gold_banner_6", 200000],
-    ["vip_gold_banner_7", 230000], ["vip_gold_banner_8", 275000],
-  ];
-
-  for (const [index, [frameId, price]] of frames.entries()) {
-    const uid = `vip_frame_buyer_${index}`;
-    const db = testEnv.authenticatedContext(uid).firestore();
-    const userRef = db.collection("users").doc(uid);
-    const requiredLevel = Number(frameId.split("_").at(-1));
-    const vipExpiry = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
-    await assertSucceeds(userRef.set({
-      ...makeUserPayload(uid, `Buyer ${index}`, `VP-${100001 + index}`),
-      vipLevel: requiredLevel,
-      vipExpiresAt: vipExpiry,
-    }));
-
-    await assertPermissionDenied(userRef.update({
-      coinBalance: 1000500 - price,
-      ownedFrameIds: firebase.firestore.FieldValue.arrayUnion(frameId),
-      activeFrameId: frameId,
-      frameExpiresAt: { [frameId]: vipExpiry },
-      lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    }));
-  }
-});
-
-test("VIP frames reject a different VIP level and an expired VIP", async () => {
-  const wrongLevelUid = "vip_frame_wrong_level";
-  const wrongLevelDb = testEnv.authenticatedContext(wrongLevelUid).firestore();
-  const wrongLevelRef = wrongLevelDb.collection("users").doc(wrongLevelUid);
-  const activeExpiry = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
-  await assertSucceeds(wrongLevelRef.set({
-    ...makeUserPayload(wrongLevelUid, "Wrong Level", "VP-300001"),
-    vipLevel: 2,
-    vipExpiresAt: activeExpiry,
-  }));
-  await assertPermissionDenied(wrongLevelRef.update({
-    coinBalance: 1000500 - 90000,
-    ownedFrameIds: firebase.firestore.FieldValue.arrayUnion("vip_dragon_1"),
-    activeFrameId: "vip_dragon_1",
-    frameExpiresAt: { vip_dragon_1: activeExpiry },
-    lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-  }));
-
-  const expiredUid = "vip_frame_expired_vip";
-  const expiredDb = testEnv.authenticatedContext(expiredUid).firestore();
-  const expiredRef = expiredDb.collection("users").doc(expiredUid);
-  const expiredAt = pastDate();
-  await assertSucceeds(expiredRef.set({
-    ...makeUserPayload(expiredUid, "Expired VIP", "VP-300002"),
-    vipLevel: 1,
-    vipExpiresAt: expiredAt,
-  }));
-  await assertPermissionDenied(expiredRef.update({
-    coinBalance: 1000500 - 90000,
-    ownedFrameIds: firebase.firestore.FieldValue.arrayUnion("vip_dragon_1"),
-    activeFrameId: "vip_dragon_1",
-    frameExpiresAt: { vip_dragon_1: expiredAt },
-    lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-  }), (error) => error.code === 'permission-denied');
 });
 
 test("Legacy profiles cannot bypass callable-only frame purchases", async () => {

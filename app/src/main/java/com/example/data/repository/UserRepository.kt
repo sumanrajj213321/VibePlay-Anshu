@@ -340,7 +340,8 @@ class UserRepository(
         age: Long,
         showAge: Boolean,
         showGender: Boolean,
-        showOnlineStatus: Boolean
+        showOnlineStatus: Boolean,
+        profileTags: List<String>
     ): Result<Unit> {
         val uid = auth.currentUser?.uid ?: "unauthenticated"
         val docPath = "users/$uid"
@@ -350,6 +351,8 @@ class UserRepository(
             require(cleanName.length >= 2) { "Username must be at least 2 characters." }
             require(age == 0L || age in 13L..120L) { "Please enter an exact age between 13 and 120 (or leave blank)." }
             val cleanBio = bio.trim().take(200)
+            val cleanTags = profileTags.map { it.trim().replace(Regex("\\s+"), " ").take(24) }
+                .filter { it.isNotBlank() }.distinct().take(4)
             val savedAvatarUrl = if (avatarUrl.startsWith("content://") || avatarUrl.startsWith("file://")) {
                 saveAvatarToFirestore(currentUid, Uri.parse(avatarUrl))
                 "firestore-avatar://$currentUid?updated=${System.currentTimeMillis()}"
@@ -381,6 +384,7 @@ class UserRepository(
                 val updates = mutableMapOf<String, Any>(
                     "username" to cleanName,
                     "bio" to cleanBio,
+                    "profileTags" to cleanTags,
                     "avatarUrl" to savedAvatarUrl.take(500),
                     "coverUrl" to savedCoverUrl.take(500),
                     "age" to age,

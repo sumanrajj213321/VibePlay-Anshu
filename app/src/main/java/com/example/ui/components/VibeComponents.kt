@@ -81,6 +81,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.Path
 import kotlin.math.cos
 import kotlin.math.sin
@@ -1118,66 +1119,81 @@ fun VipMiniBadge(vipLevel: Long, modifier: Modifier = Modifier) {
     val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == level.toInt() }
     val accent = tier?.let { Color(it.badgeColorHex) } ?: VibeGold
     val deep = Color(0xFF24113F)
+    val flap by rememberInfiniteTransition(label = "vip_wing_flap").animateFloat(
+        initialValue = -13f,
+        targetValue = 13f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 420, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "vip_wing_angle"
+    )
     Box(
-        modifier = modifier.size(width = 34.dp, height = 32.dp),
+        modifier = modifier.size(width = 42.dp, height = 34.dp),
         contentAlignment = Alignment.Center
     ) {
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
-            val wingBrush = Brush.linearGradient(listOf(accent.copy(alpha = 0.72f), accent, Color.White.copy(alpha = 0.92f), accent))
+            val wingBrush = Brush.linearGradient(
+                listOf(accent.copy(alpha = 0.72f), accent, Color.White.copy(alpha = 0.96f), accent)
+            )
+            // Layered feather silhouettes create a bird-wing look rather than pointed triangles.
             val leftWing = Path().apply {
-                moveTo(w * 0.30f, h * 0.42f)
-                lineTo(w * 0.02f, h * 0.18f)
-                lineTo(w * 0.10f, h * 0.48f)
-                lineTo(w * 0.00f, h * 0.43f)
-                lineTo(w * 0.17f, h * 0.76f)
-                lineTo(w * 0.34f, h * 0.68f)
+                moveTo(w * 0.34f, h * 0.43f)
+                cubicTo(w * 0.22f, h * 0.20f, w * 0.10f, h * 0.10f, w * 0.02f, h * 0.08f)
+                cubicTo(w * 0.06f, h * 0.25f, w * 0.08f, h * 0.35f, w * 0.13f, h * 0.43f)
+                cubicTo(w * 0.06f, h * 0.39f, w * 0.03f, h * 0.37f, 0f, h * 0.36f)
+                cubicTo(w * 0.08f, h * 0.61f, w * 0.18f, h * 0.73f, w * 0.36f, h * 0.70f)
                 close()
             }
             val rightWing = Path().apply {
-                moveTo(w * 0.70f, h * 0.42f)
-                lineTo(w * 0.98f, h * 0.18f)
-                lineTo(w * 0.90f, h * 0.48f)
-                lineTo(w, h * 0.43f)
-                lineTo(w * 0.83f, h * 0.76f)
-                lineTo(w * 0.66f, h * 0.68f)
+                moveTo(w * 0.66f, h * 0.43f)
+                cubicTo(w * 0.78f, h * 0.20f, w * 0.90f, h * 0.10f, w * 0.98f, h * 0.08f)
+                cubicTo(w * 0.94f, h * 0.25f, w * 0.92f, h * 0.35f, w * 0.87f, h * 0.43f)
+                cubicTo(w * 0.94f, h * 0.39f, w * 0.97f, h * 0.37f, w, h * 0.36f)
+                cubicTo(w * 0.92f, h * 0.61f, w * 0.82f, h * 0.73f, w * 0.64f, h * 0.70f)
                 close()
             }
-            drawPath(leftWing, wingBrush)
-            drawPath(rightWing, wingBrush)
-            drawPath(leftWing, Color.White.copy(alpha = 0.85f), style = Stroke(0.8.dp.toPx()))
-            drawPath(rightWing, Color.White.copy(alpha = 0.85f), style = Stroke(0.8.dp.toPx()))
+            // Both wings flap continuously in mirrored directions around their shoulders.
+            rotate(degrees = flap, pivot = Offset(w * 0.35f, h * 0.53f)) {
+                drawPath(leftWing, wingBrush)
+                drawPath(leftWing, Color.White.copy(alpha = 0.9f), style = Stroke(0.8.dp.toPx()))
+            }
+            rotate(degrees = -flap, pivot = Offset(w * 0.65f, h * 0.53f)) {
+                drawPath(rightWing, wingBrush)
+                drawPath(rightWing, Color.White.copy(alpha = 0.9f), style = Stroke(0.8.dp.toPx()))
+            }
             val crown = Path().apply {
-                moveTo(w * 0.25f, h * 0.30f)
-                lineTo(w * 0.18f, h * 0.06f)
-                lineTo(w * 0.40f, h * 0.21f)
-                lineTo(w * 0.50f, h * 0.00f)
-                lineTo(w * 0.60f, h * 0.21f)
-                lineTo(w * 0.82f, h * 0.06f)
-                lineTo(w * 0.75f, h * 0.30f)
+                moveTo(w * 0.37f, h * 0.34f)
+                lineTo(w * 0.34f, h * 0.15f)
+                lineTo(w * 0.46f, h * 0.25f)
+                lineTo(w * 0.50f, h * 0.08f)
+                lineTo(w * 0.54f, h * 0.25f)
+                lineTo(w * 0.66f, h * 0.15f)
+                lineTo(w * 0.63f, h * 0.34f)
                 close()
             }
             drawPath(crown, wingBrush)
             drawPath(crown, Color.White.copy(alpha = 0.9f), style = Stroke(0.9.dp.toPx()))
             val shield = Path().apply {
-                moveTo(w * 0.50f, h * 0.18f)
-                lineTo(w * 0.82f, h * 0.32f)
-                lineTo(w * 0.77f, h * 0.70f)
+                moveTo(w * 0.50f, h * 0.25f)
+                lineTo(w * 0.76f, h * 0.37f)
+                lineTo(w * 0.72f, h * 0.72f)
                 lineTo(w * 0.50f, h * 0.96f)
-                lineTo(w * 0.23f, h * 0.70f)
-                lineTo(w * 0.18f, h * 0.32f)
+                lineTo(w * 0.28f, h * 0.72f)
+                lineTo(w * 0.24f, h * 0.37f)
                 close()
             }
-            drawPath(shield, Brush.linearGradient(listOf(accent.copy(alpha = 0.95f), accent, deep)))
+            drawPath(shield, Brush.linearGradient(listOf(accent.copy(alpha = 0.98f), accent, deep)))
             drawPath(shield, Color.White.copy(alpha = 0.98f), style = Stroke(1.1.dp.toPx()))
             val inner = Path().apply {
-                moveTo(w * 0.50f, h * 0.29f)
-                lineTo(w * 0.72f, h * 0.39f)
-                lineTo(w * 0.68f, h * 0.67f)
-                lineTo(w * 0.50f, h * 0.83f)
-                lineTo(w * 0.32f, h * 0.67f)
-                lineTo(w * 0.28f, h * 0.39f)
+                moveTo(w * 0.50f, h * 0.36f)
+                lineTo(w * 0.66f, h * 0.43f)
+                lineTo(w * 0.63f, h * 0.68f)
+                lineTo(w * 0.50f, h * 0.82f)
+                lineTo(w * 0.37f, h * 0.68f)
+                lineTo(w * 0.34f, h * 0.43f)
                 close()
             }
             drawPath(inner, Brush.verticalGradient(listOf(accent.copy(alpha = 0.92f), deep)))

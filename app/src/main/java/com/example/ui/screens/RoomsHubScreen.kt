@@ -52,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -132,8 +133,14 @@ fun RoomsHubScreen(
         }
     }
 
+    val roomsCanvasColor = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+        Color(0xFF08080A)
+    } else {
+        Color(0xFFFFFDF5)
+    }
+
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().background(roomsCanvasColor),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {

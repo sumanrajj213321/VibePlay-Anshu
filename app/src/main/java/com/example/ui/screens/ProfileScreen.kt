@@ -89,7 +89,7 @@ import com.example.data.model.UserProfile
 import com.example.data.model.VibeShopCatalog
 import com.example.ui.components.BackendIntegrationGuideSheet
 import com.example.ui.components.BiologicalGenderBadge
-import com.example.ui.components.IdLevelShieldBadge
+import com.example.ui.components.LevelBadge
 import com.example.ui.components.VibeCoinIcon
 import com.example.ui.components.VibeAvatar
 import com.example.ui.components.VipMiniBadge
@@ -626,7 +626,7 @@ fun ProfileScreen(
                                     fontWeight = FontWeight.ExtraBold,
                                     maxLines = 1
                                 )
-                                IdLevelShieldBadge(level = LevelProgression.levelForXp(profile.xp))
+                                LevelBadge(level = LevelProgression.levelForXp(profile.xp))
                             }
                             Text(
                                 text = "Tap for XP details",

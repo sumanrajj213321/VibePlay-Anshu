@@ -113,13 +113,14 @@ import com.example.data.model.VibeCatalogDefaults
 import com.example.ui.components.CharmEmblem
 import com.example.ui.components.GiftCatalogArtwork
 import com.example.data.model.UserProfile
+import com.example.data.model.LevelProgression
 import com.example.data.model.VibeShopCatalog
 import com.example.data.model.VoiceRoom
 import com.example.ui.components.BiologicalGenderBadge
 import com.example.ui.components.LevelBadge
 import com.example.ui.components.ReportUserOrRoomDialog
 import com.example.ui.components.VibeAvatar
-import com.example.ui.components.VipBadgePill
+import com.example.ui.components.VipMiniBadge
 import com.example.ui.theme.VibeCoral
 import com.example.ui.theme.VibeCyan
 import com.example.ui.theme.VibeEmerald
@@ -1207,7 +1208,7 @@ fun PublicProfileSheet(
                         }
                         BiologicalGenderBadge(gender = targetUser.gender, showGender = targetUser.showGender, compact = true)
                     }
-                    if (targetUser.isVipActive) Row(Modifier.fillMaxWidth()) { VipBadgePill(targetUser.vipLevel) }
+                    if (targetUser.isVipActive) VipMiniBadge(targetUser.vipLevel)
                     val ageSuffix = if (targetUser.showAge && targetUser.formattedAge != null) " · ${targetUser.formattedAge}" else ""
                     Surface(
                         Modifier.fillMaxWidth(),
@@ -1231,13 +1232,12 @@ fun PublicProfileSheet(
                             )
                         }
                     }
-                    Surface(
-                        Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        color = VibeGold.copy(alpha = 0.13f),
-                        border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.65f))
+                    // Keep the compact ID-level badge; hide the large level bar and label.
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.CenterStart
                     ) {
-                        Text("Level ${targetUser.level}", Modifier.padding(horizontal = 10.dp, vertical = 9.dp), style = MaterialTheme.typography.labelSmall, color = VibeGold, fontWeight = FontWeight.Bold, maxLines = 1)
+                        LevelBadge(level = LevelProgression.levelForXp(targetUser.xp))
                     }
                     val charms = com.example.data.model.CharmProgression.fromReceivedGiftCoins(targetUser.totalGiftCoinsReceived)
                     val charmLevel = com.example.data.model.CharmProgression.levelFor(charms)

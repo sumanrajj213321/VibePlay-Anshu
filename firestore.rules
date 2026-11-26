@@ -51,30 +51,36 @@ service cloud.firestore {
     // --- Validation Helpers ---
 
     function shopFramePrice(itemId) {
-      return itemId == 'neon_cyan' ? 15000 :
-             itemId == 'rose_gold' ? 25000 :
-             itemId == 'royal_gold' ? 40000 :
-             itemId == 'galaxy' ? 60000 :
-             itemId == 'aurora' ? 80000 :
-             vipFrameRequiredLevel(itemId) == 1 ? 90000 :
-             vipFrameRequiredLevel(itemId) == 2 ? 110000 :
-             vipFrameRequiredLevel(itemId) == 3 ? 130000 :
-             vipFrameRequiredLevel(itemId) == 4 ? 150000 :
-             vipFrameRequiredLevel(itemId) == 5 ? 175000 :
-             vipFrameRequiredLevel(itemId) == 6 ? 200000 :
-             vipFrameRequiredLevel(itemId) == 7 ? 230000 :
-             vipFrameRequiredLevel(itemId) == 8 ? 275000 : -1;
+      let prices = {
+        'neon_cyan': 15000,
+        'rose_gold': 25000,
+        'royal_gold': 40000,
+        'galaxy': 60000,
+        'aurora': 80000,
+        'vip_dragon_1': 90000,
+        'vip_dragon_2': 110000,
+        'vip_dragon_3': 130000,
+        'vip_dragon_4': 150000,
+        'vip_dragon_5': 175000,
+        'vip_dragon_6': 200000,
+        'vip_dragon_7': 230000,
+        'vip_dragon_8': 275000,
+        'vip_gold_banner_1': 90000,
+        'vip_gold_banner_2': 110000,
+        'vip_gold_banner_3': 130000,
+        'vip_gold_banner_4': 150000,
+        'vip_gold_banner_5': 175000,
+        'vip_gold_banner_6': 200000,
+        'vip_gold_banner_7': 230000,
+        'vip_gold_banner_8': 275000
+      };
+      return itemId in prices ? prices[itemId] : -1;
     }
 
     function vipFrameRequiredLevel(frameId) {
-      return frameId.matches('^(vip_dragon_1|vip_gold_banner_1)
-
-    function isValidFramePurchase(data, oldData) {
-      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
+      return frameId.matches('^(vip_dragon_1|vip_gold_banner_1)      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds
         : [];
-      let framePrice = shopFramePrice(data.activeFrameId);
-      let requiredVipLevel = vipFrameRequiredLevel(data.activeFrameId);
       return (!('vipLevel' in oldData) || (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
              ('coinBalance' in oldData) &&
              oldData.coinBalance is int &&
@@ -90,15 +96,10 @@ service cloud.firestore {
              data.frameExpiresAt is map &&
              data.frameExpiresAt[data.activeFrameId] is timestamp &&
              data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(24, 'h') &&
-             (requiredVipLevel == 0
-               ? data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h')
-               : ('vipLevel' in oldData && oldData.vipLevel == requiredVipLevel &&
-                  'vipExpiresAt' in oldData && oldData.vipExpiresAt is timestamp &&
-                  oldData.vipExpiresAt > request.time &&
-                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt)) &&
+             data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h') &&
              data.lastFramePurchaseAt is timestamp &&
-             framePrice >= 0 &&
-             data.coinBalance == oldData.coinBalance - framePrice &&
+             shopFramePrice(data.activeFrameId) >= 0 &&
+             data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&
              data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt']);
     }
 
@@ -528,8 +529,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Frame purchase must be authorized before evaluating the large profile-update rule tree.
-      // Otherwise Firestore can hit the 1,000-expression limit before reaching this valid branch.
+      // Fast-path frame purchase before the large profile update validator.
       allow update: if isSignedIn() && isValidId(userId) &&
         request.auth.uid == userId &&
         incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
@@ -539,8 +539,7 @@ service cloud.firestore {
         (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
         isValidTs(incoming().updatedAt) &&
         isValidFramePurchase(incoming(), existing());
-
-      // Dispatch other profile writes through the general validation tree.
+      // Dispatch common profile and frame writes before transaction-heavy branches.
       allow update: if (
         ((
                 (isSignedIn() && isValidId(userId) &&
@@ -643,6 +642,15 @@ service cloud.firestore {
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
                                        incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
                 (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
+                (isSignedIn() && isValidId(userId) &&
+                                       request.auth.uid == userId &&
+                                       incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+                                       (!('userId' in existing()) || incoming().userId == existing().userId) &&
+                                       (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                                       (!('role' in existing()) || incoming().role == existing().role) &&
+                                       (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
+                                       isValidTs(incoming().updatedAt) &&
+                                       isValidFramePurchase(incoming(), existing())) ||
                 (isSignedIn() && request.auth.uid == userId &&
                                        incoming().userId == existing().userId &&
                                        incoming().createdAt == existing().createdAt &&
@@ -1487,14 +1495,9 @@ service cloud.firestore {
 
 // Redeploy current frame purchase validation and price mappings.
 ) ? 1 :
-             frameId.matches('^(vip_dragon_2|vip_gold_banner_2)
-
-    function isValidFramePurchase(data, oldData) {
-      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
+             frameId.matches('^(vip_dragon_2|vip_gold_banner_2)      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds
         : [];
-      let framePrice = shopFramePrice(data.activeFrameId);
-      let requiredVipLevel = vipFrameRequiredLevel(framePrice);
       return (!('vipLevel' in oldData) || (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
              ('coinBalance' in oldData) &&
              oldData.coinBalance is int &&
@@ -1510,15 +1513,10 @@ service cloud.firestore {
              data.frameExpiresAt is map &&
              data.frameExpiresAt[data.activeFrameId] is timestamp &&
              data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(24, 'h') &&
-             (requiredVipLevel == 0
-               ? data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h')
-               : ('vipLevel' in oldData && oldData.vipLevel == requiredVipLevel &&
-                  'vipExpiresAt' in oldData && oldData.vipExpiresAt is timestamp &&
-                  oldData.vipExpiresAt > request.time &&
-                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt)) &&
+             data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h') &&
              data.lastFramePurchaseAt is timestamp &&
-             framePrice >= 0 &&
-             data.coinBalance == oldData.coinBalance - framePrice &&
+             shopFramePrice(data.activeFrameId) >= 0 &&
+             data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&
              data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt']);
     }
 
@@ -1948,19 +1946,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Frame purchase must be authorized before evaluating the large profile-update rule tree.
-      // Otherwise Firestore can hit the 1,000-expression limit before reaching this valid branch.
-      allow update: if isSignedIn() && isValidId(userId) &&
-        request.auth.uid == userId &&
-        incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        (!('userId' in existing()) || incoming().userId == existing().userId) &&
-        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-        (!('role' in existing()) || incoming().role == existing().role) &&
-        (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
-        isValidTs(incoming().updatedAt) &&
-        isValidFramePurchase(incoming(), existing());
-
-      // Dispatch other profile writes through the general validation tree.
+      // Dispatch common profile and frame writes before transaction-heavy branches.
       allow update: if (
         ((
                 (isSignedIn() && isValidId(userId) &&
@@ -2063,6 +2049,15 @@ service cloud.firestore {
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
                                        incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
                 (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
+                (isSignedIn() && isValidId(userId) &&
+                                       request.auth.uid == userId &&
+                                       incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+                                       (!('userId' in existing()) || incoming().userId == existing().userId) &&
+                                       (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                                       (!('role' in existing()) || incoming().role == existing().role) &&
+                                       (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
+                                       isValidTs(incoming().updatedAt) &&
+                                       isValidFramePurchase(incoming(), existing())) ||
                 (isSignedIn() && request.auth.uid == userId &&
                                        incoming().userId == existing().userId &&
                                        incoming().createdAt == existing().createdAt &&
@@ -2907,14 +2902,9 @@ service cloud.firestore {
 
 // Redeploy current frame purchase validation and price mappings.
 ) ? 2 :
-             frameId.matches('^(vip_dragon_3|vip_gold_banner_3)
-
-    function isValidFramePurchase(data, oldData) {
-      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
+             frameId.matches('^(vip_dragon_3|vip_gold_banner_3)      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds
         : [];
-      let framePrice = shopFramePrice(data.activeFrameId);
-      let requiredVipLevel = vipFrameRequiredLevel(framePrice);
       return (!('vipLevel' in oldData) || (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
              ('coinBalance' in oldData) &&
              oldData.coinBalance is int &&
@@ -2930,15 +2920,10 @@ service cloud.firestore {
              data.frameExpiresAt is map &&
              data.frameExpiresAt[data.activeFrameId] is timestamp &&
              data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(24, 'h') &&
-             (requiredVipLevel == 0
-               ? data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h')
-               : ('vipLevel' in oldData && oldData.vipLevel == requiredVipLevel &&
-                  'vipExpiresAt' in oldData && oldData.vipExpiresAt is timestamp &&
-                  oldData.vipExpiresAt > request.time &&
-                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt)) &&
+             data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h') &&
              data.lastFramePurchaseAt is timestamp &&
-             framePrice >= 0 &&
-             data.coinBalance == oldData.coinBalance - framePrice &&
+             shopFramePrice(data.activeFrameId) >= 0 &&
+             data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&
              data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt']);
     }
 
@@ -3368,19 +3353,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Frame purchase must be authorized before evaluating the large profile-update rule tree.
-      // Otherwise Firestore can hit the 1,000-expression limit before reaching this valid branch.
-      allow update: if isSignedIn() && isValidId(userId) &&
-        request.auth.uid == userId &&
-        incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        (!('userId' in existing()) || incoming().userId == existing().userId) &&
-        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-        (!('role' in existing()) || incoming().role == existing().role) &&
-        (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
-        isValidTs(incoming().updatedAt) &&
-        isValidFramePurchase(incoming(), existing());
-
-      // Dispatch other profile writes through the general validation tree.
+      // Dispatch common profile and frame writes before transaction-heavy branches.
       allow update: if (
         ((
                 (isSignedIn() && isValidId(userId) &&
@@ -3483,6 +3456,15 @@ service cloud.firestore {
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
                                        incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
                 (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
+                (isSignedIn() && isValidId(userId) &&
+                                       request.auth.uid == userId &&
+                                       incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+                                       (!('userId' in existing()) || incoming().userId == existing().userId) &&
+                                       (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                                       (!('role' in existing()) || incoming().role == existing().role) &&
+                                       (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
+                                       isValidTs(incoming().updatedAt) &&
+                                       isValidFramePurchase(incoming(), existing())) ||
                 (isSignedIn() && request.auth.uid == userId &&
                                        incoming().userId == existing().userId &&
                                        incoming().createdAt == existing().createdAt &&
@@ -4327,14 +4309,9 @@ service cloud.firestore {
 
 // Redeploy current frame purchase validation and price mappings.
 ) ? 3 :
-             frameId.matches('^(vip_dragon_4|vip_gold_banner_4)
-
-    function isValidFramePurchase(data, oldData) {
-      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
+             frameId.matches('^(vip_dragon_4|vip_gold_banner_4)      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds
         : [];
-      let framePrice = shopFramePrice(data.activeFrameId);
-      let requiredVipLevel = vipFrameRequiredLevel(framePrice);
       return (!('vipLevel' in oldData) || (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
              ('coinBalance' in oldData) &&
              oldData.coinBalance is int &&
@@ -4350,15 +4327,10 @@ service cloud.firestore {
              data.frameExpiresAt is map &&
              data.frameExpiresAt[data.activeFrameId] is timestamp &&
              data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(24, 'h') &&
-             (requiredVipLevel == 0
-               ? data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h')
-               : ('vipLevel' in oldData && oldData.vipLevel == requiredVipLevel &&
-                  'vipExpiresAt' in oldData && oldData.vipExpiresAt is timestamp &&
-                  oldData.vipExpiresAt > request.time &&
-                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt)) &&
+             data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h') &&
              data.lastFramePurchaseAt is timestamp &&
-             framePrice >= 0 &&
-             data.coinBalance == oldData.coinBalance - framePrice &&
+             shopFramePrice(data.activeFrameId) >= 0 &&
+             data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&
              data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt']);
     }
 
@@ -4788,19 +4760,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Frame purchase must be authorized before evaluating the large profile-update rule tree.
-      // Otherwise Firestore can hit the 1,000-expression limit before reaching this valid branch.
-      allow update: if isSignedIn() && isValidId(userId) &&
-        request.auth.uid == userId &&
-        incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        (!('userId' in existing()) || incoming().userId == existing().userId) &&
-        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-        (!('role' in existing()) || incoming().role == existing().role) &&
-        (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
-        isValidTs(incoming().updatedAt) &&
-        isValidFramePurchase(incoming(), existing());
-
-      // Dispatch other profile writes through the general validation tree.
+      // Dispatch common profile and frame writes before transaction-heavy branches.
       allow update: if (
         ((
                 (isSignedIn() && isValidId(userId) &&
@@ -4903,6 +4863,15 @@ service cloud.firestore {
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
                                        incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
                 (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
+                (isSignedIn() && isValidId(userId) &&
+                                       request.auth.uid == userId &&
+                                       incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+                                       (!('userId' in existing()) || incoming().userId == existing().userId) &&
+                                       (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                                       (!('role' in existing()) || incoming().role == existing().role) &&
+                                       (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
+                                       isValidTs(incoming().updatedAt) &&
+                                       isValidFramePurchase(incoming(), existing())) ||
                 (isSignedIn() && request.auth.uid == userId &&
                                        incoming().userId == existing().userId &&
                                        incoming().createdAt == existing().createdAt &&
@@ -5747,14 +5716,9 @@ service cloud.firestore {
 
 // Redeploy current frame purchase validation and price mappings.
 ) ? 4 :
-             frameId.matches('^(vip_dragon_5|vip_gold_banner_5)
-
-    function isValidFramePurchase(data, oldData) {
-      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
+             frameId.matches('^(vip_dragon_5|vip_gold_banner_5)      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds
         : [];
-      let framePrice = shopFramePrice(data.activeFrameId);
-      let requiredVipLevel = vipFrameRequiredLevel(framePrice);
       return (!('vipLevel' in oldData) || (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
              ('coinBalance' in oldData) &&
              oldData.coinBalance is int &&
@@ -5770,15 +5734,10 @@ service cloud.firestore {
              data.frameExpiresAt is map &&
              data.frameExpiresAt[data.activeFrameId] is timestamp &&
              data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(24, 'h') &&
-             (requiredVipLevel == 0
-               ? data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h')
-               : ('vipLevel' in oldData && oldData.vipLevel == requiredVipLevel &&
-                  'vipExpiresAt' in oldData && oldData.vipExpiresAt is timestamp &&
-                  oldData.vipExpiresAt > request.time &&
-                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt)) &&
+             data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h') &&
              data.lastFramePurchaseAt is timestamp &&
-             framePrice >= 0 &&
-             data.coinBalance == oldData.coinBalance - framePrice &&
+             shopFramePrice(data.activeFrameId) >= 0 &&
+             data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&
              data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt']);
     }
 
@@ -6208,19 +6167,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Frame purchase must be authorized before evaluating the large profile-update rule tree.
-      // Otherwise Firestore can hit the 1,000-expression limit before reaching this valid branch.
-      allow update: if isSignedIn() && isValidId(userId) &&
-        request.auth.uid == userId &&
-        incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        (!('userId' in existing()) || incoming().userId == existing().userId) &&
-        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-        (!('role' in existing()) || incoming().role == existing().role) &&
-        (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
-        isValidTs(incoming().updatedAt) &&
-        isValidFramePurchase(incoming(), existing());
-
-      // Dispatch other profile writes through the general validation tree.
+      // Dispatch common profile and frame writes before transaction-heavy branches.
       allow update: if (
         ((
                 (isSignedIn() && isValidId(userId) &&
@@ -6323,6 +6270,15 @@ service cloud.firestore {
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
                                        incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
                 (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
+                (isSignedIn() && isValidId(userId) &&
+                                       request.auth.uid == userId &&
+                                       incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+                                       (!('userId' in existing()) || incoming().userId == existing().userId) &&
+                                       (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                                       (!('role' in existing()) || incoming().role == existing().role) &&
+                                       (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
+                                       isValidTs(incoming().updatedAt) &&
+                                       isValidFramePurchase(incoming(), existing())) ||
                 (isSignedIn() && request.auth.uid == userId &&
                                        incoming().userId == existing().userId &&
                                        incoming().createdAt == existing().createdAt &&
@@ -7167,14 +7123,9 @@ service cloud.firestore {
 
 // Redeploy current frame purchase validation and price mappings.
 ) ? 5 :
-             frameId.matches('^(vip_dragon_6|vip_gold_banner_6)
-
-    function isValidFramePurchase(data, oldData) {
-      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
+             frameId.matches('^(vip_dragon_6|vip_gold_banner_6)      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds
         : [];
-      let framePrice = shopFramePrice(data.activeFrameId);
-      let requiredVipLevel = vipFrameRequiredLevel(framePrice);
       return (!('vipLevel' in oldData) || (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
              ('coinBalance' in oldData) &&
              oldData.coinBalance is int &&
@@ -7190,15 +7141,10 @@ service cloud.firestore {
              data.frameExpiresAt is map &&
              data.frameExpiresAt[data.activeFrameId] is timestamp &&
              data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(24, 'h') &&
-             (requiredVipLevel == 0
-               ? data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h')
-               : ('vipLevel' in oldData && oldData.vipLevel == requiredVipLevel &&
-                  'vipExpiresAt' in oldData && oldData.vipExpiresAt is timestamp &&
-                  oldData.vipExpiresAt > request.time &&
-                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt)) &&
+             data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h') &&
              data.lastFramePurchaseAt is timestamp &&
-             framePrice >= 0 &&
-             data.coinBalance == oldData.coinBalance - framePrice &&
+             shopFramePrice(data.activeFrameId) >= 0 &&
+             data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&
              data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt']);
     }
 
@@ -7628,19 +7574,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Frame purchase must be authorized before evaluating the large profile-update rule tree.
-      // Otherwise Firestore can hit the 1,000-expression limit before reaching this valid branch.
-      allow update: if isSignedIn() && isValidId(userId) &&
-        request.auth.uid == userId &&
-        incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        (!('userId' in existing()) || incoming().userId == existing().userId) &&
-        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-        (!('role' in existing()) || incoming().role == existing().role) &&
-        (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
-        isValidTs(incoming().updatedAt) &&
-        isValidFramePurchase(incoming(), existing());
-
-      // Dispatch other profile writes through the general validation tree.
+      // Dispatch common profile and frame writes before transaction-heavy branches.
       allow update: if (
         ((
                 (isSignedIn() && isValidId(userId) &&
@@ -7743,6 +7677,15 @@ service cloud.firestore {
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
                                        incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
                 (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
+                (isSignedIn() && isValidId(userId) &&
+                                       request.auth.uid == userId &&
+                                       incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+                                       (!('userId' in existing()) || incoming().userId == existing().userId) &&
+                                       (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                                       (!('role' in existing()) || incoming().role == existing().role) &&
+                                       (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
+                                       isValidTs(incoming().updatedAt) &&
+                                       isValidFramePurchase(incoming(), existing())) ||
                 (isSignedIn() && request.auth.uid == userId &&
                                        incoming().userId == existing().userId &&
                                        incoming().createdAt == existing().createdAt &&
@@ -8587,14 +8530,9 @@ service cloud.firestore {
 
 // Redeploy current frame purchase validation and price mappings.
 ) ? 6 :
-             frameId.matches('^(vip_dragon_7|vip_gold_banner_7)
-
-    function isValidFramePurchase(data, oldData) {
-      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
+             frameId.matches('^(vip_dragon_7|vip_gold_banner_7)      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds
         : [];
-      let framePrice = shopFramePrice(data.activeFrameId);
-      let requiredVipLevel = vipFrameRequiredLevel(framePrice);
       return (!('vipLevel' in oldData) || (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
              ('coinBalance' in oldData) &&
              oldData.coinBalance is int &&
@@ -8610,15 +8548,10 @@ service cloud.firestore {
              data.frameExpiresAt is map &&
              data.frameExpiresAt[data.activeFrameId] is timestamp &&
              data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(24, 'h') &&
-             (requiredVipLevel == 0
-               ? data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h')
-               : ('vipLevel' in oldData && oldData.vipLevel == requiredVipLevel &&
-                  'vipExpiresAt' in oldData && oldData.vipExpiresAt is timestamp &&
-                  oldData.vipExpiresAt > request.time &&
-                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt)) &&
+             data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h') &&
              data.lastFramePurchaseAt is timestamp &&
-             framePrice >= 0 &&
-             data.coinBalance == oldData.coinBalance - framePrice &&
+             shopFramePrice(data.activeFrameId) >= 0 &&
+             data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&
              data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt']);
     }
 
@@ -9048,19 +8981,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Frame purchase must be authorized before evaluating the large profile-update rule tree.
-      // Otherwise Firestore can hit the 1,000-expression limit before reaching this valid branch.
-      allow update: if isSignedIn() && isValidId(userId) &&
-        request.auth.uid == userId &&
-        incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        (!('userId' in existing()) || incoming().userId == existing().userId) &&
-        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-        (!('role' in existing()) || incoming().role == existing().role) &&
-        (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
-        isValidTs(incoming().updatedAt) &&
-        isValidFramePurchase(incoming(), existing());
-
-      // Dispatch other profile writes through the general validation tree.
+      // Dispatch common profile and frame writes before transaction-heavy branches.
       allow update: if (
         ((
                 (isSignedIn() && isValidId(userId) &&
@@ -9163,6 +9084,15 @@ service cloud.firestore {
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
                                        incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
                 (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
+                (isSignedIn() && isValidId(userId) &&
+                                       request.auth.uid == userId &&
+                                       incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+                                       (!('userId' in existing()) || incoming().userId == existing().userId) &&
+                                       (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                                       (!('role' in existing()) || incoming().role == existing().role) &&
+                                       (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
+                                       isValidTs(incoming().updatedAt) &&
+                                       isValidFramePurchase(incoming(), existing())) ||
                 (isSignedIn() && request.auth.uid == userId &&
                                        incoming().userId == existing().userId &&
                                        incoming().createdAt == existing().createdAt &&
@@ -10007,14 +9937,9 @@ service cloud.firestore {
 
 // Redeploy current frame purchase validation and price mappings.
 ) ? 7 :
-             frameId.matches('^(vip_dragon_8|vip_gold_banner_8)
-
-    function isValidFramePurchase(data, oldData) {
-      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
+             frameId.matches('^(vip_dragon_8|vip_gold_banner_8)      let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds
         : [];
-      let framePrice = shopFramePrice(data.activeFrameId);
-      let requiredVipLevel = vipFrameRequiredLevel(framePrice);
       return (!('vipLevel' in oldData) || (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
              ('coinBalance' in oldData) &&
              oldData.coinBalance is int &&
@@ -10030,15 +9955,10 @@ service cloud.firestore {
              data.frameExpiresAt is map &&
              data.frameExpiresAt[data.activeFrameId] is timestamp &&
              data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(24, 'h') &&
-             (requiredVipLevel == 0
-               ? data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h')
-               : ('vipLevel' in oldData && oldData.vipLevel == requiredVipLevel &&
-                  'vipExpiresAt' in oldData && oldData.vipExpiresAt is timestamp &&
-                  oldData.vipExpiresAt > request.time &&
-                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt)) &&
+             data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h') &&
              data.lastFramePurchaseAt is timestamp &&
-             framePrice >= 0 &&
-             data.coinBalance == oldData.coinBalance - framePrice &&
+             shopFramePrice(data.activeFrameId) >= 0 &&
+             data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&
              data.diff(oldData).affectedKeys().hasOnly(['coinBalance', 'ownedFrameIds', 'activeFrameId', 'frameExpiresAt', 'lastFramePurchaseAt', 'updatedAt']);
     }
 
@@ -10468,19 +10388,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Frame purchase must be authorized before evaluating the large profile-update rule tree.
-      // Otherwise Firestore can hit the 1,000-expression limit before reaching this valid branch.
-      allow update: if isSignedIn() && isValidId(userId) &&
-        request.auth.uid == userId &&
-        incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        (!('userId' in existing()) || incoming().userId == existing().userId) &&
-        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-        (!('role' in existing()) || incoming().role == existing().role) &&
-        (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
-        isValidTs(incoming().updatedAt) &&
-        isValidFramePurchase(incoming(), existing());
-
-      // Dispatch other profile writes through the general validation tree.
+      // Dispatch common profile and frame writes before transaction-heavy branches.
       allow update: if (
         ((
                 (isSignedIn() && isValidId(userId) &&
@@ -10583,6 +10491,15 @@ service cloud.firestore {
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
                                        incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
                 (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
+                (isSignedIn() && isValidId(userId) &&
+                                       request.auth.uid == userId &&
+                                       incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+                                       (!('userId' in existing()) || incoming().userId == existing().userId) &&
+                                       (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                                       (!('role' in existing()) || incoming().role == existing().role) &&
+                                       (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
+                                       isValidTs(incoming().updatedAt) &&
+                                       isValidFramePurchase(incoming(), existing())) ||
                 (isSignedIn() && request.auth.uid == userId &&
                                        incoming().userId == existing().userId &&
                                        incoming().createdAt == existing().createdAt &&
@@ -11433,8 +11350,8 @@ service cloud.firestore {
       let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds
         : [];
+      let requiredVipLevel = vipFrameRequiredLevel(data.activeFrameId);
       let framePrice = shopFramePrice(data.activeFrameId);
-      let requiredVipLevel = vipFrameRequiredLevel(framePrice);
       return (!('vipLevel' in oldData) || (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
              ('coinBalance' in oldData) &&
              oldData.coinBalance is int &&
@@ -11455,7 +11372,7 @@ service cloud.firestore {
                : ('vipLevel' in oldData && oldData.vipLevel == requiredVipLevel &&
                   'vipExpiresAt' in oldData && oldData.vipExpiresAt is timestamp &&
                   oldData.vipExpiresAt > request.time &&
-                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt)) &&
+                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt) &&
              data.lastFramePurchaseAt is timestamp &&
              framePrice >= 0 &&
              data.coinBalance == oldData.coinBalance - framePrice &&
@@ -11888,19 +11805,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Frame purchase must be authorized before evaluating the large profile-update rule tree.
-      // Otherwise Firestore can hit the 1,000-expression limit before reaching this valid branch.
-      allow update: if isSignedIn() && isValidId(userId) &&
-        request.auth.uid == userId &&
-        incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        (!('userId' in existing()) || incoming().userId == existing().userId) &&
-        (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
-        (!('role' in existing()) || incoming().role == existing().role) &&
-        (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
-        isValidTs(incoming().updatedAt) &&
-        isValidFramePurchase(incoming(), existing());
-
-      // Dispatch other profile writes through the general validation tree.
+      // Dispatch common profile and frame writes before transaction-heavy branches.
       allow update: if (
         ((
                 (isSignedIn() && isValidId(userId) &&
@@ -12003,6 +11908,15 @@ service cloud.firestore {
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
                                        incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
                 (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
+                (isSignedIn() && isValidId(userId) &&
+                                       request.auth.uid == userId &&
+                                       incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
+                                       (!('userId' in existing()) || incoming().userId == existing().userId) &&
+                                       (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                                       (!('role' in existing()) || incoming().role == existing().role) &&
+                                       (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
+                                       isValidTs(incoming().updatedAt) &&
+                                       isValidFramePurchase(incoming(), existing())) ||
                 (isSignedIn() && request.auth.uid == userId &&
                                        incoming().userId == existing().userId &&
                                        incoming().createdAt == existing().createdAt &&

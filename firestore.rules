@@ -71,7 +71,7 @@ service cloud.firestore {
       }.get(frameId, 0);
     }
 
-    function isValidVipFramePurchase(data, oldData) {
+    function isValidVipFramePurchase(data, oldData, frameLevel) {
       let level = oldData.vipLevel;
       let oldOwned = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds : [];
@@ -85,7 +85,7 @@ service cloud.firestore {
                   level == 8 ? 275000 : -1;
       return data.activeFrameId is string &&
         level is int && level >= 1 && level <= 8 &&
-        vipFrameLevel(data.activeFrameId) == level &&
+        frameLevel == level &&
         oldData.vipExpiresAt is timestamp &&
         oldData.vipExpiresAt > request.time &&
         oldData.coinBalance is int &&
@@ -105,9 +105,10 @@ service cloud.firestore {
     }
 
     function isValidFramePurchase(data, oldData) {
+      let frameLevel = vipFrameLevel(data.activeFrameId);
       return data.activeFrameId is string &&
-        (vipFrameLevel(data.activeFrameId) > 0
-          ? isValidVipFramePurchase(data, oldData)
+        (frameLevel > 0
+          ? isValidVipFramePurchase(data, oldData, frameLevel)
           : ((!('vipLevel' in oldData) ||
               (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
              isValidLegacyFramePurchase(data, oldData)));

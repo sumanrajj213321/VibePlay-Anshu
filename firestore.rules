@@ -564,8 +564,10 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Dispatch purchase writes before evaluating the larger profile-update policy.
-      allow update: if incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt'])
+      // Detect purchase writes without an expensive full-map diff.
+      allow update: if (('lastFramePurchaseAt' in incoming()) &&
+                       (!('lastFramePurchaseAt' in existing()) ||
+                        incoming().lastFramePurchaseAt != existing().lastFramePurchaseAt))
         ? (isSignedIn() && isValidId(userId) &&
            request.auth.uid == userId &&
            (!('userId' in existing()) || incoming().userId == existing().userId) &&
@@ -574,8 +576,7 @@ service cloud.firestore {
            (!('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
            isValidTs(incoming().updatedAt) &&
            isValidFramePurchase(incoming(), existing()))
-        : (!incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
-        ((
+        : ((
                 (isSignedIn() && isValidId(userId) &&
                         !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
                         request.auth.uid == userId &&

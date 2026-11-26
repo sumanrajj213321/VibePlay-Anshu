@@ -1819,14 +1819,14 @@ test("Direct client writes for all 16 VIP frames are blocked", async () => {
       vipExpiresAt: vipExpiry,
     }));
 
-    await assertFails(userRef.update({
+    await assert.rejects(userRef.update({
       coinBalance: 1000500 - price,
       ownedFrameIds: firebase.firestore.FieldValue.arrayUnion(frameId),
       activeFrameId: frameId,
       frameExpiresAt: { [frameId]: vipExpiry },
       lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    }));
+    }), (error) => error.code === 'permission-denied');
   }
 });
 
@@ -1840,14 +1840,14 @@ test("VIP frames reject a different VIP level and an expired VIP", async () => {
     vipLevel: 2,
     vipExpiresAt: activeExpiry,
   }));
-  await assertFails(wrongLevelRef.update({
+  await assert.rejects(wrongLevelRef.update({
     coinBalance: 1000500 - 90000,
     ownedFrameIds: firebase.firestore.FieldValue.arrayUnion("vip_dragon_1"),
     activeFrameId: "vip_dragon_1",
     frameExpiresAt: { vip_dragon_1: activeExpiry },
     lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-  }));
+  }), (error) => error.code === 'permission-denied');
 
   const expiredUid = "vip_frame_expired_vip";
   const expiredDb = testEnv.authenticatedContext(expiredUid).firestore();
@@ -1858,7 +1858,7 @@ test("VIP frames reject a different VIP level and an expired VIP", async () => {
     vipLevel: 1,
     vipExpiresAt: expiredAt,
   }));
-  await assertFails(expiredRef.update({
+  await assert.rejects(expiredRef.update({
     coinBalance: 1000500 - 90000,
     ownedFrameIds: firebase.firestore.FieldValue.arrayUnion("vip_dragon_1"),
     activeFrameId: "vip_dragon_1",

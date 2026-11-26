@@ -77,10 +77,22 @@ service cloud.firestore {
       return itemId in prices ? prices[itemId] : -1;
     }
 
+    function vipFrameRequiredLevel(itemId) {
+      return itemId == 'vip_dragon_1' || itemId == 'vip_gold_banner_1' ? 1 :
+             itemId == 'vip_dragon_2' || itemId == 'vip_gold_banner_2' ? 2 :
+             itemId == 'vip_dragon_3' || itemId == 'vip_gold_banner_3' ? 3 :
+             itemId == 'vip_dragon_4' || itemId == 'vip_gold_banner_4' ? 4 :
+             itemId == 'vip_dragon_5' || itemId == 'vip_gold_banner_5' ? 5 :
+             itemId == 'vip_dragon_6' || itemId == 'vip_gold_banner_6' ? 6 :
+             itemId == 'vip_dragon_7' || itemId == 'vip_gold_banner_7' ? 7 :
+             itemId == 'vip_dragon_8' || itemId == 'vip_gold_banner_8' ? 8 : 0;
+    }
+
     function isValidFramePurchase(data, oldData) {
       let oldOwnedFrames = ('ownedFrameIds' in oldData && oldData.ownedFrameIds is list)
         ? oldData.ownedFrameIds
         : [];
+      let requiredVipLevel = vipFrameRequiredLevel(data.activeFrameId);
       return (!('vipLevel' in oldData) || (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
              ('coinBalance' in oldData) &&
              oldData.coinBalance is int &&
@@ -96,7 +108,12 @@ service cloud.firestore {
              data.frameExpiresAt is map &&
              data.frameExpiresAt[data.activeFrameId] is timestamp &&
              data.frameExpiresAt[data.activeFrameId] > request.time - duration.value(24, 'h') &&
-             data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h') &&
+             (requiredVipLevel == 0
+               ? data.frameExpiresAt[data.activeFrameId] <= request.time + duration.value(7, 'd') + duration.value(24, 'h')
+               : ('vipLevel' in oldData && oldData.vipLevel == requiredVipLevel &&
+                  'vipExpiresAt' in oldData && oldData.vipExpiresAt is timestamp &&
+                  oldData.vipExpiresAt > request.time &&
+                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt) &&
              data.lastFramePurchaseAt is timestamp &&
              shopFramePrice(data.activeFrameId) >= 0 &&
              data.coinBalance == oldData.coinBalance - shopFramePrice(data.activeFrameId) &&

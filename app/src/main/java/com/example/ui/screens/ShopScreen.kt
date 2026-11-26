@@ -116,13 +116,24 @@ fun ShopScreen(
                         frameRow.forEach { item ->
                             val owned = profile.isFrameActive(item.id)
                             val equipped = profile.activeFrameId == item.id && owned
+                            val requiredVipLevel = if (
+                                item.id.startsWith("vip_dragon_") || item.id.startsWith("vip_gold_banner_")
+                            ) item.id.substringAfterLast('_').toLongOrNull() else null
+                            val hasRequiredVip = requiredVipLevel == null ||
+                                (profile.isVipActive && profile.vipLevel == requiredVipLevel)
                             FrameGridCard(
                                 modifier = Modifier.weight(1f),
                                 title = item.title,
                                 price = item.coinPrice,
                                 accent = Color(item.colorArgb),
-                                status = when { equipped -> "Equipped"; owned -> "Equip"; else -> "Buy" },
-                                enabled = !equipped && (owned || profile.coinBalance >= item.coinPrice),
+                                status = when {
+                                    equipped -> "Equipped"
+                                    owned -> "Equip"
+                                    !hasRequiredVip -> "Only VIP $requiredVipLevel"
+                                    else -> "Buy"
+                                },
+                                enabled = !equipped && hasRequiredVip &&
+                                    (owned || profile.coinBalance >= item.coinPrice),
                                 onClick = { if (owned) onEquip("FRAME", item.id) else onPurchase("FRAME", item.id) },
                                 avatarUrl = profile.avatarUrl,
                                 frameColorArgb = item.colorArgb

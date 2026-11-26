@@ -1795,7 +1795,7 @@ test("Android-style frame purchase transforms are accepted (arrayUnion + serverT
   }));
 });
 
-test("All 16 newly added VIP frames are purchasable with Android transaction transforms", async () => {
+test("All 16 VIP frames require the exact active VIP level and expire with that VIP", async () => {
   const frames = [
     ["vip_dragon_1", 90000], ["vip_dragon_2", 110000],
     ["vip_dragon_3", 130000], ["vip_dragon_4", 150000],
@@ -1808,21 +1808,64 @@ test("All 16 newly added VIP frames are purchasable with Android transaction tra
   ];
 
   for (const [index, [frameId, price]] of frames.entries()) {
-    const uid = `frame_buyer_${index}`;
+    const uid = `vip_frame_buyer_${index}`;
     const db = testEnv.authenticatedContext(uid).firestore();
     const userRef = db.collection("users").doc(uid);
-    await assertSucceeds(userRef.set(makeUserPayload(uid, `Buyer ${index}`, `VP-${100001 + index}`)));
+    const requiredLevel = Number(frameId.split("_").at(-1));
+    const vipExpiry = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+    await assertSucceeds(userRef.set({
+      ...makeUserPayload(uid, `Buyer ${index}`, `VP-${100001 + index}`),
+      vipLevel: requiredLevel,
+      vipExpiresAt: vipExpiry,
+    }));
 
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await assertSucceeds(userRef.update({
       coinBalance: 1000500 - price,
       ownedFrameIds: firebase.firestore.FieldValue.arrayUnion(frameId),
       activeFrameId: frameId,
-      frameExpiresAt: { [frameId]: expiresAt },
+      frameExpiresAt: { [frameId]: vipExpiry },
       lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     }));
   }
+});
+
+test("VIP frames reject a different VIP level and an expired VIP", async () => {
+  const wrongLevelUid = "vip_frame_wrong_level";
+  const wrongLevelDb = testEnv.authenticatedContext(wrongLevelUid).firestore();
+  const wrongLevelRef = wrongLevelDb.collection("users").doc(wrongLevelUid);
+  const activeExpiry = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+  await assertSucceeds(wrongLevelRef.set({
+    ...makeUserPayload(wrongLevelUid, "Wrong Level", "VP-300001"),
+    vipLevel: 2,
+    vipExpiresAt: activeExpiry,
+  }));
+  await assertFails(wrongLevelRef.update({
+    coinBalance: 1000500 - 90000,
+    ownedFrameIds: firebase.firestore.FieldValue.arrayUnion("vip_dragon_1"),
+    activeFrameId: "vip_dragon_1",
+    frameExpiresAt: { vip_dragon_1: activeExpiry },
+    lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+
+  const expiredUid = "vip_frame_expired_vip";
+  const expiredDb = testEnv.authenticatedContext(expiredUid).firestore();
+  const expiredRef = expiredDb.collection("users").doc(expiredUid);
+  const expiredAt = pastDate();
+  await assertSucceeds(expiredRef.set({
+    ...makeUserPayload(expiredUid, "Expired VIP", "VP-300002"),
+    vipLevel: 1,
+    vipExpiresAt: expiredAt,
+  }));
+  await assertFails(expiredRef.update({
+    coinBalance: 1000500 - 90000,
+    ownedFrameIds: firebase.firestore.FieldValue.arrayUnion("vip_dragon_1"),
+    activeFrameId: "vip_dragon_1",
+    frameExpiresAt: { vip_dragon_1: expiredAt },
+    lastFramePurchaseAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
 });
 
 test("Legacy profile missing userId, createdAt, role and accountStatus can purchase a frame", async () => {

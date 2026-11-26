@@ -529,7 +529,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Fast-path frame purchase before the large profile update validator.
+      // Fast-path frame purchase before the large profile-update validator.
       allow update: if isSignedIn() && isValidId(userId) &&
         request.auth.uid == userId &&
         incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
@@ -11372,7 +11372,7 @@ service cloud.firestore {
                : ('vipLevel' in oldData && oldData.vipLevel == requiredVipLevel &&
                   'vipExpiresAt' in oldData && oldData.vipExpiresAt is timestamp &&
                   oldData.vipExpiresAt > request.time &&
-                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt) &&
+                  data.frameExpiresAt[data.activeFrameId] == oldData.vipExpiresAt)) &&
              data.lastFramePurchaseAt is timestamp &&
              framePrice >= 0 &&
              data.coinBalance == oldData.coinBalance - framePrice &&

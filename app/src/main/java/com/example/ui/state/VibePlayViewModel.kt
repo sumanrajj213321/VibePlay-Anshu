@@ -328,10 +328,11 @@ class VibePlayViewModel(
         age: Long,
         showAge: Boolean,
         showGender: Boolean,
-        showOnlineStatus: Boolean
+        showOnlineStatus: Boolean,
+        profileTags: List<String>
     ) {
         viewModelScope.launch {
-            userRepository.updateProfile(username, bio, avatarUrl, coverUrl, gender, age, showAge, showGender, showOnlineStatus)
+            userRepository.updateProfile(username, bio, avatarUrl, coverUrl, gender, age, showAge, showGender, showOnlineStatus, profileTags)
                 .onSuccess { _statusMessage.value = "Profile updated" }
                 .onFailure { _statusMessage.value = it.localizedMessage ?: "Profile update failed" }
         }

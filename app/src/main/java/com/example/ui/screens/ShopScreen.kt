@@ -56,23 +56,14 @@ fun ShopScreen(
     var selectedTab by remember { mutableIntStateOf(1) }
     // Normalize legacy VIP values to the same 1–8 range used by Profile.
     val effectiveVipLevel = if (profile.isVipActive) profile.vipLevel.coerceIn(1L, 8L) else 0L
-    // Keep legacy frames available; show only the matching Golden Banner.
+    // Never hide Golden Banner items based on a transient/cached VIP profile.
+    // Keep every tier visible; only the matching active VIP tier can purchase/equip it.
     val visibleFrames = VibeShopCatalog.frames
-        .filter { item ->
-            when {
-                item.id.startsWith("vip_gold_banner_") -> {
-                    val requiredVipLevel = item.id.substringAfterLast('_').toLongOrNull()
-                    // Display only the banner matching the stored VIP tier.
-                    // Purchase eligibility is checked separately below.
-                    requiredVipLevel != null && effectiveVipLevel == requiredVipLevel
-                }
-                item.id.startsWith("vip_dragon_") -> false
-                else -> true
-            }
+        .filterNot { item -> item.id.startsWith("vip_dragon_") }
+        .sortedBy { item ->
+            val requiredVipLevel = item.id.substringAfterLast('_').toLongOrNull()
+            if (item.id.startsWith("vip_gold_banner_") && requiredVipLevel == effectiveVipLevel && profile.isVipActive) 0 else 1
         }
-        // Put the user's matching Golden Banner first so it is visible
-        // immediately, above the five legacy frames.
-        .sortedBy { if (it.id.startsWith("vip_gold_banner_")) 0 else 1 }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp),
@@ -149,7 +140,7 @@ fun ShopScreen(
                                 status = when {
                                     equipped -> "Equipped"
                                     owned -> "Equip"
-                                    !hasRequiredVip && requiredVipLevel == profile.vipLevel -> "VIP expired"
+                                    !hasRequiredVip && requiredVipLevel == effectiveVipLevel && !profile.isVipActive -> "VIP expired"
                                     !hasRequiredVip -> "Only VIP $requiredVipLevel"
                                     else -> "Buy"
                                 },

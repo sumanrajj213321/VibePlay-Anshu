@@ -1232,25 +1232,11 @@ fun PublicProfileSheet(
                             )
                         }
                     }
-                    Surface(
-                        Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        color = VibeGold.copy(alpha = 0.13f),
-                        border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.65f))
-                    ) {
-                        Text("Level ${targetUser.level}", Modifier.padding(horizontal = 10.dp, vertical = 9.dp), style = MaterialTheme.typography.labelSmall, color = VibeGold, fontWeight = FontWeight.Bold, maxLines = 1)
-                    }
-                    Row(
+                    // Keep the compact ID-level badge; hide the large level bar and label.
+                    Box(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        contentAlignment = Alignment.CenterStart
                     ) {
-                        Text(
-                            "ID Level",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Bold
-                        )
                         LevelBadge(level = LevelProgression.levelForXp(targetUser.xp))
                     }
                     val charms = com.example.data.model.CharmProgression.fromReceivedGiftCoins(targetUser.totalGiftCoinsReceived)

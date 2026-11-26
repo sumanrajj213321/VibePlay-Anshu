@@ -59,11 +59,14 @@ service cloud.firestore {
     }
 
     function vipFrameRequiredLevel(frameId) {
-      let parts = frameId.split('_');
-      let validDragon = parts.size() == 3 && parts[0] == 'vip' && parts[1] == 'dragon';
-      let validBanner = parts.size() == 4 && parts[0] == 'vip' && parts[1] == 'gold' && parts[2] == 'banner';
-      let suffix = parts[parts.size() - 1];
-      return (validDragon || validBanner) && suffix.matches('^[1-8]$') ? int(suffix) : 0;
+      return (frameId == 'vip_dragon_1' || frameId == 'vip_gold_banner_1') ? 1 :
+             (frameId == 'vip_dragon_2' || frameId == 'vip_gold_banner_2') ? 2 :
+             (frameId == 'vip_dragon_3' || frameId == 'vip_gold_banner_3') ? 3 :
+             (frameId == 'vip_dragon_4' || frameId == 'vip_gold_banner_4') ? 4 :
+             (frameId == 'vip_dragon_5' || frameId == 'vip_gold_banner_5') ? 5 :
+             (frameId == 'vip_dragon_6' || frameId == 'vip_gold_banner_6') ? 6 :
+             (frameId == 'vip_dragon_7' || frameId == 'vip_gold_banner_7') ? 7 :
+             (frameId == 'vip_dragon_8' || frameId == 'vip_gold_banner_8') ? 8 : 0;
     }
 
     function vipFramePrice(level) {
@@ -129,10 +132,11 @@ service cloud.firestore {
     }
 
     function isValidFramePurchase(data, oldData) {
+      let level = vipFrameRequiredLevel(data.activeFrameId);
       return data.activeFrameId is string &&
-        (vipFrameRequiredLevel(data.activeFrameId) > 0
-          ? isValidVipFramePurchase(data, oldData)
-          : isValidLegacyFramePurchase(data, oldData)) &&
+        (level == 0
+          ? isValidLegacyFramePurchase(data, oldData)
+          : isValidVipFramePurchase(data, oldData)) &&
         (!('vipLevel' in oldData) ||
           (('vipLevel' in data) && data.vipLevel == oldData.vipLevel));
     }
@@ -574,6 +578,7 @@ service cloud.firestore {
         isValidTs(incoming().updatedAt) &&
         isValidFramePurchase(incoming(), existing()) ||
       (
+        !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&
         ((
                 (isSignedIn() && isValidId(userId) &&
                         !incoming().diff(existing()).affectedKeys().hasAny(['lastFramePurchaseAt']) &&

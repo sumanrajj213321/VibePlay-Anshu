@@ -1061,7 +1061,7 @@ private fun NewYear2027FrameOverlay(modifier: Modifier, pulseAlpha: Float) {
             wingCenters.forEachIndexed { index, pivot ->
                 val direction = if (index % 2 == 0) 1f else -1f
                 val flap = wingFlap * 24f * direction
-                androidx.compose.ui.graphics.drawscope.rotate(flap, pivot) {
+                rotate(flap, pivot) {
                     for (side in listOf(-1f, 1f)) {
                         val root = Offset(pivot.x + side*2.dp.toPx(), pivot.y)
                         val tip = Offset(pivot.x + side*19.dp.toPx(), pivot.y - 10.dp.toPx())

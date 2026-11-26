@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -73,6 +75,11 @@ fun ExploreScreen(
     var selectedCategory by remember { mutableStateOf(RoomCategory.ALL) }
 
     val followingIds = remember(followingList) { followingList.map { it.peerId }.toSet() }
+    val exploreCanvasColor = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+        Color(0xFF08080A)
+    } else {
+        MaterialTheme.colorScheme.background
+    }
 
     val filteredUsers = remember(activeUsers, query, currentUser.userId, blockedUserIds) {
         activeUsers.filter { user ->
@@ -104,7 +111,7 @@ fun ExploreScreen(
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().background(exploreCanvasColor),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -281,8 +288,20 @@ fun ExploreScreen(
                     fontWeight = FontWeight.Bold
                 )
             }
-            items(popularRooms, key = { "exp_pop_${it.id}" }) { room ->
-                VoiceRoomCard(room = room, onClick = { onOpenRoom(room) })
+            items(popularRooms.chunked(2), key = { row -> "exp_pop_${row.first().id}" }) { roomRow ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    roomRow.forEach { room ->
+                        VoiceRoomCard(
+                            room = room,
+                            onClick = { onOpenRoom(room) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (roomRow.size == 1) Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }

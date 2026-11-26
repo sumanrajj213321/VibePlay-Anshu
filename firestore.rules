@@ -51,37 +51,30 @@ service cloud.firestore {
     // --- Validation Helpers ---
 
     function shopFramePrice(itemId) {
-      let prices = {
-        'neon_cyan': 15000,
-        'rose_gold': 25000,
-        'royal_gold': 40000,
-        'galaxy': 60000,
-        'aurora': 80000,
-        'vip_dragon_1': 90000,
-        'vip_dragon_2': 110000,
-        'vip_dragon_3': 130000,
-        'vip_dragon_4': 150000,
-        'vip_dragon_5': 175000,
-        'vip_dragon_6': 200000,
-        'vip_dragon_7': 230000,
-        'vip_dragon_8': 275000,
-        'vip_gold_banner_1': 90000,
-        'vip_gold_banner_2': 110000,
-        'vip_gold_banner_3': 130000,
-        'vip_gold_banner_4': 150000,
-        'vip_gold_banner_5': 175000,
-        'vip_gold_banner_6': 200000,
-        'vip_gold_banner_7': 230000,
-        'vip_gold_banner_8': 275000
-      };
-      return itemId in prices ? prices[itemId] : -1;
+      return itemId == 'neon_cyan' ? 15000 :
+             itemId == 'rose_gold' ? 25000 :
+             itemId == 'royal_gold' ? 40000 :
+             itemId == 'galaxy' ? 60000 :
+             itemId == 'aurora' ? 80000 : -1;
     }
 
     function vipFrameRequiredLevel(frameId) {
       let parts = frameId.split('_');
-      return frameId.matches('^vip_(dragon|gold_banner)_[1-8]$')
-        ? int(parts[parts.size() - 1])
-        : 0;
+      let validDragon = parts.size() == 3 && parts[0] == 'vip' && parts[1] == 'dragon';
+      let validBanner = parts.size() == 4 && parts[0] == 'vip' && parts[1] == 'gold' && parts[2] == 'banner';
+      let suffix = parts[parts.size() - 1];
+      return (validDragon || validBanner) && suffix.matches('^[1-8]$') ? int(suffix) : 0;
+    }
+
+    function vipFramePrice(level) {
+      return level == 1 ? 90000 :
+             level == 2 ? 110000 :
+             level == 3 ? 130000 :
+             level == 4 ? 150000 :
+             level == 5 ? 175000 :
+             level == 6 ? 200000 :
+             level == 7 ? 230000 :
+             level == 8 ? 275000 : -1;
     }
 
     function isValidFramePurchase(data, oldData) {
@@ -89,7 +82,7 @@ service cloud.firestore {
         ? oldData.ownedFrameIds
         : [];
       let requiredVipLevel = vipFrameRequiredLevel(data.activeFrameId);
-      let framePrice = shopFramePrice(data.activeFrameId);
+      let framePrice = requiredVipLevel == 0 ? shopFramePrice(data.activeFrameId) : vipFramePrice(requiredVipLevel);
       return (!('vipLevel' in oldData) || (('vipLevel' in data) && data.vipLevel == oldData.vipLevel)) &&
              ('coinBalance' in oldData) &&
              oldData.coinBalance is int &&

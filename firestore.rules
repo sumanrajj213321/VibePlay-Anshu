@@ -28,6 +28,18 @@ service cloud.firestore {
       return ts is timestamp && ts <= request.time;
     }
 
+    function vipTierPrice(level) {
+      return level == 1 ? 100000 :
+             level == 2 ? 1000000 :
+             level == 3 ? 5000000 :
+             level == 4 ? 10000000 :
+             level == 5 ? 100000000 :
+             level == 6 ? 150000000 :
+             level == 7 ? 500000000 :
+             level == 8 ? 1000000000 : -1;
+    }
+
+
 
     function isNotAlreadyOnAnotherSpeakerSeat(roomId, seatIndex) {
       return (seatIndex == '1' || get(/databases/$(database)/documents/rooms/$(roomId)/seats/1).data.occupantId != request.auth.uid) &&
@@ -662,8 +674,8 @@ service cloud.firestore {
                 (isSignedIn() && request.auth.uid == userId &&
                         incoming().role == existing().role &&
                         incoming().accountStatus == existing().accountStatus &&
-                        incoming().coinBalance >= 0 && incoming().coinBalance < existing().coinBalance &&
                         incoming().vipLevel is int && incoming().vipLevel >= 1 && incoming().vipLevel <= 8 &&
+                        existing().coinBalance is int && incoming().coinBalance == existing().coinBalance - vipTierPrice(incoming().vipLevel) &&
                         (incoming().vipLevel > existing().vipLevel ||
                           (!('vipExpiresAt' in existing()) || existing().vipExpiresAt <= request.time)) &&
                         incoming().vipExpiresAt is timestamp &&

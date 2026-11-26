@@ -54,6 +54,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Validate Cloud Functions JavaScript syntax
         run: node --check functions/index.js
+      - name: Test frame purchase validation
+        run: node --test functions/frame-purchase-validation.test.js
 
   music-worker-validation:
     runs-on: ubuntu-latest

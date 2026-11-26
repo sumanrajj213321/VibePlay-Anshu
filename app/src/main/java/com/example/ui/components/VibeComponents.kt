@@ -1115,50 +1115,72 @@ fun VipMiniBadge(vipLevel: Long, modifier: Modifier = Modifier) {
     if (level <= 0L) return
     val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == level.toInt() }
     val accent = tier?.let { Color(it.badgeColorHex) } ?: VibeGold
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    val deep = Color(0xFF24113F)
+    Box(
+        modifier = modifier.size(width = 34.dp, height = 32.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Box(modifier = Modifier.size(width = 25.dp, height = 23.dp), contentAlignment = Alignment.Center) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val shield = Path().apply {
-                    moveTo(size.width * 0.5f, size.height * 0.02f)
-                    lineTo(size.width * 0.96f, size.height * 0.22f)
-                    lineTo(size.width * 0.88f, size.height * 0.68f)
-                    lineTo(size.width * 0.5f, size.height * 0.98f)
-                    lineTo(size.width * 0.12f, size.height * 0.68f)
-                    lineTo(size.width * 0.04f, size.height * 0.22f)
-                    close()
-                }
-                drawPath(shield, Brush.linearGradient(listOf(Color(0xFFBFEAFF), accent, Color(0xFF183D78))))
-                drawPath(shield, Color.White.copy(alpha = 0.92f), style = Stroke(width = 1.15.dp.toPx()))
-                val inner = Path().apply {
-                    moveTo(size.width * 0.5f, size.height * 0.12f)
-                    lineTo(size.width * 0.84f, size.height * 0.27f)
-                    lineTo(size.width * 0.78f, size.height * 0.63f)
-                    lineTo(size.width * 0.5f, size.height * 0.86f)
-                    lineTo(size.width * 0.22f, size.height * 0.63f)
-                    lineTo(size.width * 0.16f, size.height * 0.27f)
-                    close()
-                }
-                drawPath(inner, Brush.linearGradient(listOf(Color(0xFF174B91), accent.copy(alpha = 0.9f))))
+        Canvas(Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val wingBrush = Brush.linearGradient(listOf(Color(0xFFFFF0A8), accent, Color(0xFF8A3BCE)))
+            val leftWing = Path().apply {
+                moveTo(w * 0.30f, h * 0.42f)
+                lineTo(w * 0.02f, h * 0.18f)
+                lineTo(w * 0.10f, h * 0.48f)
+                lineTo(w * 0.00f, h * 0.43f)
+                lineTo(w * 0.17f, h * 0.76f)
+                lineTo(w * 0.34f, h * 0.68f)
+                close()
             }
-            Text(
-                text = "V$level",
-                color = Color.White,
-                fontSize = 8.sp,
-                lineHeight = 9.sp,
-                fontWeight = FontWeight.Black
-            )
+            val rightWing = Path().apply {
+                moveTo(w * 0.70f, h * 0.42f)
+                lineTo(w * 0.98f, h * 0.18f)
+                lineTo(w * 0.90f, h * 0.48f)
+                lineTo(w, h * 0.43f)
+                lineTo(w * 0.83f, h * 0.76f)
+                lineTo(w * 0.66f, h * 0.68f)
+                close()
+            }
+            drawPath(leftWing, wingBrush)
+            drawPath(rightWing, wingBrush)
+            drawPath(leftWing, Color.White.copy(alpha = 0.85f), style = Stroke(0.8.dp.toPx()))
+            drawPath(rightWing, Color.White.copy(alpha = 0.85f), style = Stroke(0.8.dp.toPx()))
+            val crown = Path().apply {
+                moveTo(w * 0.25f, h * 0.30f)
+                lineTo(w * 0.18f, h * 0.06f)
+                lineTo(w * 0.40f, h * 0.21f)
+                lineTo(w * 0.50f, h * 0.00f)
+                lineTo(w * 0.60f, h * 0.21f)
+                lineTo(w * 0.82f, h * 0.06f)
+                lineTo(w * 0.75f, h * 0.30f)
+                close()
+            }
+            drawPath(crown, wingBrush)
+            drawPath(crown, Color.White.copy(alpha = 0.9f), style = Stroke(0.9.dp.toPx()))
+            val shield = Path().apply {
+                moveTo(w * 0.50f, h * 0.18f)
+                lineTo(w * 0.82f, h * 0.32f)
+                lineTo(w * 0.77f, h * 0.70f)
+                lineTo(w * 0.50f, h * 0.96f)
+                lineTo(w * 0.23f, h * 0.70f)
+                lineTo(w * 0.18f, h * 0.32f)
+                close()
+            }
+            drawPath(shield, Brush.linearGradient(listOf(Color(0xFFFFF3B0), accent, deep)))
+            drawPath(shield, Color.White.copy(alpha = 0.98f), style = Stroke(1.1.dp.toPx()))
+            val inner = Path().apply {
+                moveTo(w * 0.50f, h * 0.29f)
+                lineTo(w * 0.72f, h * 0.39f)
+                lineTo(w * 0.68f, h * 0.67f)
+                lineTo(w * 0.50f, h * 0.83f)
+                lineTo(w * 0.32f, h * 0.67f)
+                lineTo(w * 0.28f, h * 0.39f)
+                close()
+            }
+            drawPath(inner, Brush.verticalGradient(listOf(accent, deep)))
         }
-        Text(
-            text = "VIP",
-            color = accent,
-            fontSize = 8.sp,
-            lineHeight = 9.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
+        Text("V$level", color = Color.White, fontSize = 8.sp, lineHeight = 9.sp, fontWeight = FontWeight.Black)
     }
 }
 

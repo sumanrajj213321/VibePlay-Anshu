@@ -1016,7 +1016,10 @@ fun VipShiningNameText(
     textAlign: TextAlign? = null
 ) {
     if (vipLevel > 0L) {
-        val shimmer = rememberInfiniteTransition(label = "vip_name_amethyst_shimmer")
+        val displayVipLevel = vipLevel.coerceIn(1L, 8L)
+        val tier = VibeCatalogDefaults.vipTiers.firstOrNull { it.level == displayVipLevel.toInt() }
+        val tierColor = tier?.let { Color(it.badgeColorHex) } ?: VibeViolet
+        val shimmer = rememberInfiniteTransition(label = "vip_name_tier_shimmer")
         val shimmerOffset by shimmer.animateFloat(
             initialValue = -260f,
             targetValue = 260f,
@@ -1026,14 +1029,13 @@ fun VipShiningNameText(
             ),
             label = "vip_name_shimmer_offset"
         )
-        val royalAmethystBrush = Brush.linearGradient(
+        val tierShimmerBrush = Brush.linearGradient(
             colors = listOf(
-                Color(0xFF6500A8),
-                Color(0xFFD500F9),
-                Color(0xFFFFD8FF),
-                Color(0xFFFFFFFF),
-                Color(0xFFD500F9),
-                Color(0xFF6500A8)
+                tierColor.copy(alpha = 0.62f),
+                tierColor,
+                Color.White.copy(alpha = 0.96f),
+                tierColor.copy(alpha = 0.78f),
+                tierColor
             ),
             start = Offset(shimmerOffset, 0f),
             end = Offset(shimmerOffset + 260f, 90f)
@@ -1041,7 +1043,7 @@ fun VipShiningNameText(
         Text(
             text = text,
             modifier = modifier,
-            style = style.copy(brush = royalAmethystBrush),
+            style = style.copy(brush = tierShimmerBrush),
             maxLines = maxLines,
             overflow = overflow,
             textAlign = textAlign
@@ -1123,7 +1125,7 @@ fun VipMiniBadge(vipLevel: Long, modifier: Modifier = Modifier) {
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
-            val wingBrush = Brush.linearGradient(listOf(Color(0xFFFFF0A8), accent, Color(0xFF8A3BCE)))
+            val wingBrush = Brush.linearGradient(listOf(accent.copy(alpha = 0.72f), accent, Color.White.copy(alpha = 0.92f), accent))
             val leftWing = Path().apply {
                 moveTo(w * 0.30f, h * 0.42f)
                 lineTo(w * 0.02f, h * 0.18f)
@@ -1167,7 +1169,7 @@ fun VipMiniBadge(vipLevel: Long, modifier: Modifier = Modifier) {
                 lineTo(w * 0.18f, h * 0.32f)
                 close()
             }
-            drawPath(shield, Brush.linearGradient(listOf(Color(0xFFFFF3B0), accent, deep)))
+            drawPath(shield, Brush.linearGradient(listOf(accent.copy(alpha = 0.95f), accent, deep)))
             drawPath(shield, Color.White.copy(alpha = 0.98f), style = Stroke(1.1.dp.toPx()))
             val inner = Path().apply {
                 moveTo(w * 0.50f, h * 0.29f)
@@ -1178,7 +1180,7 @@ fun VipMiniBadge(vipLevel: Long, modifier: Modifier = Modifier) {
                 lineTo(w * 0.28f, h * 0.39f)
                 close()
             }
-            drawPath(inner, Brush.verticalGradient(listOf(accent, deep)))
+            drawPath(inner, Brush.verticalGradient(listOf(accent.copy(alpha = 0.92f), deep)))
         }
         Text("V$level", color = Color.White, fontSize = 8.sp, lineHeight = 9.sp, fontWeight = FontWeight.Black)
     }

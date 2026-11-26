@@ -15,6 +15,38 @@ const db = getFirestore();
 // accidentally block a valid purchase or allow a client to alter coin balances.
 const { validateShopFramePurchase } = require("./frame-purchase-validation");
 
+exports.equipShopFrame = onCall({ region: "asia-south1" }, async (request) => {
+  if (!request.auth || !request.auth.uid) {
+    throw new HttpsError("unauthenticated", "Please sign in before equipping a frame.");
+  }
+  const frameId = request.data && request.data.frameId;
+  if (frameId !== null && frameId !== "" &&
+      (typeof frameId !== "string" || !Object.prototype.hasOwnProperty.call(SHOP_FRAME_PRICES, frameId))) {
+    throw new HttpsError("invalid-argument", "Invalid frame item.");
+  }
+
+  const userRef = db.collection("users").doc(request.auth.uid);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    if (!snap.exists) throw new HttpsError("not-found", "Profile not found.");
+    if (frameId !== null && frameId !== "") {
+      const profile = snap.data();
+      const owned = Array.isArray(profile.ownedFrameIds) ? profile.ownedFrameIds : [];
+      const expiry = profile.frameExpiresAt && profile.frameExpiresAt[frameId];
+      if (!owned.includes(frameId) || !expiry || typeof expiry.toMillis !== "function" ||
+          expiry.toMillis() <= Date.now()) {
+        throw new HttpsError("failed-precondition", "This item has expired. Purchase it again.");
+      }
+    }
+    tx.update(userRef, {
+      activeFrameId: frameId || "",
+      updatedAt: FieldValue.serverTimestamp()
+    });
+  });
+  return { success: true, activeFrameId: frameId || "" };
+});
+
+
 exports.purchaseShopFrame = onCall({ region: "asia-south1" }, async (request) => {
   if (!request.auth || !request.auth.uid) {
     throw new HttpsError("unauthenticated", "Please sign in before purchasing a frame.");

@@ -466,55 +466,14 @@ class UserRepository(
 
     suspend fun purchaseShopCosmetic(category: String, itemId: String): Result<Unit> {
         val uid = requireUserId()
-        val userRef = db.collection("users").document(uid)
         return try {
             require(category == "FRAME") { "Title purchases are temporarily unavailable." }
             val item = com.example.data.model.VibeShopCatalog.frames.firstOrNull { it.id == itemId }
                 ?: throw IllegalArgumentException("Invalid frame item.")
-            db.runTransaction { tx ->
-                val snap = tx.get(userRef)
-                require(snap.exists()) { "Profile not found." }
-                val ownedField = "ownedFrameIds"
-                val expiryField = "frameExpiresAt"
-                val activeField = "activeFrameId"
-                val owned = (snap.get(ownedField) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
-                val expiries = (snap.get(expiryField) as? Map<*, *>)?.entries
-                    ?.associate { it.key.toString() to (it.value as? Timestamp) } ?: emptyMap()
-                val currentExpiry = expiries[itemId]?.toDate()?.time ?: 0L
-                require(currentExpiry <= System.currentTimeMillis()) { "You already own this item. It expires first." }
-                val now = java.util.Date()
-                val requiredVipLevel = if (
-                    itemId.startsWith("vip_dragon_") || itemId.startsWith("vip_gold_banner_")
-                ) itemId.substringAfterLast('_').toLongOrNull()
-                    ?: throw IllegalArgumentException("Invalid VIP frame level.")
-                else null
-                val vipLevel = snap.getLong("vipLevel") ?: 0L
-                val vipExpiresAt = snap.getTimestamp("vipExpiresAt")
-                val expiresAt = if (requiredVipLevel != null) {
-                    require(vipLevel == requiredVipLevel) {
-                        "This frame is exclusive to VIP $requiredVipLevel."
-                    }
-                    require(vipExpiresAt != null && vipExpiresAt.toDate().after(now)) {
-                        "An active VIP subscription is required for this frame."
-                    }
-                    vipExpiresAt
-                } else {
-                    Timestamp(java.util.Date(now.time + 7L * 24L * 60L * 60L * 1000L))
-                }
-                val coins = snap.getLong("coinBalance") ?: 0L
-                require(coins >= item.coinPrice) { "Not enough coins. Need ${item.coinPrice} coins." }
-                val updatedExpiries = expiries.filterValues { it != null }.mapValues { it.value!! }.toMutableMap()
-                updatedExpiries[itemId] = expiresAt
-                val update = mutableMapOf<String, Any>(
-                    "coinBalance" to coins - item.coinPrice,
-                    ownedField to if (itemId in owned) owned else FieldValue.arrayUnion(itemId),
-                    expiryField to updatedExpiries,
-                    "updatedAt" to FieldValue.serverTimestamp()
-                )
-                update[activeField] = itemId
-                update["lastFramePurchaseAt"] = FieldValue.serverTimestamp()
-                tx.update(userRef, update)
-            }.await()
+            com.google.firebase.functions.FirebaseFunctions.getInstance("asia-south1")
+                .getHttpsCallable("purchaseShopFrame")
+                .call(mapOf("frameId" to itemId))
+                .await()
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e
@@ -522,11 +481,9 @@ class UserRepository(
             val firestoreError = generateSequence<Throwable>(e) { it.cause }
                 .filterIsInstance<FirebaseFirestoreException>()
                 .firstOrNull()
-            val diagnosticItem = com.example.data.model.VibeShopCatalog.frames.firstOrNull { it.id == itemId }
             Log.e(
                 "FramePurchaseDiagnostic",
-                "category=$category itemId=$itemId price=${diagnosticItem?.coinPrice} " +
-                    "firestoreCode=${firestoreError?.code?.name ?: "NO_FIRESTORE_CODE"} " +
+                "category=$category itemId=$itemId firestoreCode=${firestoreError?.code?.name ?: "NO_FIRESTORE_CODE"} " +
                     "exception=${e.javaClass.name} message=${e.message}",
                 e
             )

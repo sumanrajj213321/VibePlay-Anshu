@@ -51,27 +51,30 @@ service cloud.firestore {
     // --- Validation Helpers ---
 
     function shopFramePrice(itemId) {
-      return itemId == 'neon_cyan' ? 15000 :
-             itemId == 'rose_gold' ? 25000 :
-             itemId == 'royal_gold' ? 40000 :
-             itemId == 'galaxy' ? 60000 :
-             itemId == 'aurora' ? 80000 :
-             itemId == 'vip_dragon_1' ? 90000 :
-             itemId == 'vip_dragon_2' ? 110000 :
-             itemId == 'vip_dragon_3' ? 130000 :
-             itemId == 'vip_dragon_4' ? 150000 :
-             itemId == 'vip_dragon_5' ? 175000 :
-             itemId == 'vip_dragon_6' ? 200000 :
-             itemId == 'vip_dragon_7' ? 230000 :
-             itemId == 'vip_dragon_8' ? 275000 :
-             itemId == 'vip_gold_banner_1' ? 90000 :
-             itemId == 'vip_gold_banner_2' ? 110000 :
-             itemId == 'vip_gold_banner_3' ? 130000 :
-             itemId == 'vip_gold_banner_4' ? 150000 :
-             itemId == 'vip_gold_banner_5' ? 175000 :
-             itemId == 'vip_gold_banner_6' ? 200000 :
-             itemId == 'vip_gold_banner_7' ? 230000 :
-             itemId == 'vip_gold_banner_8' ? 275000 : -1;
+      let prices = {
+        'neon_cyan': 15000,
+        'rose_gold': 25000,
+        'royal_gold': 40000,
+        'galaxy': 60000,
+        'aurora': 80000,
+        'vip_dragon_1': 90000,
+        'vip_dragon_2': 110000,
+        'vip_dragon_3': 130000,
+        'vip_dragon_4': 150000,
+        'vip_dragon_5': 175000,
+        'vip_dragon_6': 200000,
+        'vip_dragon_7': 230000,
+        'vip_dragon_8': 275000,
+        'vip_gold_banner_1': 90000,
+        'vip_gold_banner_2': 110000,
+        'vip_gold_banner_3': 130000,
+        'vip_gold_banner_4': 150000,
+        'vip_gold_banner_5': 175000,
+        'vip_gold_banner_6': 200000,
+        'vip_gold_banner_7': 230000,
+        'vip_gold_banner_8': 275000
+      };
+      return itemId in prices ? prices[itemId] : -1;
     }
 
     function isValidFramePurchase(data, oldData) {

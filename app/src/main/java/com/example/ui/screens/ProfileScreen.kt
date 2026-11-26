@@ -618,13 +618,16 @@ fun ProfileScreen(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                             verticalArrangement = Arrangement.spacedBy(1.dp)
                         ) {
-                            Text(
-                                text = "LEVEL ${LevelProgression.levelForXp(profile.xp)}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = Color(0xFFE8D9FF),
-                                fontWeight = FontWeight.ExtraBold,
-                                maxLines = 1
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "ID LEVEL",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color(0xFFE8D9FF),
+                                    fontWeight = FontWeight.ExtraBold,
+                                    maxLines = 1
+                                )
+                                LevelBadge(level = LevelProgression.levelForXp(profile.xp))
+                            }
                             Text(
                                 text = "Tap for XP details",
                                 style = MaterialTheme.typography.labelSmall,
@@ -649,7 +652,7 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        CharmEmblem(level = charmLevel.toInt().coerceAtLeast(1), size = 22.dp, showLevel = true)
+                        CharmEmblem(level = charmLevel.toInt().coerceAtLeast(1), size = 22.dp)
                         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                             Text("CHARMS", style = MaterialTheme.typography.labelSmall, color = Color(0xFF65FFF0), fontWeight = FontWeight.Black, letterSpacing = 1.4.sp)
                             Text("$charms  ·  ${CharmProgression.nameForLevel(charmLevel)}", style = MaterialTheme.typography.titleSmall, color = Color(0xFFE9FFFF), fontWeight = FontWeight.ExtraBold)

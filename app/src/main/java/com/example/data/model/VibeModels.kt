@@ -18,6 +18,18 @@ object CharmProgression {
         26_000_000L, 48_000_000L, 86_000_000L, 120_000_000L,
         240_000_000L, 360_000_000L
     )
+    val levelNames = listOf(
+        "Star 1", "Star 2", "Star 3",
+        "Diamond 1", "Diamond 2", "Diamond 3",
+        "Crown 1", "Crown 2", "Crown 3",
+        "Royal 1", "Royal 2", "Royal 3",
+        "Legend 1", "Legend 2", "Legend 3",
+        "Mythic 1", "Mythic 2", "Mythic 3",
+        "Divine 1", "Divine 2", "Divine 3"
+    )
+
+    fun nameForLevel(level: Long): String =
+        if (level in 1L..levelNames.size.toLong()) levelNames[level.toInt() - 1] else "Unranked"
 
     fun fromReceivedGiftCoins(coins: Long): Long = coins.coerceAtLeast(0L) / COINS_PER_CHARM
     fun levelFor(charms: Long): Long = milestones.indexOfLast { charms >= it }.let { if (it < 0) 0L else it + 1L }

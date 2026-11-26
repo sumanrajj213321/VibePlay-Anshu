@@ -1164,19 +1164,54 @@ fun VipMiniBadge(vipLevel: Long, modifier: Modifier = Modifier) {
 
 @Composable
 fun LevelBadge(level: Long, modifier: Modifier = Modifier) {
+    // ID levels 1–21 each have a distinct badge palette; higher levels cycle safely.
+    val palettes = listOf(
+        listOf(Color(0xFFB8F4FF), Color(0xFF2878D8), Color(0xFFE9FFFF)),
+        listOf(Color(0xFF8DEBD7), Color(0xFF167D78), Color(0xFFE1FFF7)),
+        listOf(Color(0xFFC5B5FF), Color(0xFF5A43C8), Color(0xFFF2ECFF)),
+        listOf(Color(0xFF9FE7FF), Color(0xFF2679B8), Color(0xFFEAFBFF)),
+        listOf(Color(0xFF91B8FF), Color(0xFF3158B7), Color(0xFFEAF0FF)),
+        listOf(Color(0xFFD0B5FF), Color(0xFF7545C8), Color(0xFFF7EDFF)),
+        listOf(Color(0xFFFFE49A), Color(0xFFB47B1E), Color(0xFFFFF7D8)),
+        listOf(Color(0xFFFFC77C), Color(0xFFB85A27), Color(0xFFFFE8C7)),
+        listOf(Color(0xFFFFA98A), Color(0xFFB74444), Color(0xFFFFE4D8)),
+        listOf(Color(0xFFFFD3A0), Color(0xFF9F673B), Color(0xFFFFF1DE)),
+        listOf(Color(0xFFFFB879), Color(0xFF9D4E2D), Color(0xFFFFE2C9)),
+        listOf(Color(0xFFFFD96D), Color(0xFF946515), Color(0xFFFFF4C2)),
+        listOf(Color(0xFFDAB6FF), Color(0xFF7945B9), Color(0xFFF6E9FF)),
+        listOf(Color(0xFFC5A0FF), Color(0xFF633BB1), Color(0xFFEFE4FF)),
+        listOf(Color(0xFFE8A8FF), Color(0xFF963FAF), Color(0xFFFFE8FF)),
+        listOf(Color(0xFFFFB8EA), Color(0xFF9A4EBB), Color(0xFFFFE8F8)),
+        listOf(Color(0xFFBBA8FF), Color(0xFF5942BD), Color(0xFFEFEAFF)),
+        listOf(Color(0xFFFFA8C9), Color(0xFFB33F76), Color(0xFFFFE5EF)),
+        listOf(Color(0xFFB6F5FF), Color(0xFF3B94B8), Color(0xFFE8FDFF)),
+        listOf(Color(0xFFFFE7A3), Color(0xFFA77A28), Color(0xFFFFF7DB)),
+        listOf(Color(0xFFFFC6F1), Color(0xFF8549C4), Color(0xFFFFECFA))
+    )
+    val palette = palettes[(level - 1L).coerceAtLeast(0L).rem(palettes.size.toLong()).toInt()]
+    val shape = when ((level - 1L).coerceAtLeast(0L).rem(3L).toInt()) {
+        0 -> RoundedCornerShape(7.dp)
+        1 -> RoundedCornerShape(50)
+        else -> RoundedCornerShape(topStart = 3.dp, topEnd = 10.dp, bottomEnd = 3.dp, bottomStart = 10.dp)
+    }
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(50),
-        color = VibeVioletBright.copy(alpha = 0.18f),
-        border = BorderStroke(1.dp, VibeVioletBright.copy(alpha = 0.55f))
+        shape = shape,
+        color = palette[1].copy(alpha = 0.20f),
+        border = BorderStroke(1.dp, Brush.linearGradient(listOf(palette[0], palette[1], palette[2])))
     ) {
-        Text(
-            text = "Lv.$level",
-            style = MaterialTheme.typography.labelSmall,
-            color = VibeVioletBright,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-        )
+        Box(
+            modifier = Modifier
+                .background(Brush.linearGradient(listOf(palette[0].copy(alpha = 0.34f), palette[1].copy(alpha = 0.18f))))
+                .padding(horizontal = 7.dp, vertical = 3.dp)
+        ) {
+            Text(
+                text = "Lv.$level",
+                style = MaterialTheme.typography.labelSmall,
+                color = palette[1],
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
     }
 }
 

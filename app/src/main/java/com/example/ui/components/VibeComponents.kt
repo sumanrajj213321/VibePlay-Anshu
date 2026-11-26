@@ -1366,15 +1366,20 @@ fun BiologicalGenderBadge(
     val tint: Color
     val desc: String
     when (normalized) {
-        "MALE" -> {
+        "MALE", "M" -> {
             symbol = "\u2642\uFE0F"
             tint = VibeMaleBlue
             desc = "Male"
         }
-        "FEMALE" -> {
+        "FEMALE", "F" -> {
             symbol = "\u2640\uFE0F"
             tint = VibePink
             desc = "Female"
+        }
+        "NON_BINARY", "NON-BINARY", "NONBINARY" -> {
+            symbol = "\u26A7\uFE0F"
+            tint = Color(0xFF8B5CF6)
+            desc = "Non-binary"
         }
         else -> return
     }

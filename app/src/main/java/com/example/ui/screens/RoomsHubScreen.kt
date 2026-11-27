@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material3.AlertDialog
@@ -98,22 +99,40 @@ fun RoomsHubScreen(
     var usePassword by remember { mutableStateOf(false) }
     var roomPassword by remember { mutableStateOf("") }
     var validationError by remember { mutableStateOf<String?>(null) }
-    var selectedListCategory by remember { mutableStateOf(RoomCategory.ALL) }
+    var selectedListCategory by remember { mutableStateOf("All") }
+    var selectedTopTab by remember { mutableStateOf("Online") }
     var showJoinRoomDialog by remember { mutableStateOf(false) }
     var roomIdToJoin by remember { mutableStateOf("") }
     var joinRoomError by remember { mutableStateOf<String?>(null) }
 
     val liveRooms = (roomsState as? UiState.Success)?.data ?: emptyList()
-    val filteredLiveRooms = remember(liveRooms, selectedListCategory) {
-        if (selectedListCategory == RoomCategory.ALL) liveRooms
-        else liveRooms.filter { it.category.equals(selectedListCategory.label, ignoreCase = true) }
-    }
-    val recentlyJoinedRooms = remember(liveRooms, recentRoomIds, selectedListCategory) {
-        recentRoomIds.mapNotNull { roomId -> liveRooms.firstOrNull { it.id == roomId } }
-            .filter { room ->
-                selectedListCategory == RoomCategory.ALL ||
-                    room.category.equals(selectedListCategory.label, ignoreCase = true)
+    val roomsForTopTab = remember(liveRooms, recentRoomIds, selectedTopTab) {
+        when (selectedTopTab) {
+            "Recents", "Joined" -> recentRoomIds.mapNotNull { id -> liveRooms.firstOrNull { it.id == id } }
+            "Games" -> liveRooms.filter { room ->
+                room.category.contains("game", ignoreCase = true) ||
+                    room.tags.any { it.contains("game", ignoreCase = true) }
             }
+            "Events" -> liveRooms.filter { room ->
+                room.featured || room.tags.any { it.contains("event", ignoreCase = true) }
+            }
+            else -> liveRooms
+        }
+    }
+    val filteredLiveRooms = remember(roomsForTopTab, selectedListCategory) {
+        if (selectedListCategory == "All") roomsForTopTab
+        else roomsForTopTab.filter { room ->
+            when (selectedListCategory) {
+                "Parties" -> room.category.contains("party", true) ||
+                    room.title.contains("party", true) || room.tags.any { it.contains("party", true) }
+                else -> room.category.contains(selectedListCategory, true) ||
+                    room.title.contains(selectedListCategory, true) ||
+                    room.tags.any { it.contains(selectedListCategory, true) }
+            }
+        }
+    }
+    val recentlyJoinedRooms = remember(liveRooms, recentRoomIds) {
+        recentRoomIds.mapNotNull { roomId -> liveRooms.firstOrNull { it.id == roomId } }
     }
     val myCreatedLiveRoom = remember(liveRooms, createdRoomId, currentUser.userId) {
         liveRooms.firstOrNull {
@@ -152,24 +171,109 @@ fun RoomsHubScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = "Rooms",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = if (hasCreatedRoom) "Your live spaces" else "Create a room or join an existing voice room.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = VibeCyan
-                    )
-                }
-                IconButton(
-                    onClick = { showJoinRoomDialog = true; roomIdToJoin = ""; joinRoomError = null },
-                    modifier = Modifier.testTag("open_join_room_dialog")
+                Text(
+                    text = "Rooms",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Surface(
+                    modifier = Modifier.size(54.dp).clickable {
+                        showJoinRoomDialog = true
+                        roomIdToJoin = ""
+                        joinRoomError = null
+                    }.testTag("open_join_room_dialog"),
+                    shape = RoundedCornerShape(50),
+                    color = Color(0xFF292433)
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = "Join a room", tint = VibeCyan, modifier = Modifier.size(30.dp))
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Filled.Search, contentDescription = "Search rooms", tint = Color(0xFFF4F0FA), modifier = Modifier.size(27.dp))
+                    }
                 }
+            }
+        }
+
+        item {
+            val tabs = listOf("Recents", "Online", "Joined", "Games", "Events")
+            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    tabs.forEach { tab ->
+                        Column(
+                            modifier = Modifier.weight(1f).clickable { selectedTopTab = tab }.padding(vertical = 10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(9.dp)
+                        ) {
+                            Text(
+                                tab,
+                                color = if (selectedTopTab == tab) Color(0xFFF5F0FA) else Color(0xFF9992A8),
+                                fontWeight = if (selectedTopTab == tab) FontWeight.Bold else FontWeight.SemiBold,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(if (selectedTopTab == tab) 38.dp else 12.dp)
+                                    .height(4.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(if (selectedTopTab == tab) Brush.horizontalGradient(listOf(Color(0xFFEC69C2), Color(0xFF9D70F4))) else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent)))
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            val chips = listOf("All", "Parties", "Carom", "Pool", "Ludo")
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(chips) { chip ->
+                    val selected = selectedListCategory == chip
+                    Surface(
+                        modifier = Modifier.height(52.dp).clickable { selectedListCategory = chip },
+                        shape = RoundedCornerShape(50),
+                        color = if (selected) Color(0xFFDA72D2) else Color(0xFF211D2A),
+                        border = if (selected) null else BorderStroke(1.dp, Color(0xFF373140))
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(horizontal = 21.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                chip,
+                                color = if (selected) Color.White else Color(0xFFD0C9DC),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    when (selectedTopTab) {
+                        "Recents" -> "Recently Visited"
+                        "Joined" -> "Joined Rooms"
+                        "Games" -> "Game Rooms"
+                        "Events" -> "Events"
+                        else -> "Online"
+                    },
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "${filteredLiveRooms.size} rooms",
+                    color = Color(0xFF00C5D9),
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         }
 
@@ -237,22 +341,6 @@ fun RoomsHubScreen(
                         ) {
                             Text("Enter", color = Color(0xFF7046E8), fontWeight = FontWeight.Bold)
                             Text("›", color = Color(0xFF7046E8), style = MaterialTheme.typography.titleLarge)
-                        }
-                    }
-                }
-            }
-        }
-
-        if (recentlyJoinedRooms.isNotEmpty()) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Filled.History, contentDescription = null, tint = VibePink)
-                        Text("Joined Rooms (${recentlyJoinedRooms.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    }
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        items(recentlyJoinedRooms, key = { "hub_joined_" + it.id }) { room ->
-                            VoiceRoomCard(room = room, onClick = { onOpenRoom(room) })
                         }
                     }
                 }
@@ -454,26 +542,7 @@ fun RoomsHubScreen(
         if (liveRooms.isNotEmpty()) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = VibeCyan)
-                        Text(
-                            text = "Active Voice Rooms (${filteredLiveRooms.size})",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(RoomCategory.entries) { cat ->
-                            FilterChip(
-                                selected = selectedListCategory == cat,
-                                onClick = { selectedListCategory = cat },
-                                label = { Text(cat.label) }
-                            )
-                        }
-                    }
+
                 }
             }
             items(filteredLiveRooms, key = { "hub_room_${it.id}" }) { room ->

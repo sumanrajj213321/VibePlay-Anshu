@@ -121,7 +121,6 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Timestamp
-import com.google.firebase.firestore.SetOptions
 import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.Flow
 import java.security.MessageDigest
@@ -2002,7 +2001,7 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
                 Text("Subscription active", color = VibeEmerald, fontWeight = FontWeight.Bold)
                 Text(
                     "Valid till " + (subscriptionExpiry?.toDate()?.let {
-                        SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(it)
+                        SimpleDateFormat("dd MMM yyyy, hh:mm:ss a", Locale.getDefault()).format(it)
                     } ?: ""),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

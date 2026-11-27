@@ -62,6 +62,7 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -2027,7 +2028,7 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
                     items(visitors, key = { it.id }) { visitor ->
                         Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)) {
                             Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                VibeAvatar(name = visitor.name, avatarUrl = visitor.avatarUrl, size = 46.dp)
+                                VibeAvatar(visitor.avatarUrl, visitor.name, size = 46.dp)
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(visitor.name, fontWeight = FontWeight.SemiBold)

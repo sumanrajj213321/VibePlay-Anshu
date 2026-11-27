@@ -474,6 +474,65 @@ test("Relationship invitations are follow-only and only the invited user can res
   );
 });
 
+test("Unique profile visitor total increments atomically only on the first visit", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
+  const bobProfile = bobDb.collection("users").doc(BOB_UID);
+  const visitRef = bobProfile.collection("visitors").doc(ALICE_UID);
+
+  await assertSucceeds(aliceDb.collection("users").doc(ALICE_UID).set(
+    makeUserPayload(ALICE_UID, "Alice", "VP-100001")
+  ));
+  await assertSucceeds(bobProfile.set(
+    makeUserPayload(BOB_UID, "Bob", "VP-200002")
+  ));
+
+  const recordVisit = () => aliceDb.runTransaction(async (tx) => {
+    const [visit, profile] = await Promise.all([
+      tx.get(visitRef),
+      tx.get(aliceDb.collection("users").doc(BOB_UID)),
+    ]);
+    tx.set(visitRef, {
+      visitorId: ALICE_UID,
+      visitorName: "Alice",
+      visitorAvatarUrl: "",
+      visitedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    if (!visit.exists) {
+      tx.update(aliceDb.collection("users").doc(BOB_UID), {
+        totalVisitors: (profile.get("totalVisitors") || 0) + 1,
+        totalVisitorsUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  });
+
+  await assertSucceeds(recordVisit());
+  let profile = await assertSucceeds(bobProfile.get());
+  if (profile.get("totalVisitors") !== 1) {
+    throw new Error("First unique visitor did not increment totalVisitors to 1.");
+  }
+
+  // The same visitor updates their timestamp but must not increase the total.
+  await assertSucceeds(recordVisit());
+  profile = await assertSucceeds(bobProfile.get());
+  if (profile.get("totalVisitors") !== 1) {
+    throw new Error("Repeat visit incorrectly incremented totalVisitors.");
+  }
+
+  // A client cannot change the counter without creating a new visitor record.
+  await assertFails(aliceDb.collection("users").doc(BOB_UID).update({
+    totalVisitors: 2,
+    totalVisitorsUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+  // A visitor cannot forge another user's identity in the visit record.
+  await assertFails(bobProfile.collection("visitors").doc("fake_visitor").set({
+    visitorId: "fake_visitor",
+    visitorName: "Fake",
+    visitorAvatarUrl: "",
+    visitedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+});
+
 test("Unauthenticated users cannot read or write any collection", async () => {
   const unauthDb = testEnv.unauthenticatedContext().firestore();
   await assertFails(unauthDb.collection("users").where("accountStatus", "==", "ACTIVE").get());

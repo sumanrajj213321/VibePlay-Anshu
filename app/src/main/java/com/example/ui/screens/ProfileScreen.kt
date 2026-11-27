@@ -15,6 +15,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import android.net.Uri
+import android.os.ParcelFileDescriptor
+import java.io.InputStream
 import android.content.Intent
 import android.util.Base64
 import androidx.compose.foundation.BorderStroke
@@ -815,9 +817,10 @@ fun ProfileScreen(
                 ActivityResultContracts.PickVisualMedia()
              ) { uri: Uri? ->
                 if (uri != null && isOwnProfile) {
+                    val addingToExistingComposer = showMomentComposer
                     pendingMomentUris = (pendingMomentUris + uri).distinct().take(2)
                     pendingIsVideo = false
-                    momentQuote = ""
+                    if (!addingToExistingComposer) momentQuote = ""
                     momentError = ""
                     showMomentComposer = true
                 }
@@ -1404,6 +1407,14 @@ fun ProfileScreen(
 }
 
 
+private fun openMomentUriStream(context: android.content.Context, uri: Uri): InputStream? {
+    val resolver = context.contentResolver
+    runCatching { resolver.openInputStream(uri) }.getOrNull()?.let { return it }
+    return runCatching {
+        resolver.openFileDescriptor(uri, "r")?.let { ParcelFileDescriptor.AutoCloseInputStream(it) }
+    }.getOrNull()
+}
+
 private fun getMomentFileSize(context: android.content.Context, uri: Uri): Long {
     val descriptorSize = runCatching {
         context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length }
@@ -1411,7 +1422,7 @@ private fun getMomentFileSize(context: android.content.Context, uri: Uri): Long 
     if (descriptorSize > 0L) return descriptorSize
 
     var totalBytes = 0L
-    context.contentResolver.openInputStream(uri)?.use { input ->
+    openMomentUriStream(context, uri)?.use { input ->
         val buffer = ByteArray(8192)
         while (true) {
             val count = input.read(buffer)
@@ -1419,16 +1430,16 @@ private fun getMomentFileSize(context: android.content.Context, uri: Uri): Long 
             totalBytes += count
             if (totalBytes > 1024L * 1024L) return totalBytes
         }
-    } ?: throw IllegalArgumentException("Could not read selected video")
+    } ?: throw IllegalArgumentException("Could not open selected video. Please choose another file.")
     return totalBytes
 }
 
 private fun compressMomentPhoto(context: android.content.Context, uri: Uri): ByteArray {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-        ?: throw IllegalArgumentException("Could not read selected photo")
+    openMomentUriStream(context, uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        ?: throw IllegalArgumentException("Could not open selected photo. Please choose another photo.")
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-        throw IllegalArgumentException("Invalid photo")
+        throw IllegalArgumentException("Unsupported or unreadable photo format. Please choose a JPG or PNG photo.")
     }
 
     var sampleSize = 1
@@ -1436,10 +1447,9 @@ private fun compressMomentPhoto(context: android.content.Context, uri: Uri): Byt
         sampleSize *= 2
     }
     val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-    var bitmap = context.contentResolver.openInputStream(uri)?.use {
+    var bitmap = openMomentUriStream(context, uri)?.use {
         BitmapFactory.decodeStream(it, null, options)
-    } ?: throw IllegalArgumentException("Could not decode selected photo")
-
+    } ?: throw IllegalArgumentException("Could not decode selected photo. Please choose another photo.")
     try {
         while (true) {
             for (quality in listOf(90, 85, 75, 65, 55, 45, 35, 25, 15)) {

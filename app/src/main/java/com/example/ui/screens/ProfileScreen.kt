@@ -121,6 +121,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.android.gms.tasks.Task
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
@@ -1495,3 +1496,159 @@ private fun ProfileActionRow(
     }
 }
 
+
+@Composable
+private fun MomentEngagement(ownerId: String, momentId: String) {
+    val uid = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+    val db = FirebaseFirestore.getInstance()
+    val momentRef = remember(ownerId, momentId) {
+        db.collection("users").document(ownerId).collection("moments").document(momentId)
+    }
+    var liked by remember(uid, momentId) { mutableStateOf(false) }
+    var likeCount by remember(momentId) { mutableStateOf(0) }
+    var comments by remember(momentId) { mutableStateOf<List<DocumentSnapshot>>(emptyList()) }
+    var commentText by remember(momentId) { mutableStateOf("") }
+    var sending by remember(momentId) { mutableStateOf(false) }
+
+    DisposableEffect(uid, ownerId, momentId) {
+        val likesListener = momentRef.collection("likes")
+            .addSnapshotListener { snapshot, _ ->
+                likeCount = snapshot?.size() ?: 0
+                liked = uid.isNotBlank() && snapshot?.documents?.any { it.id == uid } == true
+            }
+        val commentsListener = momentRef.collection("comments")
+            .orderBy("createdAt", Query.Direction.ASCENDING)
+            .limit(100)
+            .addSnapshotListener { snapshot, _ ->
+                comments = snapshot?.documents.orEmpty()
+            }
+        onDispose {
+            likesListener.remove()
+            commentsListener.remove()
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                if (liked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                contentDescription = if (liked) "Unlike moment" else "Like moment",
+                tint = if (liked) VibePink else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(21.dp).clickable(enabled = uid.isNotBlank()) {
+                    val likeRef = momentRef.collection("likes").document(uid)
+                    if (liked) likeRef.delete()
+                    else likeRef.set(mapOf("userId" to uid, "createdAt" to FieldValue.serverTimestamp()))
+                }
+            )
+            Text(" $likeCount", style = MaterialTheme.typography.labelMedium)
+        }
+        Text("💬 ${comments.size} comments", style = MaterialTheme.typography.labelMedium)
+    }
+
+    if (comments.isNotEmpty()) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            comments.forEach { comment ->
+                MomentCommentItem(
+                    momentRef = momentRef,
+                    comment = comment,
+                    currentUserId = uid
+                )
+            }
+        }
+    }
+
+    if (uid.isNotBlank()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            OutlinedTextField(
+                value = commentText,
+                onValueChange = { if (it.length <= 500) commentText = it },
+                placeholder = { Text("Write a comment…") },
+                modifier = Modifier.weight(1f),
+                maxLines = 3,
+                singleLine = false
+            )
+            Icon(
+                Icons.Filled.Send,
+                contentDescription = "Post comment",
+                tint = VibeCyan,
+                modifier = Modifier.size(25.dp).clickable(enabled = commentText.isNotBlank() && !sending) {
+                    sending = true
+                    val value = commentText.trim()
+                    val data = mapOf(
+                        "authorId" to uid,
+                        "text" to value,
+                        "createdAt" to FieldValue.serverTimestamp()
+                    )
+                    momentRef.collection("comments").add(data)
+                        .addOnSuccessListener {
+                            commentText = ""
+                            sending = false
+                        }
+                        .addOnFailureListener { sending = false }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MomentCommentItem(
+    momentRef: com.google.firebase.firestore.DocumentReference,
+    comment: DocumentSnapshot,
+    currentUserId: String
+) {
+    val commentId = comment.id
+    val commentRef = remember(momentRef.path, commentId) {
+        momentRef.collection("comments").document(commentId)
+    }
+    var liked by remember(commentId, currentUserId) { mutableStateOf(false) }
+    var count by remember(commentId) { mutableStateOf(0) }
+    DisposableEffect(commentId, currentUserId) {
+        val listener = commentRef.collection("likes").addSnapshotListener { snapshot, _ ->
+            count = snapshot?.size() ?: 0
+            liked = currentUserId.isNotBlank() && snapshot?.documents?.any { it.id == currentUserId } == true
+        }
+        onDispose { listener.remove() }
+    }
+    Column(
+        modifier = Modifier.fillMaxWidth().background(
+            MaterialTheme.colorScheme.surface.copy(alpha = 0.65f),
+            RoundedCornerShape(10.dp)
+        ).padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Text(comment.getString("text").orEmpty(), style = MaterialTheme.typography.bodySmall)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                if (liked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                contentDescription = "Like comment",
+                tint = if (liked) VibePink else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp).clickable(enabled = currentUserId.isNotBlank()) {
+                    val likeRef = commentRef.collection("likes").document(currentUserId)
+                    if (liked) likeRef.delete()
+                    else likeRef.set(mapOf("userId" to currentUserId, "createdAt" to FieldValue.serverTimestamp()))
+                }
+            )
+            Text(" $count", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+private suspend fun <T> awaitMomentTask(task: Task<T>): T =
+    suspendCancellableCoroutine { continuation ->
+        task.addOnSuccessListener { result ->
+            if (continuation.isActive) continuation.resume(result)
+        }.addOnFailureListener { error ->
+            if (continuation.isActive) continuation.resumeWithException(error)
+        }.addOnCanceledListener {
+            continuation.cancel()
+        }
+    }

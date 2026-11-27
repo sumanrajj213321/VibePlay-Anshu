@@ -91,6 +91,51 @@ beforeEach(async () => {
 });
 
 
+test("Visitors subscriptions charge the exact price and visitor history is owner-only", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
+  const aliceRef = aliceDb.collection("users").doc(ALICE_UID);
+  const bobRef = bobDb.collection("users").doc(BOB_UID);
+
+  await assertSucceeds(aliceRef.set(makeUserPayload(ALICE_UID, "Alice", "VP-100001")));
+  await assertSucceeds(bobRef.set(makeUserPayload(BOB_UID, "Bob", "VP-200002")));
+
+  // A 3-day subscription must deduct exactly 50,000 coins.
+  await assertSucceeds(aliceRef.update({
+    coinBalance: 950500,
+    visitorsExpiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+    visitorsSubscriptionUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+
+  // Bob can record his own visit, but cannot impersonate another visitor.
+  const visitorRef = aliceRef.collection("visitors").doc(BOB_UID);
+  await assertSucceeds(visitorRef.set({
+    visitorId: BOB_UID,
+    visitorName: "Bob",
+    visitorAvatarUrl: "",
+    visitedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+  await assertFails(aliceRef.collection("visitors").doc("fake_visitor").set({
+    visitorId: "fake_visitor",
+    visitorName: "Fake",
+    visitorAvatarUrl: "",
+    visitedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+
+  // Only Alice, the subscribed profile owner, can read her visitor history.
+  await assertSucceeds(aliceRef.collection("visitors").get());
+  await assertFails(bobDb.collection("users").doc(ALICE_UID).collection("visitors").get());
+
+  // Arbitrary coin deductions cannot be used to forge a subscription.
+  await assertFails(aliceRef.update({
+    coinBalance: 900000,
+    visitorsExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    visitorsSubscriptionUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+});
+
 test("Follow transaction can update counters for legacy profiles without userId or createdAt", async () => {
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();

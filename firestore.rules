@@ -825,7 +825,7 @@ service cloud.firestore {
           incoming().ownerId == userId &&
           incoming().mediaUrl is string && incoming().mediaUrl.size() <= 2000 &&
           incoming().mediaUrls is list &&
-          incoming().mediaUrls.size() >= 1 && incoming().mediaUrls.size() <= 10 &&
+          incoming().mediaUrls.size() >= 1 && incoming().mediaUrls.size() <= 2 &&
           incoming().mediaUrls[0] == incoming().mediaUrl &&
           incoming().mediaSizes is list &&
           incoming().mediaSizes.size() == incoming().mediaUrls.size() &&

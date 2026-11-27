@@ -1055,11 +1055,11 @@ fun ProfileScreen(
 
                                         pendingMomentUris.forEachIndexed { index, uri ->
                                             val isImage = !pendingIsVideo
-                                            val bytes = if (isImage) {
-                                                withContext(Dispatchers.IO) { compressMomentPhoto(context, uri) }
-                                            } else null
-                                            val sizeBytes = bytes?.size?.toLong()
-                                                ?: withContext(Dispatchers.IO) { getMomentFileSize(context, uri) }
+                                            val bytes = withContext(Dispatchers.IO) {
+                                                if (isImage) compressMomentPhoto(context, uri)
+                                                else readMomentVideoBytes(context, uri)
+                                            }
+                                            val sizeBytes = bytes.size.toLong()
                                             if (sizeBytes <= 0L || sizeBytes > 1024L * 1024L) {
                                                 throw IllegalArgumentException("Each photo/video must be between 1 byte and 1 MB")
                                             }
@@ -1070,8 +1070,7 @@ fun ProfileScreen(
                                             val metadata = com.google.firebase.storage.StorageMetadata.Builder()
                                                 .setContentType(mime)
                                                 .build()
-                                            val uploadTask = if (bytes != null) mediaRef.putBytes(bytes, metadata)
-                                                else mediaRef.putFile(uri, metadata)
+                                            val uploadTask = mediaRef.putBytes(bytes, metadata)
                                             val downloadTask = uploadTask.continueWithTask { task ->
                                                 if (!task.isSuccessful) throw (task.exception ?: Exception("Storage upload failed"))
                                                 mediaRef.downloadUrl
@@ -1418,25 +1417,24 @@ fun ProfileScreen(
 }
 
 
-private fun openMomentUriStream(context: android.content.Context, uri: Uri): InputStream? {
+private fun openMomentUriStream(
+    context: android.content.Context,
+    uri: Uri,
+    mimeType: String = "*/*"
+): InputStream? {
     val resolver = context.contentResolver
 
-    // Android 16+ provides a Photo Picker-aware MediaStore API. For cloud-backed
-    // picker URIs it requests the provider's default representation ("*/*").
-    if (android.os.Build.VERSION.SDK_INT >= 36 &&
-        uri.scheme == "content" &&
-        uri.authority == android.provider.MediaStore.AUTHORITY
-    ) {
+    // Prefer the Photo Picker-aware API where available, then fall back to
+    // standard document-provider access methods.
+    if (android.os.Build.VERSION.SDK_INT >= 36 && uri.scheme == "content") {
         runCatching {
             android.provider.MediaStore.openAssetFileDescriptor(resolver, uri, "r", null)
                 ?.createInputStream()
         }.getOrNull()?.let { return it }
     }
-
-    // Keep compatibility with other content providers and older Android versions.
     runCatching { resolver.openAssetFileDescriptor(uri, "r")?.createInputStream() }
         .getOrNull()?.let { return it }
-    runCatching { resolver.openTypedAssetFileDescriptor(uri, "*/*", null)?.createInputStream() }
+    runCatching { resolver.openTypedAssetFileDescriptor(uri, mimeType, null)?.createInputStream() }
         .getOrNull()?.let { return it }
     runCatching { resolver.openInputStream(uri) }.getOrNull()?.let { return it }
     return runCatching {
@@ -1444,48 +1442,67 @@ private fun openMomentUriStream(context: android.content.Context, uri: Uri): Inp
     }.getOrNull()
 }
 
-private fun getMomentFileSize(context: android.content.Context, uri: Uri): Long {
-    val descriptorSize = runCatching {
-        context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length }
-    }.getOrNull() ?: -1L
-    if (descriptorSize > 0L) return descriptorSize
-
-    var totalBytes = 0L
-    openMomentUriStream(context, uri)?.use { input ->
+private fun readMomentVideoBytes(context: android.content.Context, uri: Uri): ByteArray {
+    val output = ByteArrayOutputStream()
+    openMomentUriStream(context, uri, "video/mp4")?.use { input ->
         val buffer = ByteArray(8192)
         while (true) {
             val count = input.read(buffer)
             if (count < 0) break
-            totalBytes += count
-            if (totalBytes > 1024L * 1024L) return totalBytes
+            if (output.size() + count > 1024 * 1024) {
+                throw IllegalArgumentException("Maximum upload size is 1 MB per video")
+            }
+            output.write(buffer, 0, count)
         }
-    } ?: throw IllegalArgumentException("Could not open selected video. Please choose another file.")
-    return totalBytes
+    } ?: throw IllegalArgumentException("Could not read selected video. Please choose the video again.")
+    if (output.size() == 0) throw IllegalArgumentException("Selected video is empty")
+    return output.toByteArray()
 }
 
-private fun compressMomentPhoto(context: android.content.Context, uri: Uri): ByteArray {
+private fun decodeMomentPhotoBitmap(context: android.content.Context, uri: Uri): Bitmap {
+    if (android.os.Build.VERSION.SDK_INT >= 28) {
+        runCatching {
+            val source = android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
+            android.graphics.ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+                decoder.isMutableRequired = true
+                val maxDimension = maxOf(info.size.width, info.size.height)
+                if (maxDimension > 1600) {
+                    val scale = 1600f / maxDimension
+                    decoder.setTargetSize(
+                        (info.size.width * scale).toInt().coerceAtLeast(1),
+                        (info.size.height * scale).toInt().coerceAtLeast(1)
+                    )
+                }
+            }
+        }.getOrNull()?.let { return it }
+    }
+
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    openMomentUriStream(context, uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-        ?: throw IllegalArgumentException("Could not open selected photo. Please choose another photo.")
+    openMomentUriStream(context, uri, "image/*")?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        ?: throw IllegalArgumentException("Could not read selected photo. Please choose the photo again.")
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
         throw IllegalArgumentException("Unsupported or unreadable photo format. Please choose a JPG or PNG photo.")
     }
-
     var sampleSize = 1
     while (bounds.outWidth / sampleSize > 1600 || bounds.outHeight / sampleSize > 1600) {
         sampleSize *= 2
     }
     val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-    var bitmap = openMomentUriStream(context, uri)?.use {
+    return openMomentUriStream(context, uri, "image/*")?.use {
         BitmapFactory.decodeStream(it, null, options)
     } ?: throw IllegalArgumentException("Could not decode selected photo. Please choose another photo.")
+}
+
+private fun compressMomentPhoto(context: android.content.Context, uri: Uri): ByteArray {
+    var bitmap = decodeMomentPhotoBitmap(context, uri)
     try {
         while (true) {
             for (quality in listOf(90, 85, 75, 65, 55, 45, 35, 25, 15)) {
                 val output = ByteArrayOutputStream()
                 bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)
                 val bytes = output.toByteArray()
-                if (bytes.size <= 1024 * 1024) return bytes
+                if (bytes.size in 1..(1024 * 1024)) return bytes
             }
             val nextWidth = (bitmap.width * 0.8f).toInt().coerceAtLeast(1)
             val nextHeight = (bitmap.height * 0.8f).toInt().coerceAtLeast(1)

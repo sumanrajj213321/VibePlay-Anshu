@@ -722,11 +722,25 @@ exports.countUniqueProfileVisitor = onDocumentCreated(
     if (!profileId || !visitorId || profileId === visitorId) return;
 
     const profileRef = db.collection("users").doc(profileId);
+    const eventId = event.id;
+    if (!eventId) {
+      logger.error("Profile visitor event is missing its event ID", { profileId, visitorId });
+      return;
+    }
+    const countedEventRef = db.collection("profileVisitorCountEvents").doc(eventId);
     await db.runTransaction(async (tx) => {
-      const profileSnap = await tx.get(profileRef);
-      if (!profileSnap.exists) return;
+      const [countedEventSnap, profileSnap] = await Promise.all([
+        tx.get(countedEventRef),
+        tx.get(profileRef)
+      ]);
+      if (countedEventSnap.exists || !profileSnap.exists) return;
       const currentCount = profileSnap.get("totalVisitors");
       const safeCount = Number.isSafeInteger(currentCount) && currentCount >= 0 ? currentCount : 0;
+      tx.create(countedEventRef, {
+        profileId,
+        visitorId,
+        countedAt: FieldValue.serverTimestamp()
+      });
       tx.update(profileRef, {
         totalVisitors: safeCount + 1,
         totalVisitorsUpdatedAt: FieldValue.serverTimestamp()

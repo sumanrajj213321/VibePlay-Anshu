@@ -108,14 +108,47 @@ test("Visitors subscriptions charge the exact price and visitor history is owner
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   }));
 
-  // Bob can record his own visit, but cannot impersonate another visitor.
+  // Bob's first visit and Alice's unique visitor count are committed atomically.
   const visitorRef = bobDb.collection("users").doc(ALICE_UID).collection("visitors").doc(BOB_UID);
-  await assertSucceeds(visitorRef.set({
-    visitorId: BOB_UID,
-    visitorName: "Bob",
-    visitorAvatarUrl: "",
-    visitedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  await assertSucceeds(bobDb.runTransaction(async (tx) => {
+    const [profile, previousVisit] = await Promise.all([
+      tx.get(aliceRef),
+      tx.get(visitorRef),
+    ]);
+    tx.set(visitorRef, {
+      visitorId: BOB_UID,
+      visitorName: "Bob",
+      visitorAvatarUrl: "",
+      visitedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    tx.update(aliceRef, {
+      totalVisitors: (profile.get("totalVisitors") || 0) + 1,
+      totalVisitorsUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
   }));
+  const firstCount = (await aliceRef.get()).get("totalVisitors");
+  if (firstCount !== 1) throw new Error("First unique visitor was not counted.");
+
+  // Repeated visits refresh the timestamp without increasing the unique count.
+  await assertSucceeds(bobDb.runTransaction(async (tx) => {
+    const [profile, previousVisit] = await Promise.all([
+      tx.get(aliceRef),
+      tx.get(visitorRef),
+    ]);
+    if (previousVisit.exists) {
+      tx.set(visitorRef, {
+        visitorId: BOB_UID,
+        visitorName: "Bob",
+        visitorAvatarUrl: "",
+        visitedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  }));
+  if ((await aliceRef.get()).get("totalVisitors") !== 1) {
+    throw new Error("Repeated visitor incorrectly increased the unique count.");
+  }
+
+  // A standalone visitor record cannot be forged outside the atomic counter transaction.
   await assertFails(aliceRef.collection("visitors").doc("fake_visitor").set({
     visitorId: "fake_visitor",
     visitorName: "Fake",

@@ -44,6 +44,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -837,10 +842,83 @@ private fun EmptyRoomsPrompt(onCreateRoomClick: () -> Unit) {
 
 @Composable
 private fun HomeShortcutCard(title: String, subtitle: String, accent: Color, symbol: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
- Surface(modifier = modifier.clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick), shape = RoundedCornerShape(20.dp), color = accent.copy(alpha = 0.13f), border = BorderStroke(1.4.dp, accent.copy(alpha = 0.85f))) {
-  Row(modifier = Modifier.fillMaxSize().background(Brush.linearGradient(listOf(accent.copy(alpha = 0.24f), Color.Transparent))).padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-   Surface(shape = RoundedCornerShape(14.dp), color = accent.copy(alpha = 0.22f)) { Box(modifier = Modifier.size(46.dp), contentAlignment = Alignment.Center) { Text(symbol, color = accent, fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelLarge) } }
-   Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) { Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis); Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-  }
- }
+    val isGame = title == "Game Zone"
+    val motion = rememberInfiniteTransition(label = "home_shortcut_motion")
+    val floatY by motion.animateFloat(
+        initialValue = -3f,
+        targetValue = 3f,
+        animationSpec = infiniteRepeatable(tween(950), repeatMode = RepeatMode.Reverse),
+        label = "shortcut_float"
+    )
+    val tilt by motion.animateFloat(
+        initialValue = -7f,
+        targetValue = 7f,
+        animationSpec = infiniteRepeatable(tween(if (isGame) 700 else 1500), repeatMode = RepeatMode.Reverse),
+        label = "shortcut_tilt"
+    )
+    val glow by motion.animateFloat(
+        initialValue = 0.13f,
+        targetValue = 0.27f,
+        animationSpec = infiniteRepeatable(tween(1200), repeatMode = RepeatMode.Reverse),
+        label = "shortcut_glow"
+    )
+    Surface(
+        modifier = modifier.clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        color = accent.copy(alpha = 0.13f),
+        border = BorderStroke(1.4.dp, accent.copy(alpha = 0.85f))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Brush.linearGradient(listOf(accent.copy(alpha = glow), Color.Transparent)))
+                .padding(12.dp)
+        ) {
+            // Soft moving decorative glow keeps the card lively without obscuring its text.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .size(76.dp)
+                    .graphicsLayer {
+                        translationY = floatY * 2
+                        alpha = glow
+                        rotationZ = if (isGame) tilt * 2 else -tilt
+                    }
+                    .clip(CircleShape)
+                    .background(accent.copy(alpha = 0.28f))
+            )
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Surface(shape = RoundedCornerShape(14.dp), color = accent.copy(alpha = 0.22f)) {
+                    Box(modifier = Modifier.size(46.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            symbol,
+                            modifier = Modifier.graphicsLayer {
+                                translationY = floatY
+                                rotationZ = if (isGame) tilt else 0f
+                                scaleX = 1f + glow * 0.22f
+                                scaleY = 1f + glow * 0.22f
+                            },
+                            color = accent,
+                            fontWeight = FontWeight.Black,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+                    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        text = if (isGame) "🎮  🍉  ⭐" else "👑  💎  ✨",
+                        modifier = Modifier.graphicsLayer { translationY = -floatY * 0.45f },
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+    }
 }

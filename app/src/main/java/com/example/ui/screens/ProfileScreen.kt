@@ -992,7 +992,33 @@ fun ProfileScreen(
                     title = { Text(if (pendingIsVideo) "Add MP4 Moment" else "Add Photos Moment") },
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(if (pendingIsVideo) "1 MP4 video selected · max 1 MB" else "${pendingMomentUris.size} photo(s) selected · max 1 MB each")
+                            // Show the selected media above the caption so users can confirm what they are posting.
+                            if (pendingIsVideo && pendingMomentUris.isNotEmpty()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Filled.PlayArrow, contentDescription = "Selected video", tint = MaterialTheme.colorScheme.primary)
+                                    Text(
+                                        pendingMomentUris.first().lastPathSegment?.substringAfterLast('/') ?: "Selected MP4 video",
+                                        modifier = Modifier.weight(1f).padding(start = 8.dp),
+                                        maxLines = 2
+                                    )
+                                }
+                            } else if (pendingMomentUris.isNotEmpty()) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    pendingMomentUris.forEach { selectedUri ->
+                                        AsyncImage(
+                                            model = selectedUri,
+                                            contentDescription = "Selected photo preview",
+                                            modifier = Modifier.size(76.dp).clip(RoundedCornerShape(10.dp)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                }
+                            }
                             if (!pendingIsVideo && pendingMomentUris.size < 2) {
                                 OutlinedButton(
                                     onClick = {
@@ -1005,13 +1031,6 @@ fun ProfileScreen(
                                     Icon(Icons.Filled.Add, contentDescription = null)
                                     Text(" Add another photo")
                                 }
-                            }
-                            if (!pendingIsVideo && pendingMomentUris.isNotEmpty()) {
-                                Text(
-                                    if (pendingMomentUris.size == 1) "1 photo selected · you can add one more" else "2 photos selected · maximum reached",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
                             OutlinedTextField(
                                 value = momentQuote,

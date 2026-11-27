@@ -824,10 +824,13 @@ service cloud.firestore {
           incoming().keys().hasOnly(['ownerId', 'mediaUrl', 'mediaType', 'contentType', 'sizeBytes', 'createdAt']) &&
           incoming().ownerId == userId &&
           incoming().mediaUrl is string && incoming().mediaUrl.size() <= 2000 &&
-          incoming().mediaType == 'image' &&
-          incoming().contentType == 'image/jpeg' &&
+          ((incoming().mediaType == 'image' &&
+            incoming().contentType == 'image/jpeg') ||
+           (incoming().mediaType == 'video' &&
+            incoming().contentType is string &&
+            incoming().contentType.matches('video/.*'))) &&
           incoming().sizeBytes is int && incoming().sizeBytes > 0 &&
-          incoming().sizeBytes <= 102400 &&
+          incoming().sizeBytes <= 1048576 &&
           incoming().createdAt == request.time;
         allow update: if false;
         allow delete: if isSignedIn() && request.auth.uid == userId;

@@ -1,7 +1,12 @@
 name: Deploy VibePlay Firebase Functions
 
 on:
-  # Keep Cloud Functions deployment manual-only on the free Spark plan.
+  push:
+    branches:
+      - main
+    paths:
+      - "functions/**"
+      - ".github/workflows/deploy-firebase-functions.yml"
   workflow_dispatch:
 
 permissions:

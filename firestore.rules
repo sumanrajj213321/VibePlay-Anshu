@@ -872,6 +872,18 @@ service cloud.firestore {
         }
       }
 
+
+      // Visitor history is private to the profile owner and gated by an active subscription.
+      // Only trusted Admin SDK functions can write visitor records.
+      match /visitors/{visitorId} {
+        allow get, list: if isSignedIn() &&
+          request.auth.uid == userId &&
+          ('visitorsExpiresAt' in get(/databases/$(database)/documents/users/$(userId)).data) &&
+          get(/databases/$(database)/documents/users/$(userId)).data.visitorsExpiresAt is timestamp &&
+          get(/databases/$(database)/documents/users/$(userId)).data.visitorsExpiresAt > request.time;
+        allow create, update, delete: if false;
+      }
+
       match /avatar/{avatarDocId} {
         allow get: if isSignedIn() && avatarDocId == 'image';
         allow list: if false;

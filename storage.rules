@@ -6,16 +6,14 @@ service firebase.storage {
       allow read: if request.auth != null;
       allow write: if false;
     }
-    // Public profile Moments: authenticated users can view; only the owner can upload/delete.
+    // Photo-only Moments: authenticated users can view; owner uploads JPEG photos up to 100 KB.
     match /moments/{userId}/{fileName} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
                    && request.auth.uid == userId
                    && request.resource != null
-                   && (
-                     (request.resource.contentType.matches('image/.*') && request.resource.size < 10 * 1024 * 1024) ||
-                     (request.resource.contentType.matches('video/.*') && request.resource.size < 50 * 1024 * 1024)
-                   );
+                   && request.resource.contentType == 'image/jpeg'
+                   && request.resource.size <= 100 * 1024;
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 

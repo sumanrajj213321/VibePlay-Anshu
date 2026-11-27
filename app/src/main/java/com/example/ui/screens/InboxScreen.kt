@@ -1894,6 +1894,7 @@ private data class VisitorRow(
 private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
     val db = remember { FirebaseFirestore.getInstance() }
     var visitors by remember { mutableStateOf<List<VisitorRow>>(emptyList()) }
+    var totalVisitors by remember { mutableStateOf(0L) }
     var subscriptionExpiry by remember { mutableStateOf<Timestamp?>(null) }
     var loading by remember { mutableStateOf(true) }
     var purchasing by remember { mutableStateOf(false) }
@@ -1935,6 +1936,7 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
                     return@addSnapshotListener
                 }
                 subscriptionExpiry = snapshot?.getTimestamp("visitorsExpiresAt")
+                totalVisitors = (snapshot?.getLong("totalVisitors") ?: 0L).coerceAtLeast(0L)
                 hasAccess = subscriptionExpiry?.toDate()?.time?.let { it > System.currentTimeMillis() } == true
                 loading = false
             }
@@ -1990,6 +1992,15 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
                 Modifier.fillMaxWidth().padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                Surface(shape = RoundedCornerShape(16.dp), color = VibeCyan.copy(alpha = 0.08f), border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.3f))) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Total Visitors", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Ab tak kitne alag users ne profile visit ki", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text(totalVisitors.toString(), style = MaterialTheme.typography.headlineMedium, color = VibeCyan, fontWeight = FontWeight.Bold)
+                    }
+                }
                 Text("See who visited your profile", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text("Visitors list dekhne ke liye subscription lo. Purani visit history saved rahegi.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Surface(shape = RoundedCornerShape(18.dp), color = VibeCyan.copy(alpha = 0.08f), border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.35f))) {
@@ -2014,6 +2025,15 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
             }
         } else {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+                Surface(shape = RoundedCornerShape(16.dp), color = VibeCyan.copy(alpha = 0.08f), border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.3f))) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Total Visitors", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Unique profile visitors", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text(totalVisitors.toString(), style = MaterialTheme.typography.headlineMedium, color = VibeCyan, fontWeight = FontWeight.Bold)
+                    }
+                }
                 Text("Subscription active", color = VibeEmerald, fontWeight = FontWeight.Bold)
                 Text(
                     "Valid till " + (subscriptionExpiry?.toDate()?.let {

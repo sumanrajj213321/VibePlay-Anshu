@@ -1926,7 +1926,7 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
         }
     }
 
-    DisposableEffect(currentUser.userId) {
+    DisposableEffect(currentUser.userId, hasAccess) {
         val profileListener = db.collection("users").document(currentUser.userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -1938,21 +1938,37 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
                 hasAccess = subscriptionExpiry?.toDate()?.time?.let { it > System.currentTimeMillis() } == true
                 loading = false
             }
-        val visitorsListener = db.collection("users").document(currentUser.userId)
-            .collection("visitors")
-            .orderBy("visitedAt", Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
-                visitors = snapshot?.documents.orEmpty().map { doc ->
-                    VisitorRow(
-                        id = doc.id,
-                        name = doc.getString("visitorName") ?: "VibeUser",
-                        avatarUrl = doc.getString("visitorAvatarUrl").orEmpty(),
-                        visitedAt = doc.getTimestamp("visitedAt")
-                    )
+        val visitorsListener = if (hasAccess) {
+            db.collection("users").document(currentUser.userId)
+                .collection("visitors")
+                .orderBy("visitedAt", Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) return@addSnapshotListener
+                    visitors = snapshot?.documents.orEmpty().map { doc ->
+                        VisitorRow(
+                            id = doc.id,
+                            name = doc.getString("visitorName") ?: "VibeUser",
+                            avatarUrl = doc.getString("visitorAvatarUrl").orEmpty(),
+                            visitedAt = doc.getTimestamp("visitedAt")
+                        )
+                    }
                 }
-            }
-        onDispose { profileListener.remove(); visitorsListener.remove() }
+        } else null
+        onDispose {
+            profileListener.remove()
+            visitorsListener?.remove()
+            if (!hasAccess) visitors = emptyList()
+        }
+    }
+
+    LaunchedEffect(subscriptionExpiry) {
+        val expiryMillis = subscriptionExpiry?.toDate()?.time ?: return@LaunchedEffect
+        val remaining = expiryMillis - System.currentTimeMillis()
+        if (remaining > 0L) {
+            kotlinx.coroutines.delay(remaining)
+            hasAccess = false
+            visitors = emptyList()
+        }
     }
 
     Column(Modifier.fillMaxSize()) {

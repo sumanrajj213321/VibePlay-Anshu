@@ -1423,12 +1423,24 @@ fun ProfileScreen(
 private fun openMomentUriStream(context: android.content.Context, uri: Uri): InputStream? {
     val resolver = context.contentResolver
 
-    // Providers may expose picker content through different descriptor APIs.
-    runCatching { resolver.openInputStream(uri) }.getOrNull()?.let { return it }
+    // Android 16+ provides a Photo Picker-aware MediaStore API. For cloud-backed
+    // picker URIs it requests the provider's default representation ("*/*").
+    if (android.os.Build.VERSION.SDK_INT >= 36 &&
+        uri.scheme == "content" &&
+        uri.authority == android.provider.MediaStore.AUTHORITY
+    ) {
+        runCatching {
+            android.provider.MediaStore.openAssetFileDescriptor(resolver, uri, "r", null)
+                ?.createInputStream()
+        }.getOrNull()?.let { return it }
+    }
+
+    // Keep compatibility with other content providers and older Android versions.
     runCatching { resolver.openAssetFileDescriptor(uri, "r")?.createInputStream() }
         .getOrNull()?.let { return it }
-    runCatching { resolver.openTypedAssetFileDescriptor(uri, "image/*", null)?.createInputStream() }
+    runCatching { resolver.openTypedAssetFileDescriptor(uri, "*/*", null)?.createInputStream() }
         .getOrNull()?.let { return it }
+    runCatching { resolver.openInputStream(uri) }.getOrNull()?.let { return it }
     return runCatching {
         resolver.openFileDescriptor(uri, "r")?.let { ParcelFileDescriptor.AutoCloseInputStream(it) }
     }.getOrNull()

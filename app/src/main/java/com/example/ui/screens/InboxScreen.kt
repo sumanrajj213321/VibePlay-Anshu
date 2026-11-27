@@ -121,6 +121,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Timestamp
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.Flow
 import java.security.MessageDigest
@@ -1892,7 +1893,6 @@ private data class VisitorRow(
 @Composable
 private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
     val db = remember { FirebaseFirestore.getInstance() }
-    val functions = remember { FirebaseFunctions.getInstance("asia-south1") }
     var visitors by remember { mutableStateOf<List<VisitorRow>>(emptyList()) }
     var subscriptionExpiry by remember { mutableStateOf<Timestamp?>(null) }
     var loading by remember { mutableStateOf(true) }
@@ -1963,9 +1963,21 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
                             onClick = {
                                 purchasing = true
                                 message = ""
-                                functions.getHttpsCallable("purchaseVisitorsSubscription")
-                                    .call(mapOf("days" to 3))
-                                    .addOnSuccessListener { purchasing = false; message = "3-day Visitors access activated." }
+                                db.runTransaction { tx ->
+                                    val ref = db.collection("users").document(currentUser.userId)
+                                    val snap = tx.get(ref)
+                                    val balance = snap.getLong("coinBalance") ?: 0L
+                                    val currentExpiry = snap.getTimestamp("visitorsExpiresAt")?.toDate()?.time ?: 0L
+                                    val price = if (true) 50000L else 500000L
+                                    if (balance < price) throw IllegalStateException("Not enough coins.")
+                                    val expiry = maxOf(System.currentTimeMillis(), currentExpiry) + days * 24L * 60L * 60L * 1000L
+                                    tx.update(ref, mapOf(
+                                        "coinBalance" to balance - price,
+                                        "visitorsExpiresAt" to Timestamp(java.util.Date(expiry)),
+                                        "visitorsSubscriptionUpdatedAt" to FieldValue.serverTimestamp(),
+                                        "updatedAt" to FieldValue.serverTimestamp()
+                                    ))
+                                }.addOnSuccessListener { purchasing = false; message = "${days}-day Visitors access activated." }
                                     .addOnFailureListener { e -> purchasing = false; message = e.localizedMessage ?: "Purchase failed. Try again." }
                             },
                             enabled = !purchasing,
@@ -1981,9 +1993,21 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
                             onClick = {
                                 purchasing = true
                                 message = ""
-                                functions.getHttpsCallable("purchaseVisitorsSubscription")
-                                    .call(mapOf("days" to 30))
-                                    .addOnSuccessListener { purchasing = false; message = "30-day Visitors access activated." }
+                                db.runTransaction { tx ->
+                                    val ref = db.collection("users").document(currentUser.userId)
+                                    val snap = tx.get(ref)
+                                    val balance = snap.getLong("coinBalance") ?: 0L
+                                    val currentExpiry = snap.getTimestamp("visitorsExpiresAt")?.toDate()?.time ?: 0L
+                                    val price = if (false) 50000L else 500000L
+                                    if (balance < price) throw IllegalStateException("Not enough coins.")
+                                    val expiry = maxOf(System.currentTimeMillis(), currentExpiry) + days * 24L * 60L * 60L * 1000L
+                                    tx.update(ref, mapOf(
+                                        "coinBalance" to balance - price,
+                                        "visitorsExpiresAt" to Timestamp(java.util.Date(expiry)),
+                                        "visitorsSubscriptionUpdatedAt" to FieldValue.serverTimestamp(),
+                                        "updatedAt" to FieldValue.serverTimestamp()
+                                    ))
+                                }.addOnSuccessListener { purchasing = false; message = "${days}-day Visitors access activated." }
                                     .addOnFailureListener { e -> purchasing = false; message = e.localizedMessage ?: "Purchase failed. Try again." }
                             },
                             enabled = !purchasing,
@@ -2001,15 +2025,41 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
                     OutlinedButton(onClick = {
                         purchasing = true
-                        functions.getHttpsCallable("purchaseVisitorsSubscription").call(mapOf("days" to 3))
-                            .addOnSuccessListener { purchasing = false; message = "Subscription extended by 3 days." }
-                            .addOnFailureListener { e -> purchasing = false; message = e.localizedMessage ?: "Purchase failed." }
+                        db.runTransaction { tx ->
+                                    val ref = db.collection("users").document(currentUser.userId)
+                                    val snap = tx.get(ref)
+                                    val balance = snap.getLong("coinBalance") ?: 0L
+                                    val currentExpiry = snap.getTimestamp("visitorsExpiresAt")?.toDate()?.time ?: 0L
+                                    val price = if (true) 50000L else 500000L
+                                    if (balance < price) throw IllegalStateException("Not enough coins.")
+                                    val expiry = maxOf(System.currentTimeMillis(), currentExpiry) + days * 24L * 60L * 60L * 1000L
+                                    tx.update(ref, mapOf(
+                                        "coinBalance" to balance - price,
+                                        "visitorsExpiresAt" to Timestamp(java.util.Date(expiry)),
+                                        "visitorsSubscriptionUpdatedAt" to FieldValue.serverTimestamp(),
+                                        "updatedAt" to FieldValue.serverTimestamp()
+                                    ))
+                                }.addOnSuccessListener { purchasing = false; message = "${days}-day Visitors access activated." }
+                                    .addOnFailureListener { e -> purchasing = false; message = e.localizedMessage ?: "Purchase failed. Try again." }
                     }, enabled = !purchasing, modifier = Modifier.weight(1f)) { Text("3 days · 50K") }
                     OutlinedButton(onClick = {
                         purchasing = true
-                        functions.getHttpsCallable("purchaseVisitorsSubscription").call(mapOf("days" to 30))
-                            .addOnSuccessListener { purchasing = false; message = "Subscription extended by 30 days." }
-                            .addOnFailureListener { e -> purchasing = false; message = e.localizedMessage ?: "Purchase failed." }
+                        db.runTransaction { tx ->
+                                    val ref = db.collection("users").document(currentUser.userId)
+                                    val snap = tx.get(ref)
+                                    val balance = snap.getLong("coinBalance") ?: 0L
+                                    val currentExpiry = snap.getTimestamp("visitorsExpiresAt")?.toDate()?.time ?: 0L
+                                    val price = if (false) 50000L else 500000L
+                                    if (balance < price) throw IllegalStateException("Not enough coins.")
+                                    val expiry = maxOf(System.currentTimeMillis(), currentExpiry) + days * 24L * 60L * 60L * 1000L
+                                    tx.update(ref, mapOf(
+                                        "coinBalance" to balance - price,
+                                        "visitorsExpiresAt" to Timestamp(java.util.Date(expiry)),
+                                        "visitorsSubscriptionUpdatedAt" to FieldValue.serverTimestamp(),
+                                        "updatedAt" to FieldValue.serverTimestamp()
+                                    ))
+                                }.addOnSuccessListener { purchasing = false; message = "${days}-day Visitors access activated." }
+                                    .addOnFailureListener { e -> purchasing = false; message = e.localizedMessage ?: "Purchase failed. Try again." }
                     }, enabled = !purchasing, modifier = Modifier.weight(1f)) { Text("30 days · 5L") }
                 }
                 if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall)

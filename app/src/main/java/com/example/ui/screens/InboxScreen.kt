@@ -219,7 +219,11 @@ fun InboxScreen(
             )
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF14121B))
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

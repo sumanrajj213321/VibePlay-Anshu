@@ -947,7 +947,17 @@ service cloud.firestore {
       // Visitor history is private to the profile owner and gated by an active subscription.
       // A signed-in visitor may write only their own UID-keyed visit record.
       match /visitors/{visitorId} {
-        allow get, list: if isSignedIn() &&
+        // The visitor may read only their own UID-keyed record so the app can
+        // distinguish a first visit from a repeat visit. Only the subscribed
+        // profile owner may list the visitor history.
+        allow get: if isSignedIn() && (
+          (request.auth.uid == visitorId && visitorId != userId) ||
+          (request.auth.uid == userId &&
+            ('visitorsExpiresAt' in get(/databases/$(database)/documents/users/$(userId)).data) &&
+            get(/databases/$(database)/documents/users/$(userId)).data.visitorsExpiresAt is timestamp &&
+            get(/databases/$(database)/documents/users/$(userId)).data.visitorsExpiresAt > request.time)
+        );
+        allow list: if isSignedIn() &&
           request.auth.uid == userId &&
           ('visitorsExpiresAt' in get(/databases/$(database)/documents/users/$(userId)).data) &&
           get(/databases/$(database)/documents/users/$(userId)).data.visitorsExpiresAt is timestamp &&

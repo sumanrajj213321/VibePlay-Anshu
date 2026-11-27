@@ -821,26 +821,21 @@ service cloud.firestore {
           get(/databases/$(database)/documents/users/$(userId)).data.accountStatus == 'ACTIVE';
         allow create: if isSignedIn() &&
           request.auth.uid == userId &&
-          incoming().keys().hasOnly(['ownerId', 'mediaUrl', 'mediaUrls', 'mediaSizes', 'mediaType', 'contentType', 'sizeBytes', 'quote', 'createdAt']) &&
+          momentId == 'lifetime_photo' &&
+          !exists(/databases/$(database)/documents/users/$(userId)/moments/lifetime_photo) &&
+          incoming().keys().hasOnly(['ownerId', 'photoBase64', 'mediaType', 'contentType', 'sizeBytes', 'quote', 'createdAt']) &&
           incoming().ownerId == userId &&
-          incoming().mediaUrl is string && incoming().mediaUrl.size() <= 2000 &&
-          incoming().mediaUrls is list &&
-          incoming().mediaUrls.size() >= 1 && incoming().mediaUrls.size() <= 2 &&
-          incoming().mediaUrls[0] == incoming().mediaUrl &&
-          incoming().mediaSizes is list &&
-          incoming().mediaSizes.size() == incoming().mediaUrls.size() &&
-          ((incoming().mediaType == 'image' &&
-            incoming().contentType == 'image/jpeg' &&
-            incoming().mediaUrls.size() <= 10) ||
-           (incoming().mediaType == 'video' &&
-            incoming().contentType == 'video/mp4' &&
-            incoming().mediaUrls.size() == 1)) &&
+          incoming().photoBase64 is string &&
+          incoming().photoBase64.size() > 0 &&
+          incoming().photoBase64.size() <= 140000 &&
+          incoming().mediaType == 'image' &&
+          incoming().contentType == 'image/jpeg' &&
           incoming().quote is string && incoming().quote.size() <= 300 &&
           incoming().sizeBytes is int && incoming().sizeBytes > 0 &&
-          incoming().sizeBytes <= 10 * 1048576 &&
+          incoming().sizeBytes <= 100 * 1024 &&
           incoming().createdAt == request.time;
         allow update: if false;
-        allow delete: if isSignedIn() && request.auth.uid == userId;
+        allow delete: if isSignedIn() && request.auth.uid == userId && momentId != 'lifetime_photo';
 
         match /likes/{likerId} {
           allow read: if isSignedIn();

@@ -821,8 +821,8 @@ service cloud.firestore {
           get(/databases/$(database)/documents/users/$(userId)).data.accountStatus == 'ACTIVE';
         allow create: if isSignedIn() &&
           request.auth.uid == userId &&
-          momentId == 'lifetime_photo' &&
-          !exists(/databases/$(database)/documents/users/$(userId)/moments/lifetime_photo) &&
+          isValidId(momentId) &&
+          !exists(/databases/$(database)/documents/users/$(userId)/moments/$(momentId)) &&
           incoming().keys().hasOnly(['ownerId', 'photoBase64', 'mediaType', 'contentType', 'sizeBytes', 'quote', 'createdAt']) &&
           incoming().ownerId == userId &&
           incoming().photoBase64 is string &&

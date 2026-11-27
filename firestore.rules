@@ -907,15 +907,10 @@ service cloud.firestore {
         allow create, update: if isSignedIn() &&
           request.auth.uid == visitorId &&
           request.auth.uid != userId &&
-          isValidId(visitorId) &&
-          incoming().keys().hasOnly(['visitorId', 'visitorName', 'visitorAvatarUrl', 'visitedAt']) &&
           incoming().visitorId == request.auth.uid &&
-          incoming().visitorName is string && incoming().visitorName.size() >= 1 &&
-          incoming().visitorName.size() <= 30 &&
-          incoming().visitorAvatarUrl is string && incoming().visitorAvatarUrl.size() <= 500 &&
-          isValidTs(incoming().visitedAt) &&
-          (!exists(/databases/$(database)/documents/users/$(userId)/visitors/$(visitorId)) ||
-           existing().visitorId == request.auth.uid);
+          incoming().visitorName is string &&
+          incoming().visitorAvatarUrl is string &&
+          incoming().visitedAt is timestamp;
         allow delete: if false;
       }
 

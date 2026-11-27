@@ -40,7 +40,7 @@ import com.example.data.model.VibeShopCatalog
 import com.example.data.model.ShopCosmeticItem
 import com.example.ui.components.VibeCoinIcon
 import com.example.ui.components.VibeAvatar
-import com.example.ui.components.VipBadgePill
+import com.example.ui.components.VipMiniBadge
 import com.example.ui.theme.VibeGold
 import com.example.ui.theme.VibeViolet
 
@@ -258,7 +258,7 @@ private fun ShopCard(
                     frameColorArgb = previewFrameColorArgb
                 )
             } else if (vipLevel != null) {
-                VipBadgePill(vipLevel = vipLevel.toLong())
+                VipMiniBadge(vipLevel = vipLevel.toLong())
             } else {
                 Text(icon, style = MaterialTheme.typography.headlineMedium)
             }

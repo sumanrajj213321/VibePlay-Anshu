@@ -51,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
@@ -152,12 +153,12 @@ fun RoomsHubScreen(
             ) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = if (hasCreatedRoom) "My Room" else "Rooms",
+                        text = "Rooms",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (hasCreatedRoom) "Your room and rooms you have joined." else "Create a room or join an existing voice room.",
+                        text = if (hasCreatedRoom) "Your live spaces" else "Create a room or join an existing voice room.",
                         style = MaterialTheme.typography.bodySmall,
                         color = VibeCyan
                     )
@@ -173,11 +174,70 @@ fun RoomsHubScreen(
 
         if (hasCreatedRoom && myCreatedLiveRoom != null) {
             item {
-                OutlinedButton(
-                    onClick = { onOpenRoom(myCreatedLiveRoom) },
-                    modifier = Modifier.fillMaxWidth().testTag("open_my_created_room_button")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(142.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFF26163F), Color(0xFF57366F), Color(0xFFB86E9D))
+                            )
+                        )
+                        .clickable { onOpenRoom(myCreatedLiveRoom) }
+                        .testTag("open_my_created_room_button")
                 ) {
-                    Text("My Room (${myCreatedLiveRoom.title})", fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "❀",
+                        modifier = Modifier.align(Alignment.CenterEnd).padding(end = 8.dp),
+                        color = Color(0xFFFFC7E8).copy(alpha = 0.30f),
+                        style = MaterialTheme.typography.displayLarge
+                    )
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .fillMaxWidth(0.66f)
+                            .padding(start = 18.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Text(
+                            "YOUR ROOM",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White.copy(alpha = 0.78f),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            myCreatedLiveRoom.title.ifBlank { "${currentUser.username}'s Room" },
+                            style = MaterialTheme.typography.titleLarge,
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            if (myCreatedLiveRoom.listenerCount + myCreatedLiveRoom.activeSpeakersCount == 0)
+                                "Nobody in right now"
+                            else "${myCreatedLiveRoom.listenerCount + myCreatedLiveRoom.activeSpeakersCount} online",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.88f),
+                            maxLines = 1
+                        )
+                    }
+                    Surface(
+                        modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
+                        shape = RoundedCornerShape(50),
+                        color = Color.White,
+                        shadowElevation = 4.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 17.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(7.dp)
+                        ) {
+                            Text("Enter", color = Color(0xFF7046E8), fontWeight = FontWeight.Bold)
+                            Text("›", color = Color(0xFF7046E8), style = MaterialTheme.typography.titleLarge)
+                        }
+                    }
                 }
             }
         }

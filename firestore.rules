@@ -28,6 +28,27 @@ service cloud.firestore {
       return ts is timestamp && ts <= request.time;
     }
 
+
+    function isValidVisitorsSubscriptionPurchase(data, oldData) {
+      let coinDelta = oldData.coinBalance - data.coinBalance;
+      let days = coinDelta == 50000 ? 3 : (coinDelta == 500000 ? 30 : 0);
+      let oldExpiry = ('visitorsExpiresAt' in oldData && oldData.visitorsExpiresAt is timestamp)
+        ? oldData.visitorsExpiresAt : request.time;
+      let baseExpiry = oldExpiry > request.time ? oldExpiry : request.time;
+      let expectedExpiry = baseExpiry + duration.value(days, 'd');
+      return days in [3, 30] &&
+        oldData.coinBalance is int && data.coinBalance is int &&
+        data.coinBalance >= 0 &&
+        data.visitorsExpiresAt is timestamp &&
+        data.visitorsExpiresAt > expectedExpiry - duration.value(1, 'm') &&
+        data.visitorsExpiresAt <= expectedExpiry + duration.value(1, 'm') &&
+        data.visitorsSubscriptionUpdatedAt == request.time &&
+        data.updatedAt == request.time &&
+        data.diff(oldData).affectedKeys().hasOnly([
+          'coinBalance', 'visitorsExpiresAt', 'visitorsSubscriptionUpdatedAt', 'updatedAt'
+        ]);
+    }
+
     function vipTierPrice(level) {
       // Keep Firestore purchase validation aligned with the VIP Shop catalog.
       return level == 1 ? 1500000 :
@@ -688,6 +709,8 @@ service cloud.firestore {
                         incoming().diff(existing()).affectedKeys().hasOnly([
                           'coinBalance', 'vipLevel', 'vipExpiresAt', 'updatedAt'
                         ])) ||
+                (isSignedIn() && request.auth.uid == userId &&
+                 isValidVisitorsSubscriptionPurchase(incoming(), existing())) ||
                 (isSignedIn() && isValidId(userId) &&
                                        request.auth.uid == userId &&
                                        incoming().role == existing().role &&
@@ -881,7 +904,19 @@ service cloud.firestore {
           ('visitorsExpiresAt' in get(/databases/$(database)/documents/users/$(userId)).data) &&
           get(/databases/$(database)/documents/users/$(userId)).data.visitorsExpiresAt is timestamp &&
           get(/databases/$(database)/documents/users/$(userId)).data.visitorsExpiresAt > request.time;
-        allow create, update, delete: if false;
+        allow create, update: if isSignedIn() &&
+          request.auth.uid == visitorId &&
+          request.auth.uid != userId &&
+          isValidId(visitorId) &&
+          incoming().keys().hasOnly(['visitorId', 'visitorName', 'visitorAvatarUrl', 'visitedAt']) &&
+          incoming().visitorId == request.auth.uid &&
+          incoming().visitorName == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username &&
+          incoming().visitorAvatarUrl == (('avatarUrl' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data)
+            ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.avatarUrl : '') &&
+          incoming().visitedAt == request.time &&
+          (!exists(/databases/$(database)/documents/users/$(userId)/visitors/$(visitorId)) ||
+           existing().visitorId == request.auth.uid);
+        allow delete: if false;
       }
 
       match /avatar/{avatarDocId} {

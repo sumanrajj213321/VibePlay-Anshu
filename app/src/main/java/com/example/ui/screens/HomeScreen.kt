@@ -1,5 +1,10 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -55,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -241,8 +247,8 @@ fun HomeScreen(
         // Equal-size Home shortcuts; Profile Shop remains unchanged.
         item {
             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                HomeShortcutCard("VibePlay Shop", "Discover items", VibePink, "SHOP", Modifier.weight(1f).height(112.dp), onOpenShop)
-                HomeShortcutCard("Game Zone", "Fruit Treasure", VibeCyan, "PLAY", Modifier.weight(1f).height(112.dp), onOpenGame)
+                HomeShortcutCard("VibePlay Shop", "Discover items", VibePink, "SHOP", Modifier.weight(1f).height(112.dp), isGame = false, onClick = onOpenShop)
+                HomeShortcutCard("Game Zone", "Fruit Treasure", VibeCyan, "PLAY", Modifier.weight(1f).height(112.dp), isGame = true, onClick = onOpenGame)
             }
         }
 
@@ -836,11 +842,138 @@ private fun EmptyRoomsPrompt(onCreateRoomClick: () -> Unit) {
 
 
 @Composable
-private fun HomeShortcutCard(title: String, subtitle: String, accent: Color, symbol: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
- Surface(modifier = modifier.clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick), shape = RoundedCornerShape(20.dp), color = accent.copy(alpha = 0.13f), border = BorderStroke(1.4.dp, accent.copy(alpha = 0.85f))) {
-  Row(modifier = Modifier.fillMaxSize().background(Brush.linearGradient(listOf(accent.copy(alpha = 0.24f), Color.Transparent))).padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-   Surface(shape = RoundedCornerShape(14.dp), color = accent.copy(alpha = 0.22f)) { Box(modifier = Modifier.size(46.dp), contentAlignment = Alignment.Center) { Text(symbol, color = accent, fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelLarge) } }
-   Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) { Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis); Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-  }
- }
+private fun HomeShortcutCard(
+    title: String,
+    subtitle: String,
+    accent: Color,
+    symbol: String,
+    modifier: Modifier = Modifier,
+    isGame: Boolean,
+    onClick: () -> Unit
+) {
+    val motion = rememberInfiniteTransition(label = "home_shortcut_motion")
+    val drift by motion.animateFloat(
+        initialValue = -5f,
+        targetValue = 5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = if (isGame) 1_050 else 1_650),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "shortcut_drift"
+    )
+    val glow by motion.animateFloat(
+        initialValue = 0.10f,
+        targetValue = 0.26f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1_900),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "shortcut_glow"
+    )
+    val orbitOne = if (isGame) "🪙" else "👑"
+    val orbitTwo = if (isGame) "💎" else "✨"
+
+    Surface(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        color = accent.copy(alpha = 0.13f),
+        border = BorderStroke(1.4.dp, accent.copy(alpha = 0.9f))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            accent.copy(alpha = glow + 0.12f),
+                            Color.Transparent,
+                            accent.copy(alpha = 0.08f)
+                        )
+                    )
+                )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = accent.copy(alpha = 0.24f)
+                ) {
+                    Box(
+                        modifier = Modifier.size(46.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (isGame) "🎮" else "🛍️",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // Small floating category icons make each shortcut feel alive without
+            // changing the existing card size or tap target.
+            Text(
+                text = orbitOne,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(end = 12.dp, top = 5.dp)
+                    .graphicsLayer {
+                        translationY = drift
+                        rotationZ = if (isGame) drift * 1.5f else drift
+                    },
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                text = orbitTwo,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 14.dp, bottom = 7.dp)
+                    .graphicsLayer {
+                        translationY = -drift
+                        rotationZ = -drift * 2f
+                        alpha = 0.72f + (glow * 0.8f)
+                    },
+                style = MaterialTheme.typography.labelLarge
+            )
+            Text(
+                text = symbol,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 13.dp, top = 5.dp)
+                    .graphicsLayer {
+                        translationY = -drift * 0.55f
+                        alpha = 0.48f + glow
+                    },
+                color = accent,
+                fontWeight = FontWeight.Black,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+    }
 }

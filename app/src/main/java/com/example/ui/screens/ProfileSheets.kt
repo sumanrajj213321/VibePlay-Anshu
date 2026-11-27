@@ -98,6 +98,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -1024,8 +1025,17 @@ fun PublicProfileSheet(
 
     LaunchedEffect(currentUserId, targetUser.userId) {
         if (currentUserId.isNotBlank() && targetUser.userId.isNotBlank() && currentUserId != targetUser.userId) {
-            FirebaseFunctions.getInstance("asia-south1").getHttpsCallable("recordProfileVisit")
-                .call(mapOf("profileUserId" to targetUser.userId))
+            val db = FirebaseFirestore.getInstance()
+            db.collection("users").document(currentUserId).get().addOnSuccessListener { visitor ->
+                val visitorRef = db.collection("users").document(targetUser.userId)
+                    .collection("visitors").document(currentUserId)
+                visitorRef.set(mapOf(
+                    "visitorId" to currentUserId,
+                    "visitorName" to (visitor.getString("username") ?: "VibeUser"),
+                    "visitorAvatarUrl" to visitor.getString("avatarUrl").orEmpty(),
+                    "visitedAt" to FieldValue.serverTimestamp()
+                ), SetOptions.merge())
+            }
         }
     }
 

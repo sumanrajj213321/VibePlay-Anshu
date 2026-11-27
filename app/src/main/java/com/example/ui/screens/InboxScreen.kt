@@ -120,7 +120,7 @@ import com.example.ui.theme.VibeViolet
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.Timestamp
+import com.google.firebase.Timestamp
 import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.Flow
 import java.security.MessageDigest

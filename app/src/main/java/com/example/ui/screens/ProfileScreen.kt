@@ -10,7 +10,6 @@ import com.google.firebase.storage.FirebaseStorage
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Add
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
@@ -857,9 +856,12 @@ fun ProfileScreen(
                     .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
                     .limit(30)
                     .addSnapshotListener { snapshot, _ ->
-                        moments = snapshot?.documents.orEmpty().map { doc ->
-                            doc.data.orEmpty() + mapOf("id" to doc.id)
-                        }
+                        moments = snapshot?.documents.orEmpty()
+                            .filter { doc ->
+                                doc.getString("mediaType") == "image" &&
+                                    doc.getString("contentType") == "image/jpeg"
+                            }
+                            .map { doc -> doc.data.orEmpty() + mapOf("id" to doc.id) }
                     }
                 onDispose { registration.remove() }
             }
@@ -919,35 +921,25 @@ fun ProfileScreen(
                     ) {
                         moments.forEach { moment ->
                             val mediaUrl = moment["mediaUrl"] as? String ?: ""
-                            val isVideo = moment["mediaType"] == "video"
                             Surface(
-                                modifier = Modifier.size(width = 132.dp, height = 168.dp).clickable {
-                                    if (mediaUrl.isNotBlank()) {
-                                        context.startActivity(
-                                            Intent(Intent.ACTION_VIEW, Uri.parse(mediaUrl)).apply {
-                                                setDataAndType(Uri.parse(mediaUrl), if (isVideo) "video/*" else "image/*")
-                                            }
-                                        )
-                                    }
+                                modifier = Modifier.size(width = 132.dp, height = 168.dp).clickable(enabled = mediaUrl.isNotBlank()) {
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse(mediaUrl)).apply {
+                                            setDataAndType(Uri.parse(mediaUrl), "image/*")
+                                        }
+                                    )
                                 },
                                 shape = RoundedCornerShape(16.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant,
                                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    if (!isVideo && mediaUrl.isNotBlank()) {
-                                        AsyncImage(
-                                            model = mediaUrl,
-                                            contentDescription = "Moment photo",
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentScale = ContentScale.Crop
-                                        )
-                                    } else {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Icon(Icons.Filled.PlayArrow, contentDescription = "Play video", tint = VibePink, modifier = Modifier.size(42.dp))
-                                            Text("VIDEO", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
+                                if (mediaUrl.isNotBlank()) {
+                                    AsyncImage(
+                                        model = mediaUrl,
+                                        contentDescription = "Moment photo",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
                                 }
                             }
                         }

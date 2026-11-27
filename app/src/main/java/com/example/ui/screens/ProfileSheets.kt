@@ -98,6 +98,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -1020,6 +1021,13 @@ fun PublicProfileSheet(
     var showPublicRelationship by remember(targetUser.userId) { mutableStateOf(true) }
     val isSelf = currentUserId.isNotBlank() && targetUser.userId == currentUserId
     var activeUserRoom by remember(targetUser.userId) { mutableStateOf<VoiceRoom?>(null) }
+
+    LaunchedEffect(currentUserId, targetUser.userId) {
+        if (currentUserId.isNotBlank() && targetUser.userId.isNotBlank() && currentUserId != targetUser.userId) {
+            FirebaseFunctions.getInstance("asia-south1").getHttpsCallable("recordProfileVisit")
+                .call(mapOf("profileUserId" to targetUser.userId))
+        }
+    }
 
     DisposableEffect(targetUser.userId, liveRooms.map { it.id }) {
         activeUserRoom = null

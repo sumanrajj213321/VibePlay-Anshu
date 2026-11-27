@@ -1883,6 +1883,7 @@ fun NotificationsCenterSheet(
 }
 
 
+
 private data class VisitorRow(
     val id: String,
     val name: String,
@@ -1900,6 +1901,32 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
     var message by remember { mutableStateOf("") }
     var hasAccess by remember { mutableStateOf(false) }
 
+    val purchase: (Int) -> Unit = { days ->
+        purchasing = true
+        message = ""
+        db.runTransaction { tx ->
+            val ref = db.collection("users").document(currentUser.userId)
+            val snap = tx.get(ref)
+            val balance = snap.getLong("coinBalance") ?: 0L
+            val currentExpiry = snap.getTimestamp("visitorsExpiresAt")?.toDate()?.time ?: 0L
+            val price = if (days == 3) 50000L else 500000L
+            if (balance < price) throw IllegalStateException("Not enough coins.")
+            val expiry = maxOf(System.currentTimeMillis(), currentExpiry) + days * 24L * 60L * 60L * 1000L
+            tx.update(ref, mapOf(
+                "coinBalance" to balance - price,
+                "visitorsExpiresAt" to Timestamp(java.util.Date(expiry)),
+                "visitorsSubscriptionUpdatedAt" to FieldValue.serverTimestamp(),
+                "updatedAt" to FieldValue.serverTimestamp()
+            ))
+        }.addOnSuccessListener {
+            purchasing = false
+            message = "Visitors subscription extended by $days days."
+        }.addOnFailureListener { error ->
+            purchasing = false
+            message = error.localizedMessage ?: "Purchase failed. Try again."
+        }
+    }
+
     DisposableEffect(currentUser.userId) {
         val profileListener = db.collection("users").document(currentUser.userId)
             .addSnapshotListener { snapshot, error ->
@@ -1916,12 +1943,7 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
             .collection("visitors")
             .orderBy("visitedAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    if (error.code != com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
-                        message = "Visitors list load nahi ho payi."
-                    }
-                    return@addSnapshotListener
-                }
+                if (error != null) return@addSnapshotListener
                 visitors = snapshot?.documents.orEmpty().map { doc ->
                     VisitorRow(
                         id = doc.id,
@@ -1945,74 +1967,32 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
             Text("Visitors", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
         if (loading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = VibeCyan) }
-            return@Column
-        }
-        if (!hasAccess) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = VibeCyan)
+            }
+        } else if (!hasAccess) {
             Column(
                 Modifier.fillMaxWidth().padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text("See who visited your profile", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text("Visitors list dekhne ke liye subscription lo. Purani visit history safe rahegi.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Visitors list dekhne ke liye subscription lo. Purani visit history saved rahegi.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Surface(shape = RoundedCornerShape(18.dp), color = VibeCyan.copy(alpha = 0.08f), border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.35f))) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("3 Days", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text("50,000 coins", color = VibeGold, fontWeight = FontWeight.Bold)
-                        Button(
-                            onClick = {
-                                purchasing = true
-                                message = ""
-                                db.runTransaction { tx ->
-                                    val ref = db.collection("users").document(currentUser.userId)
-                                    val snap = tx.get(ref)
-                                    val balance = snap.getLong("coinBalance") ?: 0L
-                                    val currentExpiry = snap.getTimestamp("visitorsExpiresAt")?.toDate()?.time ?: 0L
-                                    val price = if (true) 50000L else 500000L
-                                    if (balance < price) throw IllegalStateException("Not enough coins.")
-                                    val expiry = maxOf(System.currentTimeMillis(), currentExpiry) + days * 24L * 60L * 60L * 1000L
-                                    tx.update(ref, mapOf(
-                                        "coinBalance" to balance - price,
-                                        "visitorsExpiresAt" to Timestamp(java.util.Date(expiry)),
-                                        "visitorsSubscriptionUpdatedAt" to FieldValue.serverTimestamp(),
-                                        "updatedAt" to FieldValue.serverTimestamp()
-                                    ))
-                                }.addOnSuccessListener { purchasing = false; message = "${days}-day Visitors access activated." }
-                                    .addOnFailureListener { e -> purchasing = false; message = e.localizedMessage ?: "Purchase failed. Try again." }
-                            },
-                            enabled = !purchasing,
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text(if (purchasing) "Please wait..." else "Buy for 50,000 coins") }
+                        Button(onClick = { purchase(3) }, enabled = !purchasing, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (purchasing) "Please wait..." else "Buy for 50,000 coins")
+                        }
                     }
                 }
                 Surface(shape = RoundedCornerShape(18.dp), color = VibeGold.copy(alpha = 0.08f), border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.35f))) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("30 Days", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text("5,00,000 coins", color = VibeGold, fontWeight = FontWeight.Bold)
-                        Button(
-                            onClick = {
-                                purchasing = true
-                                message = ""
-                                db.runTransaction { tx ->
-                                    val ref = db.collection("users").document(currentUser.userId)
-                                    val snap = tx.get(ref)
-                                    val balance = snap.getLong("coinBalance") ?: 0L
-                                    val currentExpiry = snap.getTimestamp("visitorsExpiresAt")?.toDate()?.time ?: 0L
-                                    val price = if (false) 50000L else 500000L
-                                    if (balance < price) throw IllegalStateException("Not enough coins.")
-                                    val expiry = maxOf(System.currentTimeMillis(), currentExpiry) + days * 24L * 60L * 60L * 1000L
-                                    tx.update(ref, mapOf(
-                                        "coinBalance" to balance - price,
-                                        "visitorsExpiresAt" to Timestamp(java.util.Date(expiry)),
-                                        "visitorsSubscriptionUpdatedAt" to FieldValue.serverTimestamp(),
-                                        "updatedAt" to FieldValue.serverTimestamp()
-                                    ))
-                                }.addOnSuccessListener { purchasing = false; message = "${days}-day Visitors access activated." }
-                                    .addOnFailureListener { e -> purchasing = false; message = e.localizedMessage ?: "Purchase failed. Try again." }
-                            },
-                            enabled = !purchasing,
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text(if (purchasing) "Please wait..." else "Buy for 5,00,000 coins") }
+                        Button(onClick = { purchase(30) }, enabled = !purchasing, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (purchasing) "Please wait..." else "Buy for 5,00,000 coins")
+                        }
                     }
                 }
                 if (message.isNotBlank()) Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2020,47 +2000,20 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
         } else {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
                 Text("Subscription active", color = VibeEmerald, fontWeight = FontWeight.Bold)
-                Text("Valid till " + (subscriptionExpiry?.toDate()?.let { SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(it) } ?: ""), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Visitors history is saved. Renew anytime to extend access.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "Valid till " + (subscriptionExpiry?.toDate()?.let {
+                        SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(it)
+                    } ?: ""),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                    OutlinedButton(onClick = {
-                        purchasing = true
-                        db.runTransaction { tx ->
-                                    val ref = db.collection("users").document(currentUser.userId)
-                                    val snap = tx.get(ref)
-                                    val balance = snap.getLong("coinBalance") ?: 0L
-                                    val currentExpiry = snap.getTimestamp("visitorsExpiresAt")?.toDate()?.time ?: 0L
-                                    val price = if (true) 50000L else 500000L
-                                    if (balance < price) throw IllegalStateException("Not enough coins.")
-                                    val expiry = maxOf(System.currentTimeMillis(), currentExpiry) + days * 24L * 60L * 60L * 1000L
-                                    tx.update(ref, mapOf(
-                                        "coinBalance" to balance - price,
-                                        "visitorsExpiresAt" to Timestamp(java.util.Date(expiry)),
-                                        "visitorsSubscriptionUpdatedAt" to FieldValue.serverTimestamp(),
-                                        "updatedAt" to FieldValue.serverTimestamp()
-                                    ))
-                                }.addOnSuccessListener { purchasing = false; message = "${days}-day Visitors access activated." }
-                                    .addOnFailureListener { e -> purchasing = false; message = e.localizedMessage ?: "Purchase failed. Try again." }
-                    }, enabled = !purchasing, modifier = Modifier.weight(1f)) { Text("3 days · 50K") }
-                    OutlinedButton(onClick = {
-                        purchasing = true
-                        db.runTransaction { tx ->
-                                    val ref = db.collection("users").document(currentUser.userId)
-                                    val snap = tx.get(ref)
-                                    val balance = snap.getLong("coinBalance") ?: 0L
-                                    val currentExpiry = snap.getTimestamp("visitorsExpiresAt")?.toDate()?.time ?: 0L
-                                    val price = if (false) 50000L else 500000L
-                                    if (balance < price) throw IllegalStateException("Not enough coins.")
-                                    val expiry = maxOf(System.currentTimeMillis(), currentExpiry) + days * 24L * 60L * 60L * 1000L
-                                    tx.update(ref, mapOf(
-                                        "coinBalance" to balance - price,
-                                        "visitorsExpiresAt" to Timestamp(java.util.Date(expiry)),
-                                        "visitorsSubscriptionUpdatedAt" to FieldValue.serverTimestamp(),
-                                        "updatedAt" to FieldValue.serverTimestamp()
-                                    ))
-                                }.addOnSuccessListener { purchasing = false; message = "${days}-day Visitors access activated." }
-                                    .addOnFailureListener { e -> purchasing = false; message = e.localizedMessage ?: "Purchase failed. Try again." }
-                    }, enabled = !purchasing, modifier = Modifier.weight(1f)) { Text("30 days · 5L") }
+                    OutlinedButton(onClick = { purchase(3) }, enabled = !purchasing, modifier = Modifier.weight(1f)) {
+                        Text("3 days · 50K")
+                    }
+                    OutlinedButton(onClick = { purchase(30) }, enabled = !purchasing, modifier = Modifier.weight(1f)) {
+                        Text("30 days · 5L")
+                    }
                 }
                 if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall)
             }
@@ -2081,7 +2034,11 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(visitor.name, fontWeight = FontWeight.SemiBold)
-                                    Text(visitor.visitedAt?.toDate()?.let { formatVisitorAge(it.time) } ?: "Just now", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        visitor.visitedAt?.toDate()?.let { formatVisitorAge(it.time) } ?: "Just now",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
                         }

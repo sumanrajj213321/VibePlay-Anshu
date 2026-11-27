@@ -444,7 +444,11 @@ test("User profile creation, private subcollection isolation, daily reward, and 
 
   // Create valid initial profile
   await assertSucceeds(
-    aliceDb.collection("users").doc(ALICE_UID).set(makeUserPayload(ALICE_UID, "Alice", "VP-100001"))
+    aliceDb.collection("users").doc(ALICE_UID).set({
+      ...makeUserPayload(ALICE_UID, "Alice", "VP-100001"),
+      // Seed enough test coins to cover the current VIP 1 price after the daily reward.
+      coinBalance: 1500000,
+    })
   );
 
   // Reject creating profile with inflated coins or ADMIN role
@@ -477,7 +481,7 @@ test("User profile creation, private subcollection isolation, daily reward, and 
   // Valid daily login reward claim (+100000 coins)
   await assertSucceeds(
     aliceDb.collection("users").doc(ALICE_UID).update({
-      coinBalance: 1100500,
+      coinBalance: 1600000,
       lastDailyClaimDay: indiaDay(),
       lastDailyClaimAt: pastDate(1000),
       xp: 50,
@@ -498,10 +502,10 @@ test("User profile creation, private subcollection isolation, daily reward, and 
     })
   );
 
-  // Valid VIP 1 upgrade (100,000 coins)
+  // Valid VIP 1 upgrade (1,500,000 coins)
   await assertSucceeds(
     aliceDb.collection("users").doc(ALICE_UID).update({
-      coinBalance: 1000500,
+      coinBalance: 100000,
       vipLevel: 1,
       vipExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       updatedAt: pastDate(),

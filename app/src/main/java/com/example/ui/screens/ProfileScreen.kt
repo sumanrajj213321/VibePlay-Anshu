@@ -17,6 +17,14 @@ import android.os.ParcelFileDescriptor
 import java.io.InputStream
 import android.content.Intent
 import android.util.Base64
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.animation.core.tween
@@ -464,7 +472,7 @@ fun ProfileScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(165.dp),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Fit
                     )
                 }
                 Box(
@@ -819,6 +827,7 @@ fun ProfileScreen(
             var pendingMomentUri by remember { mutableStateOf<Uri?>(null) }
             var momentQuote by remember { mutableStateOf("") }
             var showMomentComposer by remember { mutableStateOf(false) }
+            var showAllMoments by remember { mutableStateOf(false) }
 
             val photoPicker = rememberLauncherForActivityResult(
                 ActivityResultContracts.OpenDocument()
@@ -872,8 +881,11 @@ fun ProfileScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("Moments", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                        IconButton(onClick = { showAllMoments = true }) {
+                            Icon(Icons.Filled.PhotoLibrary, contentDescription = "View all Moments", tint = VibeCyan)
+                        }
                     }
                     if (isOwnProfile) {
                         OutlinedButton(
@@ -901,7 +913,7 @@ fun ProfileScreen(
                     }
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        moments.forEach { moment ->
+                        moments.take(1).forEach { moment ->
                             val momentId = moment["id"] as? String ?: return@forEach
                             val legacyUrl = moment["mediaUrl"] as? String ?: ""
                             val photoBase64 = moment["photoBase64"] as? String
@@ -931,12 +943,7 @@ fun ProfileScreen(
                                         modifier = Modifier.fillMaxWidth().height(220.dp)
                                             .clip(RoundedCornerShape(12.dp))
                                             .background(MaterialTheme.colorScheme.surface)
-                                            .clickable(enabled = photoBitmap == null && legacyUrl.isNotBlank()) {
-                                                context.startActivity(Intent(Intent.ACTION_VIEW).apply {
-                                                    setDataAndType(Uri.parse(legacyUrl), "image/jpeg")
-                                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                })
-                                            },
+                                            .clickable { showAllMoments = true },
                                         contentAlignment = Alignment.Center
                                     ) {
                                         if (photoBitmap != null) {
@@ -958,6 +965,80 @@ fun ProfileScreen(
                                         }
                                     }
                             MomentEngagement(ownerId = profile.userId, momentId = momentId)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (showAllMoments) {
+                Dialog(
+                    onDismissRequest = { showAllMoments = false },
+                    properties = DialogProperties(usePlatformDefaultWidth = false)
+                ) {
+                    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                        Column(Modifier.fillMaxSize()) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("All Moments", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                IconButton(onClick = { showAllMoments = false }) {
+                                    Icon(Icons.Filled.Close, contentDescription = "Close Moments")
+                                }
+                            }
+                            LazyColumn(
+                                Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                items(moments, key = { it["id"] as? String ?: it.hashCode().toString() }) { moment ->
+                                    val id = moment["id"] as? String ?: return@items
+                                    val encoded = moment["photoBase64"] as? String
+                                    val url = moment["mediaUrl"] as? String ?: ""
+                                    val bitmap = remember(encoded) {
+                                        runCatching {
+                                            encoded?.let { data ->
+                                                val bytes = Base64.decode(data, Base64.DEFAULT)
+                                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                            }
+                                        }.getOrNull()
+                                    }
+                                    var zoom by remember(id) { mutableStateOf(1f) }
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        val quote = moment["quote"] as? String ?: ""
+                                        if (quote.isNotBlank()) Text("“$quote”", fontWeight = FontWeight.SemiBold)
+                                        Box(
+                                            Modifier.fillMaxWidth().height(380.dp)
+                                                .clip(RoundedCornerShape(14.dp))
+                                                .background(MaterialTheme.colorScheme.surface)
+                                                .pointerInput(id) {
+                                                    detectTransformGestures { _, _, zoomChange, _ ->
+                                                        zoom = (zoom * zoomChange).coerceIn(1f, 5f)
+                                                    }
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (bitmap != null) {
+                                                Image(bitmap.asImageBitmap(), "Moment photo",
+                                                    Modifier.fillMaxSize().graphicsLayer { scaleX = zoom; scaleY = zoom },
+                                                    contentScale = ContentScale.Fit)
+                                            } else if (url.isNotBlank()) {
+                                                AsyncImage(url, "Moment photo",
+                                                    Modifier.fillMaxSize().graphicsLayer { scaleX = zoom; scaleY = zoom },
+                                                    contentScale = ContentScale.Fit)
+                                            } else Text("Photo unavailable")
+                                        }
+                                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            TextButton(onClick = { zoom = (zoom / 1.25f).coerceAtLeast(1f) }) { Text("−") }
+                                            Text((zoom * 100).toInt().toString() + "%")
+                                            TextButton(onClick = { zoom = (zoom * 1.25f).coerceAtMost(5f) }) { Text("+") }
+                                            TextButton(onClick = { zoom = 1f }) { Text("Reset") }
+                                        }
+                                        MomentEngagement(ownerId = profile.userId, momentId = id)
+                                    }
                                 }
                             }
                         }

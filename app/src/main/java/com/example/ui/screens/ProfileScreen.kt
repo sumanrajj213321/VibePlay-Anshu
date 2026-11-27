@@ -2,6 +2,20 @@ package com.example.ui.screens
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import com.google.firebase.storage.FirebaseStorage
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material.icons.filled.Add
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import android.net.Uri
+import android.content.Intent
 import android.util.Base64
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.geometry.Offset
@@ -29,6 +43,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -44,6 +59,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -246,8 +262,8 @@ fun ProfileScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentPadding = PaddingValues(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
         if (linkedPartnerId.isNotBlank()) {
             item {
@@ -399,7 +415,7 @@ fun ProfileScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(215.dp)
+                    .height(190.dp)
             ) {
                 if (isFirestoreCover && firestoreCoverBitmap != null) {
                     AsyncImage(
@@ -407,7 +423,7 @@ fun ProfileScreen(
                         contentDescription = "Profile cover image",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(165.dp),
+                            .height(145.dp),
                         contentScale = ContentScale.Fit
                     )
                 } else if (!isFirestoreCover && profile.coverUrl.isNotBlank() && !coverLoadFailed) {
@@ -452,7 +468,7 @@ fun ProfileScreen(
                     VibeAvatar(
                         avatarUrl = profile.avatarUrl,
                         username = profile.username,
-                        size = 86.dp,
+                        size = 78.dp,
                         vipLevel = if (profile.isVipActive) profile.vipLevel else 0L,
                         online = profile.online && profile.showOnlineStatus,
                         frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == profile.activeFrameId && profile.isFrameActive(it.id) }?.colorArgb
@@ -475,8 +491,8 @@ fun ProfileScreen(
         // Premium identity: username/VIP, ID number, level and equipped title.
         item {
             Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(11.dp)
+                modifier = Modifier.padding(horizontal = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -716,8 +732,8 @@ fun ProfileScreen(
                     .sortedByDescending { it.second }
             }
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -765,6 +781,165 @@ fun ProfileScreen(
                                     }
                                     Text(gift.name, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text("×$quantity", style = MaterialTheme.typography.labelSmall, color = VibeCyan, fontWeight = FontWeight.ExtraBold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Moments: public profile media shared by this user.
+        item(key = "profile_moments") {
+            val context = LocalContext.current
+            val scope = rememberCoroutineScope()
+            var moments by remember(profile.userId) { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
+            var uploadingMoment by remember(profile.userId) { mutableStateOf(false) }
+            var momentError by remember(profile.userId) { mutableStateOf("") }
+            val momentPicker = rememberLauncherForActivityResult(
+                ActivityResultContracts.PickVisualMedia()
+            ) { uri: Uri? ->
+                if (uri != null && isOwnProfile) {
+                    uploadingMoment = true
+                    momentError = ""
+                    scope.launch {
+                        try {
+                            val photoBytes = withContext(Dispatchers.IO) {
+                                compressMomentPhoto(context, uri)
+                            }
+                            if (photoBytes.size > 100 * 1024) {
+                                throw IllegalStateException("Maximum upload size is 100 KB")
+                            }
+                            val uid = FirebaseAuth.getInstance().currentUser?.uid
+                                ?: throw IllegalStateException("Please sign in again")
+                            val momentId = FirebaseFirestore.getInstance().collection("users")
+                                .document(uid).collection("moments").document().id
+                            val mediaRef = FirebaseStorage.getInstance().reference
+                                .child("moments/$uid/$momentId.jpg")
+                            mediaRef.putBytes(photoBytes)
+                                .continueWithTask { task ->
+                                    if (!task.isSuccessful) throw (task.exception ?: Exception("Upload failed"))
+                                    mediaRef.downloadUrl
+                                }
+                                .addOnSuccessListener { downloadUri ->
+                                    val data = mapOf(
+                                        "ownerId" to uid,
+                                        "mediaUrl" to downloadUri.toString(),
+                                        "mediaType" to "image",
+                                        "contentType" to "image/jpeg",
+                                        "sizeBytes" to photoBytes.size,
+                                        "createdAt" to FieldValue.serverTimestamp()
+                                    )
+                                    FirebaseFirestore.getInstance().collection("users")
+                                        .document(uid).collection("moments").document(momentId)
+                                        .set(data)
+                                        .addOnSuccessListener { uploadingMoment = false }
+                                        .addOnFailureListener { error ->
+                                            uploadingMoment = false
+                                            momentError = error.localizedMessage ?: "Could not publish photo"
+                                        }
+                                }
+                                .addOnFailureListener { error ->
+                                    uploadingMoment = false
+                                    momentError = error.localizedMessage ?: "Could not upload photo"
+                                }
+                        } catch (error: Exception) {
+                            uploadingMoment = false
+                            momentError = error.localizedMessage ?: "Could not prepare photo"
+                        }
+                    }
+                }
+            }
+            DisposableEffect(profile.userId) {
+                val registration = FirebaseFirestore.getInstance().collection("users")
+                    .document(profile.userId).collection("moments")
+                    .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                    .limit(30)
+                    .addSnapshotListener { snapshot, _ ->
+                        moments = snapshot?.documents.orEmpty()
+                            .filter { doc ->
+                                doc.getString("mediaType") == "image" &&
+                                    doc.getString("contentType") == "image/jpeg"
+                            }
+                            .map { doc -> doc.data.orEmpty() + mapOf("id" to doc.id) }
+                    }
+                onDispose { registration.remove() }
+            }
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Moments", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                        Text("Photos · max 100 KB", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (isOwnProfile) {
+                        OutlinedButton(
+                            onClick = {
+                                momentPicker.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            enabled = !uploadingMoment,
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.testTag("add_profile_moment_button")
+                        ) {
+                            if (uploadingMoment) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(17.dp))
+                            }
+                            Spacer(Modifier.width(5.dp))
+                            Text(if (uploadingMoment) "Uploading" else "Add Moment")
+                        }
+                    }
+                }
+                if (momentError.isNotBlank()) {
+                    Text(momentError, color = VibeCoral, style = MaterialTheme.typography.labelSmall)
+                }
+                if (moments.isEmpty()) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
+                    ) {
+                        Text(
+                            if (isOwnProfile) "Share your first photo" else "No moments shared yet",
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 18.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        moments.forEach { moment ->
+                            val mediaUrl = moment["mediaUrl"] as? String ?: ""
+                            Surface(
+                                modifier = Modifier.size(width = 132.dp, height = 168.dp).clickable(enabled = mediaUrl.isNotBlank()) {
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse(mediaUrl)).apply {
+                                            setDataAndType(Uri.parse(mediaUrl), "image/*")
+                                        }
+                                    )
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                            ) {
+                                if (mediaUrl.isNotBlank()) {
+                                    AsyncImage(
+                                        model = mediaUrl,
+                                        contentDescription = "Moment photo",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
                                 }
                             }
                         }
@@ -1067,6 +1242,46 @@ fun ProfileScreen(
                 TextButton(onClick = { selectedGiftPrice = null }) { Text("OK") }
             }
         )
+    }
+}
+
+
+private fun compressMomentPhoto(context: android.content.Context, uri: Uri): ByteArray {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        ?: throw IllegalArgumentException("Could not read selected photo")
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+        throw IllegalArgumentException("Invalid photo")
+    }
+
+    var sampleSize = 1
+    while (bounds.outWidth / sampleSize > 1600 || bounds.outHeight / sampleSize > 1600) {
+        sampleSize *= 2
+    }
+    val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+    var bitmap = context.contentResolver.openInputStream(uri)?.use {
+        BitmapFactory.decodeStream(it, null, options)
+    } ?: throw IllegalArgumentException("Could not decode selected photo")
+
+    try {
+        while (true) {
+            for (quality in listOf(85, 75, 65, 55, 45, 35, 25, 15)) {
+                val output = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)
+                val bytes = output.toByteArray()
+                if (bytes.size <= 100 * 1024) return bytes
+            }
+            val nextWidth = (bitmap.width * 0.8f).toInt().coerceAtLeast(1)
+            val nextHeight = (bitmap.height * 0.8f).toInt().coerceAtLeast(1)
+            if (nextWidth == bitmap.width || nextHeight == bitmap.height) {
+                throw IllegalStateException("Maximum upload size is 100 KB")
+            }
+            val smaller = Bitmap.createScaledBitmap(bitmap, nextWidth, nextHeight, true)
+            if (smaller !== bitmap) bitmap.recycle()
+            bitmap = smaller
+        }
+    } finally {
+        if (!bitmap.isRecycled) bitmap.recycle()
     }
 }
 

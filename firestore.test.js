@@ -109,7 +109,7 @@ test("Visitors subscriptions charge the exact price and visitor history is owner
   }));
 
   // Bob can record his own visit, but cannot impersonate another visitor.
-  const visitorRef = aliceRef.collection("visitors").doc(BOB_UID);
+  const visitorRef = bobDb.collection("users").doc(ALICE_UID).collection("visitors").doc(BOB_UID);
   await assertSucceeds(visitorRef.set({
     visitorId: BOB_UID,
     visitorName: "Bob",

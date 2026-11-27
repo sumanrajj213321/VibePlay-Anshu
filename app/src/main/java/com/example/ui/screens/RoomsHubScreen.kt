@@ -65,6 +65,7 @@ import com.example.data.model.RoomCoverPreset
 import com.example.data.model.UserProfile
 import com.example.data.model.VoiceRoom
 import com.example.ui.components.VoiceRoomCard
+import com.example.ui.components.RoomCoverImage
 import com.example.ui.components.coverDrawableRes
 import com.example.ui.state.UiState
 import com.example.ui.theme.VibeCyan
@@ -475,19 +476,62 @@ fun RoomsHubScreen(
                     }
                 }
             }
-            items(filteredLiveRooms.chunked(2), key = { row -> "hub_row_${row.first().id}" }) { roomRow ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+            items(filteredLiveRooms, key = { "hub_room_${it.id}" }) { room ->
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(104.dp)
+                        .clickable { onOpenRoom(room) }
+                        .testTag("room_list_item_${room.id}"),
+                    shape = RoundedCornerShape(22.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.28f))
                 ) {
-                    roomRow.forEach { room ->
-                        VoiceRoomCard(
-                            room = room,
-                            onClick = { onOpenRoom(room) },
-                            modifier = Modifier.weight(1f)
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        RoomCoverImage(
+                            roomId = room.id,
+                            coverUrl = room.coverUrl,
+                            fallbackCoverKey = room.coverKey,
+                            modifier = Modifier.size(84.dp).clip(RoundedCornerShape(18.dp)),
+                            contentScale = ContentScale.Crop
                         )
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Text(
+                                room.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    Modifier.size(8.dp).clip(RoundedCornerShape(50)).background(Color(0xFF20D889))
+                                )
+                                Text(
+                                    "${room.listenerCount + room.activeSpeakersCount} online",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color(0xFF20D889),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Text(
+                                room.category,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
                     }
-                    if (roomRow.size == 1) Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }

@@ -56,6 +56,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -789,7 +790,7 @@ fun ProfileScreen(
             }
         }
 
-        // Moments: public profile media shared by this user.
+        // Moments: public photo and video posts shared by this user.
         item(key = "profile_moments") {
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
@@ -804,48 +805,73 @@ fun ProfileScreen(
                     momentError = ""
                     scope.launch {
                         try {
-                            val photoBytes = withContext(Dispatchers.IO) {
-                                compressMomentPhoto(context, uri)
+                            val selectedMimeType = context.contentResolver.getType(uri)
+                                ?.lowercase()
+                                ?: throw IllegalArgumentException("Could not identify selected media")
+                            val isImage = selectedMimeType.startsWith("image/")
+                            val isVideo = selectedMimeType.startsWith("video/")
+                            if (!isImage && !isVideo) {
+                                throw IllegalArgumentException("Please select a photo or video")
                             }
-                            if (photoBytes.size > 100 * 1024) {
-                                throw IllegalStateException("Maximum upload size is 100 KB")
+
+                            val mediaType = if (isImage) "image" else "video"
+                            val contentType = if (isImage) "image/jpeg" else selectedMimeType
+                            val imageBytes = if (isImage) {
+                                withContext(Dispatchers.IO) { compressMomentPhoto(context, uri) }
+                            } else {
+                                null
                             }
+                            val sizeBytes = imageBytes?.size?.toLong()
+                                ?: withContext(Dispatchers.IO) { getMomentFileSize(context, uri) }
+                            if (sizeBytes <= 0L) {
+                                throw IllegalArgumentException("Could not read selected media")
+                            }
+                            if (sizeBytes > 1024L * 1024L) {
+                                throw IllegalStateException("Maximum upload size is 1 MB")
+                            }
+
                             val uid = FirebaseAuth.getInstance().currentUser?.uid
                                 ?: throw IllegalStateException("Please sign in again")
                             val momentId = FirebaseFirestore.getInstance().collection("users")
                                 .document(uid).collection("moments").document().id
+                            val extension = if (isImage) "jpg" else "video"
                             val mediaRef = FirebaseStorage.getInstance().reference
-                                .child("moments/$uid/$momentId.jpg")
-                            mediaRef.putBytes(photoBytes)
-                                .continueWithTask { task ->
-                                    if (!task.isSuccessful) throw (task.exception ?: Exception("Upload failed"))
-                                    mediaRef.downloadUrl
-                                }
-                                .addOnSuccessListener { downloadUri ->
-                                    val data = mapOf(
-                                        "ownerId" to uid,
-                                        "mediaUrl" to downloadUri.toString(),
-                                        "mediaType" to "image",
-                                        "contentType" to "image/jpeg",
-                                        "sizeBytes" to photoBytes.size,
-                                        "createdAt" to FieldValue.serverTimestamp()
-                                    )
-                                    FirebaseFirestore.getInstance().collection("users")
-                                        .document(uid).collection("moments").document(momentId)
-                                        .set(data)
-                                        .addOnSuccessListener { uploadingMoment = false }
-                                        .addOnFailureListener { error ->
-                                            uploadingMoment = false
-                                            momentError = error.localizedMessage ?: "Could not publish photo"
-                                        }
-                                }
-                                .addOnFailureListener { error ->
-                                    uploadingMoment = false
-                                    momentError = error.localizedMessage ?: "Could not upload photo"
-                                }
+                                .child("moments/$uid/$momentId.$extension")
+                            val metadata = com.google.firebase.storage.StorageMetadata.Builder()
+                                .setContentType(contentType)
+                                .build()
+                            val uploadTask = if (imageBytes != null) {
+                                mediaRef.putBytes(imageBytes, metadata)
+                            } else {
+                                mediaRef.putFile(uri, metadata)
+                            }
+                            uploadTask.continueWithTask { task ->
+                                if (!task.isSuccessful) throw (task.exception ?: Exception("Upload failed"))
+                                mediaRef.downloadUrl
+                            }.addOnSuccessListener { downloadUri ->
+                                val data = mapOf(
+                                    "ownerId" to uid,
+                                    "mediaUrl" to downloadUri.toString(),
+                                    "mediaType" to mediaType,
+                                    "contentType" to contentType,
+                                    "sizeBytes" to sizeBytes.toInt(),
+                                    "createdAt" to FieldValue.serverTimestamp()
+                                )
+                                FirebaseFirestore.getInstance().collection("users")
+                                    .document(uid).collection("moments").document(momentId)
+                                    .set(data)
+                                    .addOnSuccessListener { uploadingMoment = false }
+                                    .addOnFailureListener { error ->
+                                        uploadingMoment = false
+                                        momentError = error.localizedMessage ?: "Could not publish moment"
+                                    }
+                            }.addOnFailureListener { error ->
+                                uploadingMoment = false
+                                momentError = error.localizedMessage ?: "Could not upload moment"
+                            }
                         } catch (error: Exception) {
                             uploadingMoment = false
-                            momentError = error.localizedMessage ?: "Could not prepare photo"
+                            momentError = error.localizedMessage ?: "Could not prepare selected media"
                         }
                     }
                 }
@@ -858,8 +884,10 @@ fun ProfileScreen(
                     .addSnapshotListener { snapshot, _ ->
                         moments = snapshot?.documents.orEmpty()
                             .filter { doc ->
-                                doc.getString("mediaType") == "image" &&
-                                    doc.getString("contentType") == "image/jpeg"
+                                val mediaType = doc.getString("mediaType")
+                                val contentType = doc.getString("contentType").orEmpty()
+                                (mediaType == "image" && contentType == "image/jpeg") ||
+                                    (mediaType == "video" && contentType.startsWith("video/"))
                             }
                             .map { doc -> doc.data.orEmpty() + mapOf("id" to doc.id) }
                     }
@@ -876,13 +904,13 @@ fun ProfileScreen(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("Moments", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-                        Text("Photos · max 100 KB", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Photos & videos · max 1 MB each", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (isOwnProfile) {
                         OutlinedButton(
                             onClick = {
                                 momentPicker.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
                                 )
                             },
                             enabled = !uploadingMoment,
@@ -909,7 +937,7 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
                     ) {
                         Text(
-                            if (isOwnProfile) "Share your first photo" else "No moments shared yet",
+                            if (isOwnProfile) "Share your first photo or video" else "No moments shared yet",
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 18.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -921,11 +949,12 @@ fun ProfileScreen(
                     ) {
                         moments.forEach { moment ->
                             val mediaUrl = moment["mediaUrl"] as? String ?: ""
+                            val isVideo = moment["mediaType"] == "video"
                             Surface(
                                 modifier = Modifier.size(width = 132.dp, height = 168.dp).clickable(enabled = mediaUrl.isNotBlank()) {
                                     context.startActivity(
                                         Intent(Intent.ACTION_VIEW, Uri.parse(mediaUrl)).apply {
-                                            setDataAndType(Uri.parse(mediaUrl), "image/*")
+                                            setDataAndType(Uri.parse(mediaUrl), if (isVideo) "video/*" else "image/*")
                                         }
                                     )
                                 },
@@ -933,7 +962,16 @@ fun ProfileScreen(
                                 color = MaterialTheme.colorScheme.surfaceVariant,
                                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
                             ) {
-                                if (mediaUrl.isNotBlank()) {
+                                if (isVideo) {
+                                    Column(
+                                        modifier = Modifier.fillMaxSize(),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(Icons.Filled.PlayArrow, contentDescription = "Play video", tint = VibePink, modifier = Modifier.size(42.dp))
+                                        Text("VIDEO", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                    }
+                                } else if (mediaUrl.isNotBlank()) {
                                     AsyncImage(
                                         model = mediaUrl,
                                         contentDescription = "Moment photo",
@@ -1246,6 +1284,25 @@ fun ProfileScreen(
 }
 
 
+private fun getMomentFileSize(context: android.content.Context, uri: Uri): Long {
+    val descriptorSize = runCatching {
+        context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length }
+    }.getOrNull() ?: -1L
+    if (descriptorSize > 0L) return descriptorSize
+
+    var totalBytes = 0L
+    context.contentResolver.openInputStream(uri)?.use { input ->
+        val buffer = ByteArray(8192)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            totalBytes += count
+            if (totalBytes > 1024L * 1024L) return totalBytes
+        }
+    } ?: throw IllegalArgumentException("Could not read selected video")
+    return totalBytes
+}
+
 private fun compressMomentPhoto(context: android.content.Context, uri: Uri): ByteArray {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
@@ -1265,16 +1322,16 @@ private fun compressMomentPhoto(context: android.content.Context, uri: Uri): Byt
 
     try {
         while (true) {
-            for (quality in listOf(85, 75, 65, 55, 45, 35, 25, 15)) {
+            for (quality in listOf(90, 85, 75, 65, 55, 45, 35, 25, 15)) {
                 val output = ByteArrayOutputStream()
                 bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)
                 val bytes = output.toByteArray()
-                if (bytes.size <= 100 * 1024) return bytes
+                if (bytes.size <= 1024 * 1024) return bytes
             }
             val nextWidth = (bitmap.width * 0.8f).toInt().coerceAtLeast(1)
             val nextHeight = (bitmap.height * 0.8f).toInt().coerceAtLeast(1)
             if (nextWidth == bitmap.width || nextHeight == bitmap.height) {
-                throw IllegalStateException("Maximum upload size is 100 KB")
+                throw IllegalStateException("Maximum upload size is 1 MB")
             }
             val smaller = Bitmap.createScaledBitmap(bitmap, nextWidth, nextHeight, true)
             if (smaller !== bitmap) bitmap.recycle()

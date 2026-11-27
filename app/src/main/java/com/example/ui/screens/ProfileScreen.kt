@@ -1,6 +1,10 @@
 package com.example.ui.screens
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import com.google.firebase.storage.FirebaseStorage
 import androidx.compose.ui.platform.LocalContext
@@ -13,7 +17,6 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import android.net.Uri
 import android.content.Intent
-import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.geometry.Offset
@@ -800,40 +803,52 @@ fun ProfileScreen(
                 if (uri != null && isOwnProfile) {
                     uploadingMoment = true
                     momentError = ""
-                    val uid = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
-                    val momentId = FirebaseFirestore.getInstance().collection("users")
-                        .document(uid).collection("moments").document().id
-                    val mimeType = context.contentResolver.getType(uri).orEmpty()
-                    val isVideo = mimeType.startsWith("video/")
-                    val extension = if (isVideo) "mp4" else "jpg"
-                    val mediaRef = FirebaseStorage.getInstance().reference
-                        .child("moments/$uid/$momentId.$extension")
-                    mediaRef.putFile(uri)
-                        .continueWithTask { task ->
-                            if (!task.isSuccessful) throw (task.exception ?: Exception("Upload failed"))
-                            mediaRef.downloadUrl
-                        }
-                        .addOnSuccessListener { downloadUri ->
-                            val data = mapOf(
-                                "ownerId" to uid,
-                                "mediaUrl" to downloadUri.toString(),
-                                "mediaType" to if (isVideo) "video" else "image",
-                                "contentType" to mimeType,
-                                "createdAt" to FieldValue.serverTimestamp()
-                            )
-                            FirebaseFirestore.getInstance().collection("users")
-                                .document(uid).collection("moments").document(momentId)
-                                .set(data)
-                                .addOnSuccessListener { uploadingMoment = false }
+                    scope.launch {
+                        try {
+                            val photoBytes = withContext(Dispatchers.IO) {
+                                compressMomentPhoto(context, uri)
+                            }
+                            if (photoBytes.size > 100 * 1024) {
+                                throw IllegalStateException("Photo could not be compressed below 100 KB")
+                            }
+                            val uid = FirebaseAuth.getInstance().currentUser?.uid
+                                ?: throw IllegalStateException("Please sign in again")
+                            val momentId = FirebaseFirestore.getInstance().collection("users")
+                                .document(uid).collection("moments").document().id
+                            val mediaRef = FirebaseStorage.getInstance().reference
+                                .child("moments/$uid/$momentId.jpg")
+                            mediaRef.putBytes(photoBytes)
+                                .continueWithTask { task ->
+                                    if (!task.isSuccessful) throw (task.exception ?: Exception("Upload failed"))
+                                    mediaRef.downloadUrl
+                                }
+                                .addOnSuccessListener { downloadUri ->
+                                    val data = mapOf(
+                                        "ownerId" to uid,
+                                        "mediaUrl" to downloadUri.toString(),
+                                        "mediaType" to "image",
+                                        "contentType" to "image/jpeg",
+                                        "sizeBytes" to photoBytes.size,
+                                        "createdAt" to FieldValue.serverTimestamp()
+                                    )
+                                    FirebaseFirestore.getInstance().collection("users")
+                                        .document(uid).collection("moments").document(momentId)
+                                        .set(data)
+                                        .addOnSuccessListener { uploadingMoment = false }
+                                        .addOnFailureListener { error ->
+                                            uploadingMoment = false
+                                            momentError = error.localizedMessage ?: "Could not publish photo"
+                                        }
+                                }
                                 .addOnFailureListener { error ->
                                     uploadingMoment = false
-                                    momentError = error.localizedMessage ?: "Could not publish moment"
+                                    momentError = error.localizedMessage ?: "Could not upload photo"
                                 }
-                        }
-                        .addOnFailureListener { error ->
+                        } catch (error: Exception) {
                             uploadingMoment = false
-                            momentError = error.localizedMessage ?: "Could not upload media"
+                            momentError = error.localizedMessage ?: "Could not prepare photo"
                         }
+                    }
                 }
             }
             DisposableEffect(profile.userId) {
@@ -859,13 +874,13 @@ fun ProfileScreen(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("Moments", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-                        Text("Photos & videos", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Photos · max 100 KB", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (isOwnProfile) {
                         OutlinedButton(
                             onClick = {
                                 momentPicker.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                 )
                             },
                             enabled = !uploadingMoment,
@@ -892,7 +907,7 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
                     ) {
                         Text(
-                            if (isOwnProfile) "Share your first photo or video" else "No moments shared yet",
+                            if (isOwnProfile) "Share your first photo" else "No moments shared yet",
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 18.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1235,6 +1250,46 @@ fun ProfileScreen(
                 TextButton(onClick = { selectedGiftPrice = null }) { Text("OK") }
             }
         )
+    }
+}
+
+
+private fun compressMomentPhoto(context: android.content.Context, uri: Uri): ByteArray {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        ?: throw IllegalArgumentException("Could not read selected photo")
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+        throw IllegalArgumentException("Invalid photo")
+    }
+
+    var sampleSize = 1
+    while (bounds.outWidth / sampleSize > 1600 || bounds.outHeight / sampleSize > 1600) {
+        sampleSize *= 2
+    }
+    val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+    var bitmap = context.contentResolver.openInputStream(uri)?.use {
+        BitmapFactory.decodeStream(it, null, options)
+    } ?: throw IllegalArgumentException("Could not decode selected photo")
+
+    try {
+        while (true) {
+            for (quality in listOf(85, 75, 65, 55, 45, 35, 25, 15)) {
+                val output = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)
+                val bytes = output.toByteArray()
+                if (bytes.size <= 100 * 1024) return bytes
+            }
+            val nextWidth = (bitmap.width * 0.8f).toInt().coerceAtLeast(1)
+            val nextHeight = (bitmap.height * 0.8f).toInt().coerceAtLeast(1)
+            if (nextWidth == bitmap.width || nextHeight == bitmap.height) {
+                throw IllegalStateException("Could not compress photo below 100 KB")
+            }
+            val smaller = Bitmap.createScaledBitmap(bitmap, nextWidth, nextHeight, true)
+            if (smaller !== bitmap) bitmap.recycle()
+            bitmap = smaller
+        }
+    } finally {
+        if (!bitmap.isRecycled) bitmap.recycle()
     }
 }
 

@@ -909,8 +909,7 @@ service cloud.firestore {
           request.auth.uid != userId &&
           incoming().visitorId == request.auth.uid &&
           incoming().visitorName is string &&
-          incoming().visitorAvatarUrl is string &&
-          incoming().visitedAt is timestamp;
+          incoming().visitorAvatarUrl is string;
         allow delete: if false;
       }
 

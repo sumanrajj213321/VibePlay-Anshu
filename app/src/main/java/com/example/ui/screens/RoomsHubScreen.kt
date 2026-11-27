@@ -320,7 +320,7 @@ fun RoomsHubScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            if (myCreatedLiveRoom.listenerCount + myCreatedLiveRoom.activeSpeakersCount == 0)
+                            if (myCreatedLiveRoom.listenerCount + myCreatedLiveRoom.activeSpeakersCount == 0L)
                                 "Nobody in right now"
                             else "${myCreatedLiveRoom.listenerCount + myCreatedLiveRoom.activeSpeakersCount} online",
                             style = MaterialTheme.typography.bodyMedium,

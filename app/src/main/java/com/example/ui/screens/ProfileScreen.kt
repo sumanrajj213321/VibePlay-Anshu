@@ -164,6 +164,7 @@ fun ProfileScreen(
     var showSocialSheet by remember { mutableStateOf(false) }
     var socialInitialTab by remember { mutableStateOf(0) }
     var showSetupGuide by remember { mutableStateOf(false) }
+    var uploadingMoment by remember(profile.userId) { mutableStateOf(false) }
     var coverLoadFailed by remember(profile.coverUrl) { mutableStateOf(false) }
     var firestoreCoverBitmap by remember(profile.userId, profile.coverUrl) { mutableStateOf<Bitmap?>(null) }
     val isFirestoreCover = profile.coverUrl.startsWith("firestore-cover://")
@@ -271,6 +272,15 @@ fun ProfileScreen(
         }
     }
 
+    if (uploadingMoment) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                CircularProgressIndicator(color = VibeCyan)
+                Text("Uploading Moment…", fontWeight = FontWeight.Bold)
+                Text("Please wait while your photo is being shared.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    } else {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp),
@@ -805,7 +815,6 @@ fun ProfileScreen(
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
             var moments by remember(profile.userId) { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
-            var uploadingMoment by remember(profile.userId) { mutableStateOf(false) }
             var momentError by remember(profile.userId) { mutableStateOf("") }
             var pendingMomentUri by remember { mutableStateOf<Uri?>(null) }
             var momentQuote by remember { mutableStateOf("") }
@@ -1250,6 +1259,8 @@ fun ProfileScreen(
                 }
             }
         }
+    }
+
     }
 
     if (showLevelInfo) {

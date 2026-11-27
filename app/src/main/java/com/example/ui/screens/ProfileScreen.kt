@@ -12,7 +12,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material.icons.filled.Add
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import android.net.Uri
 import android.os.ParcelFileDescriptor
@@ -814,8 +813,8 @@ fun ProfileScreen(
             var showMomentComposer by remember { mutableStateOf(false) }
 
             val photoPicker = rememberLauncherForActivityResult(
-                ActivityResultContracts.PickVisualMedia()
-             ) { uri: Uri? ->
+                ActivityResultContracts.OpenDocument()
+            ) { uri: Uri? ->
                 if (uri != null && isOwnProfile) {
                     // Keep the Photo Picker read grant while the user writes the caption.
                     runCatching {
@@ -833,7 +832,7 @@ fun ProfileScreen(
                 }
             }
             val videoPicker = rememberLauncherForActivityResult(
-                ActivityResultContracts.PickVisualMedia()
+                ActivityResultContracts.OpenDocument()
             ) { uri: Uri? ->
                 if (uri != null && isOwnProfile) {
                     runCatching {
@@ -883,13 +882,12 @@ fun ProfileScreen(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("Moments", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-                        Text("1 or 2 photos, or 1 MP4 video · 1 MB per file", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (isOwnProfile) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             OutlinedButton(
                                 onClick = {
-                                    photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                    photoPicker.launch(arrayOf("image/*"))
                                 },
                                 enabled = !uploadingMoment,
                                 shape = RoundedCornerShape(12.dp),
@@ -897,7 +895,7 @@ fun ProfileScreen(
                             ) { Text("Photos") }
                             OutlinedButton(
                                 onClick = {
-                                    videoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly))
+                                    videoPicker.launch(arrayOf("video/mp4"))
                                 },
                                 enabled = !uploadingMoment,
                                 shape = RoundedCornerShape(12.dp),

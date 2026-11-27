@@ -815,6 +815,22 @@ service cloud.firestore {
       // The counter is non-financial profile metadata; wallet and VIP fields remain immutable.
       
 
+      // Public Moments attached to a user's profile. Only the owner can publish/delete.
+      match /moments/{momentId} {
+        allow read: if isSignedIn() &&
+          get(/databases/$(database)/documents/users/$(userId)).data.accountStatus == 'ACTIVE';
+        allow create: if isSignedIn() &&
+          request.auth.uid == userId &&
+          incoming().keys().hasOnly(['ownerId', 'mediaUrl', 'mediaType', 'contentType', 'createdAt']) &&
+          incoming().ownerId == userId &&
+          incoming().mediaUrl is string && incoming().mediaUrl.size() <= 2000 &&
+          incoming().mediaType in ['image', 'video'] &&
+          incoming().contentType is string && incoming().contentType.size() <= 100 &&
+          incoming().createdAt == request.time;
+        allow update: if false;
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+
       match /avatar/{avatarDocId} {
         allow get: if isSignedIn() && avatarDocId == 'image';
         allow list: if false;

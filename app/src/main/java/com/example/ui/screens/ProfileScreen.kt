@@ -1422,7 +1422,13 @@ fun ProfileScreen(
 
 private fun openMomentUriStream(context: android.content.Context, uri: Uri): InputStream? {
     val resolver = context.contentResolver
+
+    // Providers may expose picker content through different descriptor APIs.
     runCatching { resolver.openInputStream(uri) }.getOrNull()?.let { return it }
+    runCatching { resolver.openAssetFileDescriptor(uri, "r")?.createInputStream() }
+        .getOrNull()?.let { return it }
+    runCatching { resolver.openTypedAssetFileDescriptor(uri, "image/*", null)?.createInputStream() }
+        .getOrNull()?.let { return it }
     return runCatching {
         resolver.openFileDescriptor(uri, "r")?.let { ParcelFileDescriptor.AutoCloseInputStream(it) }
     }.getOrNull()

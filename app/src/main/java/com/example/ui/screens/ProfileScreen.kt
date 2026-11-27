@@ -809,7 +809,7 @@ fun ProfileScreen(
                                 compressMomentPhoto(context, uri)
                             }
                             if (photoBytes.size > 100 * 1024) {
-                                throw IllegalStateException("Photo could not be compressed below 100 KB")
+                                throw IllegalStateException("Maximum upload size is 100 KB")
                             }
                             val uid = FirebaseAuth.getInstance().currentUser?.uid
                                 ?: throw IllegalStateException("Please sign in again")
@@ -1282,7 +1282,7 @@ private fun compressMomentPhoto(context: android.content.Context, uri: Uri): Byt
             val nextWidth = (bitmap.width * 0.8f).toInt().coerceAtLeast(1)
             val nextHeight = (bitmap.height * 0.8f).toInt().coerceAtLeast(1)
             if (nextWidth == bitmap.width || nextHeight == bitmap.height) {
-                throw IllegalStateException("Could not compress photo below 100 KB")
+                throw IllegalStateException("Maximum upload size is 100 KB")
             }
             val smaller = Bitmap.createScaledBitmap(bitmap, nextWidth, nextHeight, true)
             if (smaller !== bitmap) bitmap.recycle()

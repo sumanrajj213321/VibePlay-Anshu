@@ -54,6 +54,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,6 +69,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
@@ -244,10 +246,14 @@ fun ProfileScreen(
         }
     }
 
+    val profileDensity = LocalDensity.current
+    CompositionLocalProvider(
+        LocalDensity provides profileDensity.copy(fontScale = profileDensity.fontScale * 0.92f)
+    ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentPadding = PaddingValues(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
         if (linkedPartnerId.isNotBlank()) {
             item {
@@ -399,7 +405,7 @@ fun ProfileScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(215.dp)
+                    .height(190.dp)
             ) {
                 if (isFirestoreCover && firestoreCoverBitmap != null) {
                     AsyncImage(
@@ -407,7 +413,7 @@ fun ProfileScreen(
                         contentDescription = "Profile cover image",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(165.dp),
+                            .height(145.dp),
                         contentScale = ContentScale.Fit
                     )
                 } else if (!isFirestoreCover && profile.coverUrl.isNotBlank() && !coverLoadFailed) {
@@ -452,7 +458,7 @@ fun ProfileScreen(
                     VibeAvatar(
                         avatarUrl = profile.avatarUrl,
                         username = profile.username,
-                        size = 86.dp,
+                        size = 78.dp,
                         vipLevel = if (profile.isVipActive) profile.vipLevel else 0L,
                         online = profile.online && profile.showOnlineStatus,
                         frameColorArgb = VibeShopCatalog.frames.firstOrNull { it.id == profile.activeFrameId && profile.isFrameActive(it.id) }?.colorArgb
@@ -475,8 +481,8 @@ fun ProfileScreen(
         // Premium identity: username/VIP, ID number, level and equipped title.
         item {
             Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(11.dp)
+                modifier = Modifier.padding(horizontal = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -716,8 +722,8 @@ fun ProfileScreen(
                     .sortedByDescending { it.second }
             }
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -973,6 +979,7 @@ fun ProfileScreen(
                 }
             }
         }
+    }
     }
 
     if (showLevelInfo) {

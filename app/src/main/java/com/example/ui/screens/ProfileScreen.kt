@@ -817,6 +817,13 @@ fun ProfileScreen(
                 ActivityResultContracts.PickVisualMedia()
              ) { uri: Uri? ->
                 if (uri != null && isOwnProfile) {
+                    // Keep the Photo Picker read grant while the user writes the caption.
+                    runCatching {
+                        context.contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    }
                     val addingToExistingComposer = showMomentComposer
                     pendingMomentUris = (pendingMomentUris + uri).distinct().take(2)
                     pendingIsVideo = false
@@ -829,6 +836,12 @@ fun ProfileScreen(
                 ActivityResultContracts.PickVisualMedia()
             ) { uri: Uri? ->
                 if (uri != null && isOwnProfile) {
+                    runCatching {
+                        context.contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    }
                     pendingMomentUris = listOf(uri)
                     pendingIsVideo = true
                     momentQuote = ""

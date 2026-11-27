@@ -1026,15 +1026,33 @@ fun PublicProfileSheet(
     LaunchedEffect(currentUserId, targetUser.userId) {
         if (currentUserId.isNotBlank() && targetUser.userId.isNotBlank() && currentUserId != targetUser.userId) {
             val db = FirebaseFirestore.getInstance()
-            db.collection("users").document(currentUserId).get().addOnSuccessListener { visitor ->
-                val visitorRef = db.collection("users").document(targetUser.userId)
-                    .collection("visitors").document(currentUserId)
-                visitorRef.set(mapOf(
-                    "visitorId" to currentUserId,
-                    "visitorName" to (visitor.getString("username") ?: "VibeUser"),
-                    "visitorAvatarUrl" to visitor.getString("avatarUrl").orEmpty(),
-                    "visitedAt" to FieldValue.serverTimestamp()
-                ), SetOptions.merge())
+            val visitorProfileRef = db.collection("users").document(currentUserId)
+            val profileRef = db.collection("users").document(targetUser.userId)
+            val visitorRef = profileRef.collection("visitors").document(currentUserId)
+            visitorProfileRef.get().addOnSuccessListener { visitor ->
+                val visitorName = (visitor.getString("username") ?: "VibeUser").take(60)
+                val visitorAvatar = visitor.getString("avatarUrl").orEmpty().take(500)
+                db.runTransaction { transaction ->
+                    val existingVisit = transaction.get(visitorRef)
+                    val profile = transaction.get(profileRef)
+                    if (profile.exists()) {
+                        transaction.set(visitorRef, mapOf(
+                            "visitorId" to currentUserId,
+                            "visitorName" to visitorName,
+                            "visitorAvatarUrl" to visitorAvatar,
+                            "visitedAt" to FieldValue.serverTimestamp()
+                        ))
+                        // A first-time visitor increments the unique count in the same
+                        // atomic transaction. Repeat visits only refresh visitedAt.
+                        if (!existingVisit.exists()) {
+                            val previousCount = (profile.getLong("totalVisitors") ?: 0L).coerceAtLeast(0L)
+                            transaction.update(profileRef, mapOf(
+                                "totalVisitors" to previousCount + 1L,
+                                "totalVisitorsUpdatedAt" to FieldValue.serverTimestamp()
+                            ))
+                        }
+                    }
+                }
             }
         }
     }

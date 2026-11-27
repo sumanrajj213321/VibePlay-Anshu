@@ -1069,6 +1069,47 @@ fun ProfileScreen(
                                         val firestore = FirebaseFirestore.getInstance()
                                         val momentRef = firestore.collection("users").document(uid)
                                             .collection("moments").document()
+                                        // Monthly Moments quota: up to 2 photos and 1 MP4 video per user.
+                                        // The month boundary follows the device's local calendar.
+                                        val monthStart = java.util.Calendar.getInstance().apply {
+                                            set(java.util.Calendar.DAY_OF_MONTH, 1)
+                                            set(java.util.Calendar.HOUR_OF_DAY, 0)
+                                            set(java.util.Calendar.MINUTE, 0)
+                                            set(java.util.Calendar.SECOND, 0)
+                                            set(java.util.Calendar.MILLISECOND, 0)
+                                        }
+                                        val nextMonth = (monthStart.clone() as java.util.Calendar).apply {
+                                            add(java.util.Calendar.MONTH, 1)
+                                        }
+                                        val monthlyMoments = withContext(Dispatchers.IO) {
+                                            com.google.android.gms.tasks.Tasks.await(
+                                                firestore.collection("users").document(uid)
+                                                    .collection("moments")
+                                                    .whereGreaterThanOrEqualTo(
+                                                        "createdAt",
+                                                        com.google.firebase.Timestamp(monthStart.time)
+                                                    )
+                                                    .whereLessThan(
+                                                        "createdAt",
+                                                        com.google.firebase.Timestamp(nextMonth.time)
+                                                    )
+                                                    .get()
+                                            )
+                                        }
+                                        val photosAlreadyPosted = monthlyMoments.documents
+                                            .filter { it.getString("mediaType") == "image" }
+                                            .sumOf { doc ->
+                                                (doc.get("mediaUrls") as? List<*>)?.size ?: 1
+                                            }
+                                        val videosAlreadyPosted = monthlyMoments.documents
+                                            .count { it.getString("mediaType") == "video" }
+                                        if (pendingIsVideo && videosAlreadyPosted >= 1) {
+                                            throw IllegalStateException("You have used this month's 1 video Moment. The limit resets next month.")
+                                        }
+                                        if (!pendingIsVideo && photosAlreadyPosted + pendingMomentUris.size > 2) {
+                                            throw IllegalStateException("You can share only 2 photo Moments per month. Your limit resets next month.")
+                                        }
+
                                         val uploadedUrls = mutableListOf<String>()
                                         val uploadedSizes = mutableListOf<Int>()
 

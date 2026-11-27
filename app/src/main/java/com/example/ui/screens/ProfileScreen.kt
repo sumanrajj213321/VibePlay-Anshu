@@ -6,7 +6,6 @@ import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
-import com.google.firebase.storage.FirebaseStorage
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.LaunchedEffect
@@ -86,6 +85,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -807,8 +807,7 @@ fun ProfileScreen(
             var moments by remember(profile.userId) { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
             var uploadingMoment by remember(profile.userId) { mutableStateOf(false) }
             var momentError by remember(profile.userId) { mutableStateOf("") }
-            var pendingMomentUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
-            var pendingIsVideo by remember { mutableStateOf(false) }
+            var pendingMomentUri by remember { mutableStateOf<Uri?>(null) }
             var momentQuote by remember { mutableStateOf("") }
             var showMomentComposer by remember { mutableStateOf(false) }
 
@@ -823,29 +822,15 @@ fun ProfileScreen(
                             Intent.FLAG_GRANT_READ_URI_PERMISSION
                         )
                     }
-                    val addingToExistingComposer = showMomentComposer
-                    pendingMomentUris = (pendingMomentUris + uri).distinct().take(2)
-                    pendingIsVideo = false
-                    if (!addingToExistingComposer) momentQuote = ""
-                    momentError = ""
-                    showMomentComposer = true
-                }
-            }
-            val videoPicker = rememberLauncherForActivityResult(
-                ActivityResultContracts.OpenDocument()
-            ) { uri: Uri? ->
-                if (uri != null && isOwnProfile) {
-                    runCatching {
-                        context.contentResolver.takePersistableUriPermission(
-                            uri,
-                            Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        )
+                    try {
+                        ensureMomentPhotoUnderLimit(context, uri)
+                        pendingMomentUri = uri
+                        momentQuote = ""
+                        momentError = ""
+                        showMomentComposer = true
+                    } catch (error: Exception) {
+                        momentError = error.localizedMessage ?: "Photo must be 100 KB or smaller."
                     }
-                    pendingMomentUris = listOf(uri)
-                    pendingIsVideo = true
-                    momentQuote = ""
-                    momentError = ""
-                    showMomentComposer = true
                 }
             }
 
@@ -853,7 +838,6 @@ fun ProfileScreen(
                 val registration = FirebaseFirestore.getInstance().collection("users")
                     .document(profile.userId).collection("moments")
                     .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                    .limit(30)
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
                             momentError = error.localizedMessage ?: "Could not load Moments"
@@ -862,8 +846,7 @@ fun ProfileScreen(
                                 .filter { doc ->
                                     val type = doc.getString("mediaType")
                                     val mime = doc.getString("contentType").orEmpty()
-                                    (type == "image" && mime == "image/jpeg") ||
-                                        (type == "video" && mime == "video/mp4")
+                                    type == "image" && mime == "image/jpeg"
                                 }
                                 .map { doc -> doc.data.orEmpty() + mapOf("id" to doc.id) }
                         }
@@ -884,23 +867,13 @@ fun ProfileScreen(
                         Text("Moments", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
                     }
                     if (isOwnProfile) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (moments.isEmpty()) {
                             OutlinedButton(
-                                onClick = {
-                                    photoPicker.launch(arrayOf("image/*"))
-                                },
+                                onClick = { photoPicker.launch(arrayOf("image/*")) },
                                 enabled = !uploadingMoment,
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.testTag("add_profile_moment_photos")
-                            ) { Text("Photos") }
-                            OutlinedButton(
-                                onClick = {
-                                    videoPicker.launch(arrayOf("video/mp4"))
-                                },
-                                enabled = !uploadingMoment,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.testTag("add_profile_moment_video")
-                            ) { Text("Video") }
+                            ) { Text("Add Photo") }
                         }
                     }
                 }
@@ -914,7 +887,7 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
                     ) {
                         Text(
-                            if (isOwnProfile) "Share your first photo or MP4 video" else "No moments shared yet",
+                            if (isOwnProfile && moments.isEmpty()) "Share your one lifetime photo Moment" else "No moments shared yet",
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 18.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -923,9 +896,16 @@ fun ProfileScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         moments.forEach { moment ->
                             val momentId = moment["id"] as? String ?: return@forEach
-                            val urls = (moment["mediaUrls"] as? List<*>)?.filterIsInstance<String>()
-                                ?.filter { it.isNotBlank() }
-                                ?: listOfNotNull(moment["mediaUrl"] as? String)
+                            val legacyUrl = moment["mediaUrl"] as? String ?: ""
+                            val photoBase64 = moment["photoBase64"] as? String
+                            val photoBitmap = remember(photoBase64) {
+                                runCatching {
+                                    photoBase64?.let { encoded ->
+                                        val bytes = Base64.decode(encoded, Base64.DEFAULT)
+                                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                    }
+                                }.getOrNull()
+                            }
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(18.dp),
@@ -940,40 +920,37 @@ fun ProfileScreen(
                                     if (quote.isNotBlank()) {
                                         Text("“$quote”", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                                     }
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().height(220.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(MaterialTheme.colorScheme.surface)
+                                            .clickable(enabled = photoBitmap == null && legacyUrl.isNotBlank()) {
+                                                context.startActivity(Intent(Intent.ACTION_VIEW).apply {
+                                                    setDataAndType(Uri.parse(legacyUrl), "image/jpeg")
+                                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                })
+                                            },
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        urls.forEach { url ->
-                                            val isVideo = moment["mediaType"] == "video"
-                                            Box(
-                                                modifier = Modifier.size(width = 142.dp, height = 164.dp)
-                                                    .clip(RoundedCornerShape(12.dp))
-                                                    .background(MaterialTheme.colorScheme.surface)
-                                                    .clickable(enabled = url.isNotBlank()) {
-                                                        val mediaUri = Uri.parse(url)
-                                                        context.startActivity(Intent(Intent.ACTION_VIEW).apply {
-                                                            setDataAndType(mediaUri, if (isVideo) "video/mp4" else "image/jpeg")
-                                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                        })
-                                                    },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                if (isVideo) {
-                                                    Icon(Icons.Filled.PlayArrow, contentDescription = "Play MP4 video", tint = VibePink, modifier = Modifier.size(48.dp))
-                                                    Text("MP4 VIDEO", modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                                                } else {
-                                                    AsyncImage(
-                                                        model = url,
-                                                        contentDescription = "Moment photo",
-                                                        modifier = Modifier.fillMaxSize(),
-                                                        contentScale = ContentScale.Crop
-                                                    )
-                                                }
-                                            }
+                                        if (photoBitmap != null) {
+                                            Image(
+                                                bitmap = photoBitmap.asImageBitmap(),
+                                                contentDescription = "Moment photo",
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else if (legacyUrl.isNotBlank()) {
+                                            AsyncImage(
+                                                model = legacyUrl,
+                                                contentDescription = "Moment photo",
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else {
+                                            Text("Photo unavailable", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
                                     }
-                                    MomentEngagement(ownerId = profile.userId, momentId = momentId)
+                            MomentEngagement(ownerId = profile.userId, momentId = momentId)
                                 }
                             }
                         }
@@ -986,51 +963,19 @@ fun ProfileScreen(
                     onDismissRequest = {
                         if (!uploadingMoment) {
                             showMomentComposer = false
-                            pendingMomentUris = emptyList()
+                            pendingMomentUri = null
                         }
                     },
-                    title = { Text(if (pendingIsVideo) "Add MP4 Moment" else "Add Photos Moment") },
+                    title = { Text("Add Photo Moment") },
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            // Show the selected media above the caption so users can confirm what they are posting.
-                            if (pendingIsVideo && pendingMomentUris.isNotEmpty()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth()
-                                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Filled.PlayArrow, contentDescription = "Selected video", tint = MaterialTheme.colorScheme.primary)
-                                    Text(
-                                        pendingMomentUris.first().lastPathSegment?.substringAfterLast('/') ?: "Selected MP4 video",
-                                        modifier = Modifier.weight(1f).padding(start = 8.dp),
-                                        maxLines = 2
-                                    )
-                                }
-                            } else if (pendingMomentUris.isNotEmpty()) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    pendingMomentUris.forEach { selectedUri ->
-                                        AsyncImage(
-                                            model = selectedUri,
-                                            contentDescription = "Selected photo preview",
-                                            modifier = Modifier.size(76.dp).clip(RoundedCornerShape(10.dp)),
-                                            contentScale = ContentScale.Crop
-                                        )
-                                    }
-                                }
-                            }
-                            if (!pendingIsVideo && pendingMomentUris.size < 2) {
-                                OutlinedButton(
-                                    onClick = {
-                                        photoPicker.launch(arrayOf("image/*"))
-                                    },
-                                    enabled = !uploadingMoment,
-                                    modifier = Modifier.fillMaxWidth().testTag("add_second_profile_moment_photo"),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Icon(Icons.Filled.Add, contentDescription = null)
-                                    Text(" Add another photo")
-                                }
+                            pendingMomentUri?.let { selectedUri ->
+                                AsyncImage(
+                                    model = selectedUri,
+                                    contentDescription = "Selected photo preview",
+                                    modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(10.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
                             }
                             OutlinedTextField(
                                 value = momentQuote,
@@ -1048,129 +993,52 @@ fun ProfileScreen(
                     },
                     confirmButton = {
                         TextButton(
-                            enabled = !uploadingMoment && pendingMomentUris.isNotEmpty(),
+                            enabled = !uploadingMoment && pendingMomentUri != null,
                             onClick = {
                                 uploadingMoment = true
                                 momentError = ""
                                 scope.launch {
                                     try {
-                                        val mimeTypes = pendingMomentUris.map { uri ->
-                                            context.contentResolver.getType(uri)?.lowercase().orEmpty()
+                                        val uri = pendingMomentUri
+                                            ?: throw IllegalStateException("Please select one photo.")
+                                        val mimeType = context.contentResolver.getType(uri)?.lowercase().orEmpty()
+                                        if (!mimeType.startsWith("image/")) {
+                                            throw IllegalArgumentException("Please select a photo only. Videos are not supported.")
                                         }
-                                        if (pendingIsVideo && (mimeTypes.size != 1 || mimeTypes.first() != "video/mp4")) {
-                                            throw IllegalArgumentException("Only MP4 videos are supported")
-                                        }
-                                        if (!pendingIsVideo && mimeTypes.any { !it.startsWith("image/") }) {
-                                            throw IllegalArgumentException("Please select photos only")
-                                        }
-
                                         val uid = FirebaseAuth.getInstance().currentUser?.uid
                                             ?: throw IllegalStateException("Please sign in again")
                                         val firestore = FirebaseFirestore.getInstance()
-                                        val momentRef = firestore.collection("users").document(uid)
-                                            .collection("moments").document()
-                                        // Monthly Moments quota: up to 2 photos and 1 MP4 video per user.
-                                        // The month boundary follows the device's local calendar.
-                                        val monthStart = java.util.Calendar.getInstance().apply {
-                                            set(java.util.Calendar.DAY_OF_MONTH, 1)
-                                            set(java.util.Calendar.HOUR_OF_DAY, 0)
-                                            set(java.util.Calendar.MINUTE, 0)
-                                            set(java.util.Calendar.SECOND, 0)
-                                            set(java.util.Calendar.MILLISECOND, 0)
+                                        val momentsRef = firestore.collection("users").document(uid).collection("moments")
+                                        val existingMoments = withContext(Dispatchers.IO) {
+                                            com.google.android.gms.tasks.Tasks.await(momentsRef.get())
                                         }
-                                        val nextMonth = (monthStart.clone() as java.util.Calendar).apply {
-                                            add(java.util.Calendar.MONTH, 1)
+                                        val alreadyPosted = existingMoments.documents.any {
+                                            it.getString("mediaType") == "image"
                                         }
-                                        val monthlyMoments = withContext(Dispatchers.IO) {
-                                            com.google.android.gms.tasks.Tasks.await(
-                                                firestore.collection("users").document(uid)
-                                                    .collection("moments")
-                                                    .whereGreaterThanOrEqualTo(
-                                                        "createdAt",
-                                                        com.google.firebase.Timestamp(monthStart.time)
-                                                    )
-                                                    .whereLessThan(
-                                                        "createdAt",
-                                                        com.google.firebase.Timestamp(nextMonth.time)
-                                                    )
-                                                    .get()
-                                            )
+                                        if (alreadyPosted) {
+                                            throw IllegalStateException("You can upload only one photo in your account lifetime. This limit cannot be reset.")
                                         }
-                                        val photosAlreadyPosted = monthlyMoments.documents
-                                            .filter { it.getString("mediaType") == "image" }
-                                            .sumOf { doc ->
-                                                (doc.get("mediaUrls") as? List<*>)?.size ?: 1
-                                            }
-                                        val videosAlreadyPosted = monthlyMoments.documents
-                                            .count { it.getString("mediaType") == "video" }
-                                        if (pendingIsVideo && videosAlreadyPosted >= 1) {
-                                            throw IllegalStateException("You have used this month's 1 video Moment. The limit resets next month.")
+                                        val bytes = withContext(Dispatchers.IO) {
+                                            ensureMomentPhotoUnderLimit(context, uri)
+                                            compressMomentPhoto(context, uri)
                                         }
-                                        if (!pendingIsVideo && photosAlreadyPosted + pendingMomentUris.size > 2) {
-                                            throw IllegalStateException("You can share only 2 photo Moments per month. Your limit resets next month.")
+                                        if (bytes.isEmpty() || bytes.size > 100 * 1024) {
+                                            throw IllegalArgumentException("Photo size must be 100 KB or less. Please choose a smaller photo.")
                                         }
-
-                                        val uploadedUrls = mutableListOf<String>()
-                                        val uploadedSizes = mutableListOf<Int>()
-
-                                        pendingMomentUris.forEachIndexed { index, uri ->
-                                            val isImage = !pendingIsVideo
-                                            val bytes = withContext(Dispatchers.IO) {
-                                                if (isImage) compressMomentPhoto(context, uri)
-                                                else readMomentVideoBytes(context, uri)
-                                            }
-                                            val sizeBytes = bytes.size.toLong()
-                                            if (sizeBytes <= 0L || sizeBytes > 1024L * 1024L) {
-                                                throw IllegalArgumentException("Each photo/video must be between 1 byte and 1 MB")
-                                            }
-                                            val extension = if (isImage) "jpg" else "mp4"
-                                            val mime = if (isImage) "image/jpeg" else "video/mp4"
-                                            // Pin Moments to the bucket declared in google-services.json.
-                                            // Do not rely on an implicitly selected default bucket.
-                                            val storage = FirebaseStorage.getInstance("gs://vibeplay-anshu.firebasestorage.app")
-                                            val mediaRef = storage.reference
-                                                .child("moments/$uid/${momentRef.id}_$index.$extension")
-                                            val metadata = com.google.firebase.storage.StorageMetadata.Builder()
-                                                .setContentType(mime)
-                                                .build()
-                                            try {
-                                                awaitMomentTask(mediaRef.putBytes(bytes, metadata))
-                                            } catch (uploadError: Exception) {
-                                                throw IllegalStateException(
-                                                    "Firebase Storage upload failed for ${mediaRef.path}: ${uploadError.localizedMessage}",
-                                                    uploadError
-                                                )
-                                            }
-                                            val downloadUri = try {
-                                                // Resolve the URL only after the upload task has fully completed.
-                                                awaitMomentTask(mediaRef.downloadUrl)
-                                            } catch (urlError: Exception) {
-                                                throw IllegalStateException(
-                                                    "Upload finished, but the file URL could not be found in bucket vibeplay-anshu.firebasestorage.app at ${mediaRef.path}: ${urlError.localizedMessage}",
-                                                    urlError
-                                                )
-                                            }
-                                            uploadedUrls.add(downloadUri.toString())
-                                            uploadedSizes.add(sizeBytes.toInt())
-                                        }
-
-                                        val mediaType = if (pendingIsVideo) "video" else "image"
-                                        val contentType = if (pendingIsVideo) "video/mp4" else "image/jpeg"
+                                        val momentRef = momentsRef.document("lifetime_photo")
                                         val postData = mapOf(
                                             "ownerId" to uid,
-                                            "mediaUrl" to uploadedUrls.first(),
-                                            "mediaUrls" to uploadedUrls,
-                                            "mediaSizes" to uploadedSizes,
-                                            "mediaType" to mediaType,
-                                            "contentType" to contentType,
-                                            "sizeBytes" to uploadedSizes.sum(),
+                                            "photoBase64" to Base64.encodeToString(bytes, Base64.NO_WRAP),
+                                            "mediaType" to "image",
+                                            "contentType" to "image/jpeg",
+                                            "sizeBytes" to bytes.size,
                                             "quote" to momentQuote.trim(),
                                             "createdAt" to FieldValue.serverTimestamp()
                                         )
                                         awaitMomentTask(momentRef.set(postData))
                                         uploadingMoment = false
                                         showMomentComposer = false
-                                        pendingMomentUris = emptyList()
+                                        pendingMomentUri = null
                                         momentQuote = ""
                                     } catch (error: Exception) {
                                         uploadingMoment = false
@@ -1185,7 +1053,7 @@ fun ProfileScreen(
                             enabled = !uploadingMoment,
                             onClick = {
                                 showMomentComposer = false
-                                pendingMomentUris = emptyList()
+                                pendingMomentUri = null
                             }
                         ) { Text("Cancel") }
                     }
@@ -1516,23 +1384,6 @@ private fun openMomentUriStream(
     }.getOrNull()
 }
 
-private fun readMomentVideoBytes(context: android.content.Context, uri: Uri): ByteArray {
-    val output = ByteArrayOutputStream()
-    openMomentUriStream(context, uri, "video/mp4")?.use { input ->
-        val buffer = ByteArray(8192)
-        while (true) {
-            val count = input.read(buffer)
-            if (count < 0) break
-            if (output.size() + count > 1024 * 1024) {
-                throw IllegalArgumentException("Maximum upload size is 1 MB per video")
-            }
-            output.write(buffer, 0, count)
-        }
-    } ?: throw IllegalArgumentException("Could not read selected video. Please choose the video again.")
-    if (output.size() == 0) throw IllegalArgumentException("Selected video is empty")
-    return output.toByteArray()
-}
-
 private fun decodeMomentPhotoBitmap(context: android.content.Context, uri: Uri): Bitmap {
     if (android.os.Build.VERSION.SDK_INT >= 28) {
         runCatching {
@@ -1568,20 +1419,37 @@ private fun decodeMomentPhotoBitmap(context: android.content.Context, uri: Uri):
     } ?: throw IllegalArgumentException("Could not decode selected photo. Please choose another photo.")
 }
 
+private fun ensureMomentPhotoUnderLimit(context: android.content.Context, uri: Uri) {
+    val limitBytes = 100 * 1024
+    var total = 0
+    openMomentUriStream(context, uri, "image/*")?.use { input ->
+        val buffer = ByteArray(8192)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            total += count
+            if (total > limitBytes) {
+                throw IllegalArgumentException("Photo size is over 100 KB. Please choose a photo of 100 KB or less.")
+            }
+        }
+    } ?: throw IllegalArgumentException("Could not read selected photo. Please choose it again.")
+    if (total == 0) throw IllegalArgumentException("Selected photo is empty.")
+}
+
 private fun compressMomentPhoto(context: android.content.Context, uri: Uri): ByteArray {
     var bitmap = decodeMomentPhotoBitmap(context, uri)
     try {
         while (true) {
-            for (quality in listOf(90, 85, 75, 65, 55, 45, 35, 25, 15)) {
+            for (quality in listOf(90, 80, 70, 60, 50, 40, 30, 20, 15)) {
                 val output = ByteArrayOutputStream()
                 bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)
                 val bytes = output.toByteArray()
-                if (bytes.size in 1..(1024 * 1024)) return bytes
+                if (bytes.size in 1..(100 * 1024)) return bytes
             }
-            val nextWidth = (bitmap.width * 0.8f).toInt().coerceAtLeast(1)
-            val nextHeight = (bitmap.height * 0.8f).toInt().coerceAtLeast(1)
+            val nextWidth = (bitmap.width * 0.75f).toInt().coerceAtLeast(1)
+            val nextHeight = (bitmap.height * 0.75f).toInt().coerceAtLeast(1)
             if (nextWidth == bitmap.width || nextHeight == bitmap.height) {
-                throw IllegalStateException("Maximum upload size is 1 MB")
+                throw IllegalStateException("Photo size must be 100 KB or less.")
             }
             val smaller = Bitmap.createScaledBitmap(bitmap, nextWidth, nextHeight, true)
             if (smaller !== bitmap) bitmap.recycle()

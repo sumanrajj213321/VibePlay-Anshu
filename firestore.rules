@@ -29,6 +29,39 @@ service cloud.firestore {
     }
 
 
+    function isValidUniqueVisitorCountUpdate(userId) {
+      let visitorId = request.auth.uid;
+      let visitorPath = /databases/$(database)/documents/users/$(userId)/visitors/$(visitorId);
+      let oldCount = ('totalVisitors' in existing()) ? existing().totalVisitors : 0;
+      return isSignedIn() && visitorId != userId &&
+        oldCount is int && oldCount >= 0 &&
+        incoming().totalVisitors is int && incoming().totalVisitors == oldCount + 1 &&
+        incoming().totalVisitorsUpdatedAt == request.time &&
+        incoming().role == existing().role &&
+        incoming().accountStatus == existing().accountStatus &&
+        incoming().coinBalance == existing().coinBalance &&
+        incoming().vipLevel == existing().vipLevel &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['totalVisitors', 'totalVisitorsUpdatedAt']) &&
+        !exists(visitorPath) && existsAfter(visitorPath) &&
+        getAfter(visitorPath).data.visitorId == visitorId &&
+        getAfter(visitorPath).data.visitedAt == request.time;
+    }
+
+    function isValidVisitorCreate(userId, visitorId) {
+      let profilePath = /databases/$(database)/documents/users/$(userId);
+      let oldCount = ('totalVisitors' in get(profilePath).data) ? get(profilePath).data.totalVisitors : 0;
+      return isSignedIn() && request.auth.uid == visitorId && visitorId != userId &&
+        !exists(/databases/$(database)/documents/users/$(userId)/visitors/$(visitorId)) &&
+        incoming().keys().hasOnly(['visitorId', 'visitorName', 'visitorAvatarUrl', 'visitedAt']) &&
+        incoming().visitorId == visitorId &&
+        incoming().visitorName is string && incoming().visitorName.size() <= 60 &&
+        incoming().visitorAvatarUrl is string && incoming().visitorAvatarUrl.size() <= 500 &&
+        incoming().visitedAt == request.time &&
+        existsAfter(profilePath) && oldCount is int && oldCount >= 0 &&
+        getAfter(profilePath).data.totalVisitors == oldCount + 1 &&
+        getAfter(profilePath).data.totalVisitorsUpdatedAt == request.time;
+    }
+
     function isValidVisitorsSubscriptionPurchase(data, oldData) {
       let coinDelta = oldData.coinBalance - data.coinBalance;
       let days = coinDelta == 50000 ? 3 : (coinDelta == 500000 ? 30 : 0);
@@ -919,7 +952,8 @@ service cloud.firestore {
           ('visitorsExpiresAt' in get(/databases/$(database)/documents/users/$(userId)).data) &&
           get(/databases/$(database)/documents/users/$(userId)).data.visitorsExpiresAt is timestamp &&
           get(/databases/$(database)/documents/users/$(userId)).data.visitorsExpiresAt > request.time;
-        allow create, update: if isSignedIn() &&
+        allow create: if isValidVisitorCreate(userId, visitorId);
+        allow update: if isSignedIn() &&
           request.auth.uid == visitorId &&
           request.auth.uid != userId &&
           incoming().keys().hasOnly(['visitorId', 'visitorName', 'visitorAvatarUrl', 'visitedAt']) &&

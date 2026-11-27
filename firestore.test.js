@@ -109,10 +109,11 @@ test("Visitors subscriptions charge the exact price and visitor history is owner
   }));
 
   // Bob's first visit and Alice's unique visitor count are committed atomically.
-  const visitorRef = bobDb.collection("users").doc(ALICE_UID).collection("visitors").doc(BOB_UID);
+  const aliceProfileForBob = bobDb.collection("users").doc(ALICE_UID);
+  const visitorRef = aliceProfileForBob.collection("visitors").doc(BOB_UID);
   await assertSucceeds(bobDb.runTransaction(async (tx) => {
     const [profile, previousVisit] = await Promise.all([
-      tx.get(aliceRef),
+      tx.get(aliceProfileForBob),
       tx.get(visitorRef),
     ]);
     tx.set(visitorRef, {
@@ -132,7 +133,7 @@ test("Visitors subscriptions charge the exact price and visitor history is owner
   // Repeated visits refresh the timestamp without increasing the unique count.
   await assertSucceeds(bobDb.runTransaction(async (tx) => {
     const [profile, previousVisit] = await Promise.all([
-      tx.get(aliceRef),
+      tx.get(aliceProfileForBob),
       tx.get(visitorRef),
     ]);
     if (previousVisit.exists) {

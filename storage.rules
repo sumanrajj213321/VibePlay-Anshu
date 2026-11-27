@@ -16,8 +16,8 @@ service firebase.storage {
                    && request.resource.size <= 1 * 1024 * 1024
                    && ((request.resource.contentType == 'image/jpeg'
                         && fileName.matches('.*\\.jpg'))
-                       || (request.resource.contentType.matches('video/.*')
-                           && fileName.matches('.*\\.video')));
+                       || (request.resource.contentType == 'video/mp4'
+                           && fileName.matches('.*\\.mp4')));
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 

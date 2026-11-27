@@ -706,3 +706,33 @@ exports.expireRelationshipInvites = onSchedule(
     logger.info("Relationship invitation expiry scan completed", { expiredCount });
   }
 );
+
+
+// Count unique profile visitors. Visitor documents use the visitor UID as their
+// document ID, so repeat visits update the same document and do not increment
+// this counter again.
+exports.countUniqueProfileVisitor = onDocumentCreated(
+  {
+    document: "users/{profileId}/visitors/{visitorId}",
+    region: "asia-south1",
+    retry: true
+  },
+  async (event) => {
+    const { profileId, visitorId } = event.params;
+    if (!profileId || !visitorId || profileId === visitorId) return;
+
+    const profileRef = db.collection("users").doc(profileId);
+    await db.runTransaction(async (tx) => {
+      const profileSnap = await tx.get(profileRef);
+      if (!profileSnap.exists) return;
+      const currentCount = profileSnap.get("totalVisitors");
+      const safeCount = Number.isSafeInteger(currentCount) && currentCount >= 0 ? currentCount : 0;
+      tx.update(profileRef, {
+        totalVisitors: safeCount + 1,
+        totalVisitorsUpdatedAt: FieldValue.serverTimestamp()
+      });
+    });
+
+    logger.info("Unique profile visitor counted", { profileId, visitorId });
+  }
+);

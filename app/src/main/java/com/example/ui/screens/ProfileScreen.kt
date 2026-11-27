@@ -815,9 +815,16 @@ fun ProfileScreen(
                 ActivityResultContracts.PickVisualMedia()
              ) { uri: Uri? ->
                 if (uri != null && isOwnProfile) {
+                    // Keep the caption when the user adds the optional second photo.
+                    if (pendingMomentUris.isEmpty()) momentQuote = ""
+                    runCatching {
+                        context.contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    }
                     pendingMomentUris = (pendingMomentUris + uri).distinct().take(2)
                     pendingIsVideo = false
-                    momentQuote = ""
                     momentError = ""
                     showMomentComposer = true
                 }
@@ -826,6 +833,12 @@ fun ProfileScreen(
                 ActivityResultContracts.PickVisualMedia()
             ) { uri: Uri? ->
                 if (uri != null && isOwnProfile) {
+                    runCatching {
+                        context.contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    }
                     pendingMomentUris = listOf(uri)
                     pendingIsVideo = true
                     momentQuote = ""
@@ -1404,6 +1417,16 @@ fun ProfileScreen(
 }
 
 
+private fun openMomentInputStream(context: android.content.Context, uri: Uri): java.io.InputStream? {
+    val resolver = context.contentResolver
+    return runCatching { resolver.openInputStream(uri) }.getOrNull()
+        ?: runCatching {
+            resolver.openFileDescriptor(uri, "r")?.let {
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(it)
+            }
+        }.getOrNull()
+}
+
 private fun getMomentFileSize(context: android.content.Context, uri: Uri): Long {
     val descriptorSize = runCatching {
         context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length }
@@ -1411,7 +1434,7 @@ private fun getMomentFileSize(context: android.content.Context, uri: Uri): Long 
     if (descriptorSize > 0L) return descriptorSize
 
     var totalBytes = 0L
-    context.contentResolver.openInputStream(uri)?.use { input ->
+    openMomentInputStream(context, uri)?.use { input ->
         val buffer = ByteArray(8192)
         while (true) {
             val count = input.read(buffer)
@@ -1425,8 +1448,8 @@ private fun getMomentFileSize(context: android.content.Context, uri: Uri): Long 
 
 private fun compressMomentPhoto(context: android.content.Context, uri: Uri): ByteArray {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-        ?: throw IllegalArgumentException("Could not read selected photo")
+    openMomentInputStream(context, uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        ?: throw IllegalArgumentException("Could not read selected photo. Please choose the photo again.")
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
         throw IllegalArgumentException("Invalid photo")
     }
@@ -1436,9 +1459,9 @@ private fun compressMomentPhoto(context: android.content.Context, uri: Uri): Byt
         sampleSize *= 2
     }
     val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-    var bitmap = context.contentResolver.openInputStream(uri)?.use {
+    var bitmap = openMomentInputStream(context, uri)?.use {
         BitmapFactory.decodeStream(it, null, options)
-    } ?: throw IllegalArgumentException("Could not decode selected photo")
+    } ?: throw IllegalArgumentException("Could not decode selected photo. Please choose a different photo.")
 
     try {
         while (true) {

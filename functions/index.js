@@ -708,45 +708,4 @@ exports.expireRelationshipInvites = onSchedule(
 );
 
 
-// Count unique profile visitors. Visitor documents use the visitor UID as their
-// document ID, so repeat visits update the same document and do not increment
-// this counter again.
-exports.countUniqueProfileVisitor = onDocumentCreated(
-  {
-    document: "users/{profileId}/visitors/{visitorId}",
-    region: "asia-south1",
-    retry: true
-  },
-  async (event) => {
-    const { profileId, visitorId } = event.params;
-    if (!profileId || !visitorId || profileId === visitorId) return;
 
-    const profileRef = db.collection("users").doc(profileId);
-    const eventId = event.id;
-    if (!eventId) {
-      logger.error("Profile visitor event is missing its event ID", { profileId, visitorId });
-      return;
-    }
-    const countedEventRef = db.collection("profileVisitorCountEvents").doc(eventId);
-    await db.runTransaction(async (tx) => {
-      const [countedEventSnap, profileSnap] = await Promise.all([
-        tx.get(countedEventRef),
-        tx.get(profileRef)
-      ]);
-      if (countedEventSnap.exists || !profileSnap.exists) return;
-      const currentCount = profileSnap.get("totalVisitors");
-      const safeCount = Number.isSafeInteger(currentCount) && currentCount >= 0 ? currentCount : 0;
-      tx.create(countedEventRef, {
-        profileId,
-        visitorId,
-        countedAt: FieldValue.serverTimestamp()
-      });
-      tx.update(profileRef, {
-        totalVisitors: safeCount + 1,
-        totalVisitorsUpdatedAt: FieldValue.serverTimestamp()
-      });
-    });
-
-    logger.info("Unique profile visitor counted", { profileId, visitorId });
-  }
-);

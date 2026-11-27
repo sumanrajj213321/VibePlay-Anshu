@@ -706,3 +706,62 @@ exports.expireRelationshipInvites = onSchedule(
     logger.info("Relationship invitation expiry scan completed", { expiredCount });
   }
 );
+
+
+// Record a profile visit. Each visitor has one document; repeat visits refresh visitedAt.
+exports.recordProfileVisit = onCall({ region: "asia-south1" }, async (request) => {
+  if (!request.auth || !request.auth.uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+  const visitorId = request.auth.uid;
+  const profileUserId = request.data && request.data.profileUserId;
+  if (typeof profileUserId !== "string" || !profileUserId || profileUserId.length > 128 ||
+      profileUserId === visitorId) return { success: true, recorded: false };
+
+  const [visitorSnap, profileSnap] = await Promise.all([
+    db.collection("users").doc(visitorId).get(),
+    db.collection("users").doc(profileUserId).get()
+  ]);
+  if (!visitorSnap.exists || !profileSnap.exists || profileSnap.get("accountStatus") !== "ACTIVE") {
+    throw new HttpsError("not-found", "Profile not available.");
+  }
+  const visitor = visitorSnap.data();
+  await db.collection("users").doc(profileUserId).collection("visitors").doc(visitorId).set({
+    visitorId,
+    visitorName: String(visitor.username || "VibeUser").slice(0, 30),
+    visitorAvatarUrl: String(visitor.avatarUrl || "").slice(0, 500),
+    visitedAt: FieldValue.serverTimestamp()
+  }, { merge: true });
+  return { success: true, recorded: true };
+});
+
+// Subscription purchases are server-authoritative; client cannot alter balance or expiry.
+exports.purchaseVisitorsSubscription = onCall({ region: "asia-south1" }, async (request) => {
+  if (!request.auth || !request.auth.uid) throw new HttpsError("unauthenticated", "Please sign in first.");
+  const days = request.data && request.data.days;
+  const prices = { 3: 50000, 30: 500000 };
+  if (days !== 3 && days !== 30) throw new HttpsError("invalid-argument", "Choose a valid Visitors plan.");
+  const uid = request.auth.uid;
+  const userRef = db.collection("users").doc(uid);
+  const price = prices[days];
+  let expiresAtMillis = 0;
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    if (!snap.exists) throw new HttpsError("not-found", "Profile not found.");
+    const profile = snap.data();
+    const coins = profile.coinBalance;
+    if (!Number.isSafeInteger(coins) || coins < price) {
+      throw new HttpsError("failed-precondition", "Not enough coins for this Visitors plan.");
+    }
+    const now = Date.now();
+    const currentExpiry = profile.visitorsExpiresAt && typeof profile.visitorsExpiresAt.toMillis === "function"
+      ? profile.visitorsExpiresAt.toMillis() : 0;
+    expiresAtMillis = Math.max(now, currentExpiry) + days * 24 * 60 * 60 * 1000;
+    tx.update(userRef, {
+      coinBalance: coins - price,
+      visitorsExpiresAt: Timestamp.fromMillis(expiresAtMillis),
+      visitorsSubscriptionUpdatedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    });
+  });
+  return { success: true, days, price, expiresAt: expiresAtMillis };
+});

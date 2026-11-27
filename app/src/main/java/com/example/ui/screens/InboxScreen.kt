@@ -56,6 +56,8 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
@@ -117,6 +119,8 @@ import com.example.ui.theme.VibePink
 import com.example.ui.theme.VibeViolet
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.Timestamp
 import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.Flow
 import java.security.MessageDigest
@@ -159,6 +163,12 @@ fun InboxScreen(
     var showCreateGroupSheet by remember { mutableStateOf(false) }
     var showNotificationsSheet by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var showVisitorsScreen by remember { mutableStateOf(false) }
+
+    if (showVisitorsScreen) {
+        VisitorsCenterScreen(currentUser = currentUser, onBack = { showVisitorsScreen = false })
+        return
+    }
 
     val selectedConversation = conversations.firstOrNull { it.id == selectedConversationId }
     if (selectedConversation != null) {
@@ -239,7 +249,12 @@ fun InboxScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { showVisitorsScreen = true }, modifier = Modifier.testTag("inbox_visitors_button")) {
+                    Icon(Icons.Filled.Visibility, contentDescription = null, tint = VibeCyan, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Visitors", color = VibeCyan, fontWeight = FontWeight.SemiBold)
+                }
                 IconButton(
                     onClick = { showNotificationsSheet = true },
                     modifier = Modifier.testTag("inbox_notifications_button")
@@ -1863,5 +1878,176 @@ fun NotificationsCenterSheet(
                 }
             }
         }
+    }
+}
+
+
+private data class VisitorRow(
+    val id: String,
+    val name: String,
+    val avatarUrl: String,
+    val visitedAt: Timestamp?
+)
+
+@Composable
+private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
+    val db = remember { FirebaseFirestore.getInstance() }
+    val functions = remember { FirebaseFunctions.getInstance("asia-south1") }
+    var visitors by remember { mutableStateOf<List<VisitorRow>>(emptyList()) }
+    var subscriptionExpiry by remember { mutableStateOf<Timestamp?>(null) }
+    var loading by remember { mutableStateOf(true) }
+    var purchasing by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf("") }
+    var hasAccess by remember { mutableStateOf(false) }
+
+    DisposableEffect(currentUser.userId) {
+        val profileListener = db.collection("users").document(currentUser.userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    message = "Visitors information load nahi ho payi."
+                    loading = false
+                    return@addSnapshotListener
+                }
+                subscriptionExpiry = snapshot?.getTimestamp("visitorsExpiresAt")
+                hasAccess = subscriptionExpiry?.toDate()?.time?.let { it > System.currentTimeMillis() } == true
+                loading = false
+            }
+        val visitorsListener = db.collection("users").document(currentUser.userId)
+            .collection("visitors")
+            .orderBy("visitedAt", Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    if (error.code != com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                        message = "Visitors list load nahi ho payi."
+                    }
+                    return@addSnapshotListener
+                }
+                visitors = snapshot?.documents.orEmpty().map { doc ->
+                    VisitorRow(
+                        id = doc.id,
+                        name = doc.getString("visitorName") ?: "VibeUser",
+                        avatarUrl = doc.getString("visitorAvatarUrl").orEmpty(),
+                        visitedAt = doc.getTimestamp("visitedAt")
+                    )
+                }
+            }
+        onDispose { profileListener.remove(); visitorsListener.remove() }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+            Text("Visitors", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        }
+        if (loading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = VibeCyan) }
+            return@Column
+        }
+        if (!hasAccess) {
+            Column(
+                Modifier.fillMaxWidth().padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text("See who visited your profile", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Visitors list dekhne ke liye subscription lo. Purani visit history safe rahegi.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Surface(shape = RoundedCornerShape(18.dp), color = VibeCyan.copy(alpha = 0.08f), border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.35f))) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("3 Days", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("50,000 coins", color = VibeGold, fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = {
+                                purchasing = true
+                                message = ""
+                                functions.getHttpsCallable("purchaseVisitorsSubscription")
+                                    .call(mapOf("days" to 3))
+                                    .addOnSuccessListener { purchasing = false; message = "3-day Visitors access activated." }
+                                    .addOnFailureListener { e -> purchasing = false; message = e.localizedMessage ?: "Purchase failed. Try again." }
+                            },
+                            enabled = !purchasing,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(if (purchasing) "Please wait..." else "Buy for 50,000 coins") }
+                    }
+                }
+                Surface(shape = RoundedCornerShape(18.dp), color = VibeGold.copy(alpha = 0.08f), border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.35f))) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("30 Days", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("5,00,000 coins", color = VibeGold, fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = {
+                                purchasing = true
+                                message = ""
+                                functions.getHttpsCallable("purchaseVisitorsSubscription")
+                                    .call(mapOf("days" to 30))
+                                    .addOnSuccessListener { purchasing = false; message = "30-day Visitors access activated." }
+                                    .addOnFailureListener { e -> purchasing = false; message = e.localizedMessage ?: "Purchase failed. Try again." }
+                            },
+                            enabled = !purchasing,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(if (purchasing) "Please wait..." else "Buy for 5,00,000 coins") }
+                    }
+                }
+                if (message.isNotBlank()) Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+                Text("Subscription active", color = VibeEmerald, fontWeight = FontWeight.Bold)
+                Text("Valid till " + (subscriptionExpiry?.toDate()?.let { SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(it) } ?: ""), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Visitors history is saved. Renew anytime to extend access.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                    OutlinedButton(onClick = {
+                        purchasing = true
+                        functions.getHttpsCallable("purchaseVisitorsSubscription").call(mapOf("days" to 3))
+                            .addOnSuccessListener { purchasing = false; message = "Subscription extended by 3 days." }
+                            .addOnFailureListener { e -> purchasing = false; message = e.localizedMessage ?: "Purchase failed." }
+                    }, enabled = !purchasing, modifier = Modifier.weight(1f)) { Text("3 days · 50K") }
+                    OutlinedButton(onClick = {
+                        purchasing = true
+                        functions.getHttpsCallable("purchaseVisitorsSubscription").call(mapOf("days" to 30))
+                            .addOnSuccessListener { purchasing = false; message = "Subscription extended by 30 days." }
+                            .addOnFailureListener { e -> purchasing = false; message = e.localizedMessage ?: "Purchase failed." }
+                    }, enabled = !purchasing, modifier = Modifier.weight(1f)) { Text("30 days · 5L") }
+                }
+                if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall)
+            }
+            if (visitors.isEmpty()) {
+                Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+                    Text("Abhi tak kisi ne profile visit nahi ki.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(visitors, key = { it.id }) { visitor ->
+                        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)) {
+                            Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                VibeAvatar(name = visitor.name, avatarUrl = visitor.avatarUrl, size = 46.dp)
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(visitor.name, fontWeight = FontWeight.SemiBold)
+                                    Text(visitor.visitedAt?.toDate()?.let { formatVisitorAge(it.time) } ?: "Just now", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatVisitorAge(visitedAtMillis: Long): String {
+    val elapsed = (System.currentTimeMillis() - visitedAtMillis).coerceAtLeast(0L)
+    return if (elapsed < 24L * 60L * 60L * 1000L) {
+        SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(java.util.Date(visitedAtMillis))
+    } else {
+        val days = elapsed / (24L * 60L * 60L * 1000L)
+        "$days day" + if (days == 1L) " ago" else "s ago"
     }
 }

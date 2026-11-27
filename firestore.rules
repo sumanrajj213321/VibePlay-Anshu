@@ -821,19 +821,59 @@ service cloud.firestore {
           get(/databases/$(database)/documents/users/$(userId)).data.accountStatus == 'ACTIVE';
         allow create: if isSignedIn() &&
           request.auth.uid == userId &&
-          incoming().keys().hasOnly(['ownerId', 'mediaUrl', 'mediaType', 'contentType', 'sizeBytes', 'createdAt']) &&
+          incoming().keys().hasOnly(['ownerId', 'mediaUrl', 'mediaUrls', 'mediaSizes', 'mediaType', 'contentType', 'sizeBytes', 'quote', 'createdAt']) &&
           incoming().ownerId == userId &&
           incoming().mediaUrl is string && incoming().mediaUrl.size() <= 2000 &&
+          incoming().mediaUrls is list &&
+          incoming().mediaUrls.size() >= 1 && incoming().mediaUrls.size() <= 10 &&
+          incoming().mediaUrls[0] == incoming().mediaUrl &&
+          incoming().mediaSizes is list &&
+          incoming().mediaSizes.size() == incoming().mediaUrls.size() &&
           ((incoming().mediaType == 'image' &&
-            incoming().contentType == 'image/jpeg') ||
+            incoming().contentType == 'image/jpeg' &&
+            incoming().mediaUrls.size() <= 10) ||
            (incoming().mediaType == 'video' &&
-            incoming().contentType is string &&
-            incoming().contentType.matches('video/.*'))) &&
+            incoming().contentType == 'video/mp4' &&
+            incoming().mediaUrls.size() == 1)) &&
+          incoming().quote is string && incoming().quote.size() <= 300 &&
           incoming().sizeBytes is int && incoming().sizeBytes > 0 &&
-          incoming().sizeBytes <= 1048576 &&
+          incoming().sizeBytes <= 10 * 1048576 &&
           incoming().createdAt == request.time;
         allow update: if false;
         allow delete: if isSignedIn() && request.auth.uid == userId;
+
+        match /likes/{likerId} {
+          allow read: if isSignedIn();
+          allow create: if isSignedIn() && request.auth.uid == likerId &&
+            incoming().keys().hasOnly(['userId', 'createdAt']) &&
+            incoming().userId == request.auth.uid &&
+            incoming().createdAt == request.time;
+          allow update: if false;
+          allow delete: if isSignedIn() && request.auth.uid == likerId;
+        }
+
+        match /comments/{commentId} {
+          allow read: if isSignedIn();
+          allow create: if isSignedIn() &&
+            incoming().keys().hasOnly(['authorId', 'text', 'createdAt']) &&
+            incoming().authorId == request.auth.uid &&
+            incoming().text is string &&
+            incoming().text.size() >= 1 && incoming().text.size() <= 500 &&
+            incoming().createdAt == request.time;
+          allow update: if false;
+          allow delete: if isSignedIn() &&
+            (request.auth.uid == existing().authorId || request.auth.uid == userId);
+
+          match /likes/{likerId} {
+            allow read: if isSignedIn();
+            allow create: if isSignedIn() && request.auth.uid == likerId &&
+              incoming().keys().hasOnly(['userId', 'createdAt']) &&
+              incoming().userId == request.auth.uid &&
+              incoming().createdAt == request.time;
+            allow update: if false;
+            allow delete: if isSignedIn() && request.auth.uid == likerId;
+          }
+        }
       }
 
       match /avatar/{avatarDocId} {

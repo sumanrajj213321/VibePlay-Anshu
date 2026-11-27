@@ -122,7 +122,7 @@ test("Visitors subscriptions charge the exact price and visitor history is owner
       visitorAvatarUrl: "",
       visitedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
-    tx.update(aliceRef, {
+    tx.update(aliceProfileForBob, {
       totalVisitors: (profile.get("totalVisitors") || 0) + 1,
       totalVisitorsUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
@@ -512,7 +512,8 @@ test("Unique profile visitor total increments atomically only on the first visit
   const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
   const bobDb = testEnv.authenticatedContext(BOB_UID).firestore();
   const bobProfile = bobDb.collection("users").doc(BOB_UID);
-  const visitRef = bobProfile.collection("visitors").doc(ALICE_UID);
+  const bobProfileFromAlice = aliceDb.collection("users").doc(BOB_UID);
+  const visitRef = bobProfileFromAlice.collection("visitors").doc(ALICE_UID);
 
   await assertSucceeds(aliceDb.collection("users").doc(ALICE_UID).set(
     makeUserPayload(ALICE_UID, "Alice", "VP-100001")
@@ -524,7 +525,7 @@ test("Unique profile visitor total increments atomically only on the first visit
   const recordVisit = () => aliceDb.runTransaction(async (tx) => {
     const [visit, profile] = await Promise.all([
       tx.get(visitRef),
-      tx.get(aliceDb.collection("users").doc(BOB_UID)),
+      tx.get(bobProfileFromAlice),
     ]);
     tx.set(visitRef, {
       visitorId: ALICE_UID,
@@ -533,7 +534,7 @@ test("Unique profile visitor total increments atomically only on the first visit
       visitedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     if (!visit.exists) {
-      tx.update(aliceDb.collection("users").doc(BOB_UID), {
+      tx.update(bobProfileFromAlice, {
         totalVisitors: (profile.get("totalVisitors") || 0) + 1,
         totalVisitorsUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });

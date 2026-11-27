@@ -17,6 +17,11 @@ import android.os.ParcelFileDescriptor
 import java.io.InputStream
 import android.content.Intent
 import android.util.Base64
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.animation.core.tween
@@ -164,6 +169,7 @@ fun ProfileScreen(
     var showSocialSheet by remember { mutableStateOf(false) }
     var socialInitialTab by remember { mutableStateOf(0) }
     var showSetupGuide by remember { mutableStateOf(false) }
+    var uploadingMoment by remember(profile.userId) { mutableStateOf(false) }
     var coverLoadFailed by remember(profile.coverUrl) { mutableStateOf(false) }
     var firestoreCoverBitmap by remember(profile.userId, profile.coverUrl) { mutableStateOf<Bitmap?>(null) }
     val isFirestoreCover = profile.coverUrl.startsWith("firestore-cover://")
@@ -271,6 +277,7 @@ fun ProfileScreen(
         }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp),
@@ -454,7 +461,7 @@ fun ProfileScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(165.dp),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Fit
                     )
                 }
                 Box(
@@ -805,7 +812,7 @@ fun ProfileScreen(
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
             var moments by remember(profile.userId) { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
-            var uploadingMoment by remember(profile.userId) { mutableStateOf(false) }
+            var showAllMoments by remember(profile.userId) { mutableStateOf(false) }
             var momentError by remember(profile.userId) { mutableStateOf("") }
             var pendingMomentUri by remember { mutableStateOf<Uri?>(null) }
             var momentQuote by remember { mutableStateOf("") }
@@ -863,8 +870,11 @@ fun ProfileScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("Moments", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                        IconButton(onClick = { showAllMoments = true }) {
+                            Icon(Icons.Filled.PhotoLibrary, contentDescription = "View all Moments", tint = VibeCyan)
+                        }
                     }
                     if (isOwnProfile) {
                         OutlinedButton(
@@ -892,7 +902,7 @@ fun ProfileScreen(
                     }
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        moments.forEach { moment ->
+                        moments.take(1).forEach { moment ->
                             val momentId = moment["id"] as? String ?: return@forEach
                             val legacyUrl = moment["mediaUrl"] as? String ?: ""
                             val photoBase64 = moment["photoBase64"] as? String
@@ -922,12 +932,7 @@ fun ProfileScreen(
                                         modifier = Modifier.fillMaxWidth().height(220.dp)
                                             .clip(RoundedCornerShape(12.dp))
                                             .background(MaterialTheme.colorScheme.surface)
-                                            .clickable(enabled = photoBitmap == null && legacyUrl.isNotBlank()) {
-                                                context.startActivity(Intent(Intent.ACTION_VIEW).apply {
-                                                    setDataAndType(Uri.parse(legacyUrl), "image/jpeg")
-                                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                                })
-                                            },
+                                            .clickable { showAllMoments = true },
                                         contentAlignment = Alignment.Center
                                     ) {
                                         if (photoBitmap != null) {
@@ -935,14 +940,14 @@ fun ProfileScreen(
                                                 bitmap = photoBitmap.asImageBitmap(),
                                                 contentDescription = "Moment photo",
                                                 modifier = Modifier.fillMaxSize(),
-                                                contentScale = ContentScale.Crop
+                                                contentScale = ContentScale.Fit
                                             )
                                         } else if (legacyUrl.isNotBlank()) {
                                             AsyncImage(
                                                 model = legacyUrl,
                                                 contentDescription = "Moment photo",
                                                 modifier = Modifier.fillMaxSize(),
-                                                contentScale = ContentScale.Crop
+                                                contentScale = ContentScale.Fit
                                             )
                                         } else {
                                             Text("Photo unavailable", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -956,7 +961,45 @@ fun ProfileScreen(
                 }
             }
 
-            if (showMomentComposer) {
+            if (showAllMoments) {
+                Dialog(onDismissRequest = { showAllMoments = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+                    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                        Column(Modifier.fillMaxSize()) {
+                            Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("All Moments", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                IconButton(onClick = { showAllMoments = false }) { Icon(Icons.Filled.Close, contentDescription = "Close Moments") }
+                            }
+                            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                items(moments, key = { it["id"] as? String ?: it.hashCode().toString() }) { moment ->
+                                    val id = moment["id"] as? String ?: return@items
+                                    val encoded = moment["photoBase64"] as? String
+                                    val url = moment["mediaUrl"] as? String ?: ""
+                                    val bitmap = remember(encoded) {
+                                        runCatching {
+                                            encoded?.let { data ->
+                                                val bytes = Base64.decode(data, Base64.DEFAULT)
+                                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                            }
+                                        }.getOrNull()
+                                    }
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        val quote = moment["quote"] as? String ?: ""
+                                        if (quote.isNotBlank()) Text("“$quote”", fontWeight = FontWeight.SemiBold)
+                                        Box(Modifier.fillMaxWidth().height(360.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surface), contentAlignment = Alignment.Center) {
+                                            if (bitmap != null) Image(bitmap.asImageBitmap(), "Moment photo", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                                            else if (url.isNotBlank()) AsyncImage(url, "Moment photo", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                                            else Text("Photo unavailable")
+                                        }
+                                        MomentEngagement(profile.userId, id)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (showMomentComposer && !uploadingMoment) {
                 AlertDialog(
                     onDismissRequest = {
                         if (!uploadingMoment) {
@@ -972,7 +1015,7 @@ fun ProfileScreen(
                                     model = selectedUri,
                                     contentDescription = "Selected photo preview",
                                     modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(10.dp)),
-                                    contentScale = ContentScale.Crop
+                                    contentScale = ContentScale.Fit
                                 )
                             }
                             OutlinedTextField(

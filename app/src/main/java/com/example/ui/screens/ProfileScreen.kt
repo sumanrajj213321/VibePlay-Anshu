@@ -996,7 +996,7 @@ fun ProfileScreen(
                             if (!pendingIsVideo && pendingMomentUris.size < 2) {
                                 OutlinedButton(
                                     onClick = {
-                                        photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                        photoPicker.launch(arrayOf("image/*"))
                                     },
                                     enabled = !uploadingMoment,
                                     modifier = Modifier.fillMaxWidth().testTag("add_second_profile_moment_photo"),

@@ -53,9 +53,13 @@ import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -65,6 +69,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -119,6 +124,11 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
+import com.google.android.gms.tasks.Task
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 @Composable
 fun ProfileScreen(
@@ -789,82 +799,63 @@ fun ProfileScreen(
             }
         }
 
-        // Moments: public profile media shared by this user.
+        // Moments: multi-photo and MP4 posts with captions and engagement.
         item(key = "profile_moments") {
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
             var moments by remember(profile.userId) { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
             var uploadingMoment by remember(profile.userId) { mutableStateOf(false) }
             var momentError by remember(profile.userId) { mutableStateOf("") }
-            val momentPicker = rememberLauncherForActivityResult(
+            var pendingMomentUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+            var pendingIsVideo by remember { mutableStateOf(false) }
+            var momentQuote by remember { mutableStateOf("") }
+            var showMomentComposer by remember { mutableStateOf(false) }
+
+            val photoPicker = rememberLauncherForActivityResult(
+                ActivityResultContracts.PickVisualMedia()
+             ) { uri: Uri? ->
+                if (uri != null && isOwnProfile) {
+                    pendingMomentUris = (pendingMomentUris + uri).distinct().take(2)
+                    pendingIsVideo = false
+                    momentQuote = ""
+                    momentError = ""
+                    showMomentComposer = true
+                }
+            }
+            val videoPicker = rememberLauncherForActivityResult(
                 ActivityResultContracts.PickVisualMedia()
             ) { uri: Uri? ->
                 if (uri != null && isOwnProfile) {
-                    uploadingMoment = true
+                    pendingMomentUris = listOf(uri)
+                    pendingIsVideo = true
+                    momentQuote = ""
                     momentError = ""
-                    scope.launch {
-                        try {
-                            val photoBytes = withContext(Dispatchers.IO) {
-                                compressMomentPhoto(context, uri)
-                            }
-                            if (photoBytes.size > 100 * 1024) {
-                                throw IllegalStateException("Maximum upload size is 100 KB")
-                            }
-                            val uid = FirebaseAuth.getInstance().currentUser?.uid
-                                ?: throw IllegalStateException("Please sign in again")
-                            val momentId = FirebaseFirestore.getInstance().collection("users")
-                                .document(uid).collection("moments").document().id
-                            val mediaRef = FirebaseStorage.getInstance().reference
-                                .child("moments/$uid/$momentId.jpg")
-                            mediaRef.putBytes(photoBytes)
-                                .continueWithTask { task ->
-                                    if (!task.isSuccessful) throw (task.exception ?: Exception("Upload failed"))
-                                    mediaRef.downloadUrl
-                                }
-                                .addOnSuccessListener { downloadUri ->
-                                    val data = mapOf(
-                                        "ownerId" to uid,
-                                        "mediaUrl" to downloadUri.toString(),
-                                        "mediaType" to "image",
-                                        "contentType" to "image/jpeg",
-                                        "sizeBytes" to photoBytes.size,
-                                        "createdAt" to FieldValue.serverTimestamp()
-                                    )
-                                    FirebaseFirestore.getInstance().collection("users")
-                                        .document(uid).collection("moments").document(momentId)
-                                        .set(data)
-                                        .addOnSuccessListener { uploadingMoment = false }
-                                        .addOnFailureListener { error ->
-                                            uploadingMoment = false
-                                            momentError = error.localizedMessage ?: "Could not publish photo"
-                                        }
-                                }
-                                .addOnFailureListener { error ->
-                                    uploadingMoment = false
-                                    momentError = error.localizedMessage ?: "Could not upload photo"
-                                }
-                        } catch (error: Exception) {
-                            uploadingMoment = false
-                            momentError = error.localizedMessage ?: "Could not prepare photo"
-                        }
-                    }
+                    showMomentComposer = true
                 }
             }
+
             DisposableEffect(profile.userId) {
                 val registration = FirebaseFirestore.getInstance().collection("users")
                     .document(profile.userId).collection("moments")
                     .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
                     .limit(30)
-                    .addSnapshotListener { snapshot, _ ->
-                        moments = snapshot?.documents.orEmpty()
-                            .filter { doc ->
-                                doc.getString("mediaType") == "image" &&
-                                    doc.getString("contentType") == "image/jpeg"
-                            }
-                            .map { doc -> doc.data.orEmpty() + mapOf("id" to doc.id) }
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            momentError = error.localizedMessage ?: "Could not load Moments"
+                        } else {
+                            moments = snapshot?.documents.orEmpty()
+                                .filter { doc ->
+                                    val type = doc.getString("mediaType")
+                                    val mime = doc.getString("contentType").orEmpty()
+                                    (type == "image" && mime == "image/jpeg") ||
+                                        (type == "video" && mime == "video/mp4")
+                                }
+                                .map { doc -> doc.data.orEmpty() + mapOf("id" to doc.id) }
+                        }
                     }
                 onDispose { registration.remove() }
             }
+
             Column(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(9.dp)
@@ -876,26 +867,26 @@ fun ProfileScreen(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("Moments", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-                        Text("Photos · max 100 KB", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("1 or 2 photos, or 1 MP4 video · 1 MB per file", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (isOwnProfile) {
-                        OutlinedButton(
-                            onClick = {
-                                momentPicker.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
-                            },
-                            enabled = !uploadingMoment,
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.testTag("add_profile_moment_button")
-                        ) {
-                            if (uploadingMoment) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            } else {
-                                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(17.dp))
-                            }
-                            Spacer(Modifier.width(5.dp))
-                            Text(if (uploadingMoment) "Uploading" else "Add Moment")
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedButton(
+                                onClick = {
+                                    photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                },
+                                enabled = !uploadingMoment,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.testTag("add_profile_moment_photos")
+                            ) { Text("Photos") }
+                            OutlinedButton(
+                                onClick = {
+                                    videoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly))
+                                },
+                                enabled = !uploadingMoment,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.testTag("add_profile_moment_video")
+                            ) { Text("Video") }
                         }
                     }
                 }
@@ -909,42 +900,209 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
                     ) {
                         Text(
-                            if (isOwnProfile) "Share your first photo" else "No moments shared yet",
+                            if (isOwnProfile) "Share your first photo or MP4 video" else "No moments shared yet",
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 18.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         moments.forEach { moment ->
-                            val mediaUrl = moment["mediaUrl"] as? String ?: ""
+                            val momentId = moment["id"] as? String ?: return@forEach
+                            val urls = (moment["mediaUrls"] as? List<*>)?.filterIsInstance<String>()
+                                ?.filter { it.isNotBlank() }
+                                ?: listOfNotNull(moment["mediaUrl"] as? String)
                             Surface(
-                                modifier = Modifier.size(width = 132.dp, height = 168.dp).clickable(enabled = mediaUrl.isNotBlank()) {
-                                    context.startActivity(
-                                        Intent(Intent.ACTION_VIEW, Uri.parse(mediaUrl)).apply {
-                                            setDataAndType(Uri.parse(mediaUrl), "image/*")
-                                        }
-                                    )
-                                },
-                                shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(18.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                             ) {
-                                if (mediaUrl.isNotBlank()) {
-                                    AsyncImage(
-                                        model = mediaUrl,
-                                        contentDescription = "Moment photo",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
+                                Column(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    val quote = moment["quote"] as? String ?: ""
+                                    if (quote.isNotBlank()) {
+                                        Text("“$quote”", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        urls.forEach { url ->
+                                            val isVideo = moment["mediaType"] == "video"
+                                            Box(
+                                                modifier = Modifier.size(width = 142.dp, height = 164.dp)
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(MaterialTheme.colorScheme.surface)
+                                                    .clickable(enabled = url.isNotBlank()) {
+                                                        val mediaUri = Uri.parse(url)
+                                                        context.startActivity(Intent(Intent.ACTION_VIEW).apply {
+                                                            setDataAndType(mediaUri, if (isVideo) "video/mp4" else "image/jpeg")
+                                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                        })
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (isVideo) {
+                                                    Icon(Icons.Filled.PlayArrow, contentDescription = "Play MP4 video", tint = VibePink, modifier = Modifier.size(48.dp))
+                                                    Text("MP4 VIDEO", modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                                } else {
+                                                    AsyncImage(
+                                                        model = url,
+                                                        contentDescription = "Moment photo",
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        contentScale = ContentScale.Crop
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    MomentEngagement(ownerId = profile.userId, momentId = momentId)
                                 }
                             }
                         }
                     }
                 }
+            }
+
+            if (showMomentComposer) {
+                AlertDialog(
+                    onDismissRequest = {
+                        if (!uploadingMoment) {
+                            showMomentComposer = false
+                            pendingMomentUris = emptyList()
+                        }
+                    },
+                    title = { Text(if (pendingIsVideo) "Add MP4 Moment" else "Add Photos Moment") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(if (pendingIsVideo) "1 MP4 video selected · max 1 MB" else "${pendingMomentUris.size} photo(s) selected · max 1 MB each")
+                            if (!pendingIsVideo && pendingMomentUris.size < 2) {
+                                OutlinedButton(
+                                    onClick = {
+                                        photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                    },
+                                    enabled = !uploadingMoment,
+                                    modifier = Modifier.fillMaxWidth().testTag("add_second_profile_moment_photo"),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Filled.Add, contentDescription = null)
+                                    Text(" Add another photo")
+                                }
+                            }
+                            if (!pendingIsVideo && pendingMomentUris.isNotEmpty()) {
+                                Text(
+                                    if (pendingMomentUris.size == 1) "1 photo selected · you can add one more" else "2 photos selected · maximum reached",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            OutlinedTextField(
+                                value = momentQuote,
+                                onValueChange = { if (it.length <= 300) momentQuote = it },
+                                label = { Text("Write a quote or caption") },
+                                placeholder = { Text("Add something above your photos…") },
+                                modifier = Modifier.fillMaxWidth(),
+                                minLines = 2,
+                                maxLines = 4
+                            )
+                            Text("${momentQuote.length}/300", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (uploadingMoment) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            if (momentError.isNotBlank()) Text(momentError, color = VibeCoral, style = MaterialTheme.typography.labelSmall)
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            enabled = !uploadingMoment && pendingMomentUris.isNotEmpty(),
+                            onClick = {
+                                uploadingMoment = true
+                                momentError = ""
+                                scope.launch {
+                                    try {
+                                        val mimeTypes = pendingMomentUris.map { uri ->
+                                            context.contentResolver.getType(uri)?.lowercase().orEmpty()
+                                        }
+                                        if (pendingIsVideo && (mimeTypes.size != 1 || mimeTypes.first() != "video/mp4")) {
+                                            throw IllegalArgumentException("Only MP4 videos are supported")
+                                        }
+                                        if (!pendingIsVideo && mimeTypes.any { !it.startsWith("image/") }) {
+                                            throw IllegalArgumentException("Please select photos only")
+                                        }
+
+                                        val uid = FirebaseAuth.getInstance().currentUser?.uid
+                                            ?: throw IllegalStateException("Please sign in again")
+                                        val firestore = FirebaseFirestore.getInstance()
+                                        val momentRef = firestore.collection("users").document(uid)
+                                            .collection("moments").document()
+                                        val uploadedUrls = mutableListOf<String>()
+                                        val uploadedSizes = mutableListOf<Int>()
+
+                                        pendingMomentUris.forEachIndexed { index, uri ->
+                                            val isImage = !pendingIsVideo
+                                            val bytes = if (isImage) {
+                                                withContext(Dispatchers.IO) { compressMomentPhoto(context, uri) }
+                                            } else null
+                                            val sizeBytes = bytes?.size?.toLong()
+                                                ?: withContext(Dispatchers.IO) { getMomentFileSize(context, uri) }
+                                            if (sizeBytes <= 0L || sizeBytes > 1024L * 1024L) {
+                                                throw IllegalArgumentException("Each photo/video must be between 1 byte and 1 MB")
+                                            }
+                                            val extension = if (isImage) "jpg" else "mp4"
+                                            val mime = if (isImage) "image/jpeg" else "video/mp4"
+                                            val mediaRef = FirebaseStorage.getInstance().reference
+                                                .child("moments/$uid/${momentRef.id}_$index.$extension")
+                                            val metadata = com.google.firebase.storage.StorageMetadata.Builder()
+                                                .setContentType(mime)
+                                                .build()
+                                            val uploadTask = if (bytes != null) mediaRef.putBytes(bytes, metadata)
+                                                else mediaRef.putFile(uri, metadata)
+                                            val downloadTask = uploadTask.continueWithTask { task ->
+                                                if (!task.isSuccessful) throw (task.exception ?: Exception("Storage upload failed"))
+                                                mediaRef.downloadUrl
+                                            }
+                                            val downloadUri = awaitMomentTask(downloadTask)
+                                            uploadedUrls.add(downloadUri.toString())
+                                            uploadedSizes.add(sizeBytes.toInt())
+                                        }
+
+                                        val mediaType = if (pendingIsVideo) "video" else "image"
+                                        val contentType = if (pendingIsVideo) "video/mp4" else "image/jpeg"
+                                        val postData = mapOf(
+                                            "ownerId" to uid,
+                                            "mediaUrl" to uploadedUrls.first(),
+                                            "mediaUrls" to uploadedUrls,
+                                            "mediaSizes" to uploadedSizes,
+                                            "mediaType" to mediaType,
+                                            "contentType" to contentType,
+                                            "sizeBytes" to uploadedSizes.sum(),
+                                            "quote" to momentQuote.trim(),
+                                            "createdAt" to FieldValue.serverTimestamp()
+                                        )
+                                        awaitMomentTask(momentRef.set(postData))
+                                        uploadingMoment = false
+                                        showMomentComposer = false
+                                        pendingMomentUris = emptyList()
+                                        momentQuote = ""
+                                    } catch (error: Exception) {
+                                        uploadingMoment = false
+                                        momentError = error.localizedMessage ?: "Moment upload failed. Please try again."
+                                    }
+                                }
+                            }
+                        ) { Text(if (uploadingMoment) "Uploading…" else "Share Moment") }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            enabled = !uploadingMoment,
+                            onClick = {
+                                showMomentComposer = false
+                                pendingMomentUris = emptyList()
+                            }
+                        ) { Text("Cancel") }
+                    }
+                )
             }
         }
 
@@ -1246,6 +1404,25 @@ fun ProfileScreen(
 }
 
 
+private fun getMomentFileSize(context: android.content.Context, uri: Uri): Long {
+    val descriptorSize = runCatching {
+        context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length }
+    }.getOrNull() ?: -1L
+    if (descriptorSize > 0L) return descriptorSize
+
+    var totalBytes = 0L
+    context.contentResolver.openInputStream(uri)?.use { input ->
+        val buffer = ByteArray(8192)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            totalBytes += count
+            if (totalBytes > 1024L * 1024L) return totalBytes
+        }
+    } ?: throw IllegalArgumentException("Could not read selected video")
+    return totalBytes
+}
+
 private fun compressMomentPhoto(context: android.content.Context, uri: Uri): ByteArray {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
@@ -1265,16 +1442,16 @@ private fun compressMomentPhoto(context: android.content.Context, uri: Uri): Byt
 
     try {
         while (true) {
-            for (quality in listOf(85, 75, 65, 55, 45, 35, 25, 15)) {
+            for (quality in listOf(90, 85, 75, 65, 55, 45, 35, 25, 15)) {
                 val output = ByteArrayOutputStream()
                 bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)
                 val bytes = output.toByteArray()
-                if (bytes.size <= 100 * 1024) return bytes
+                if (bytes.size <= 1024 * 1024) return bytes
             }
             val nextWidth = (bitmap.width * 0.8f).toInt().coerceAtLeast(1)
             val nextHeight = (bitmap.height * 0.8f).toInt().coerceAtLeast(1)
             if (nextWidth == bitmap.width || nextHeight == bitmap.height) {
-                throw IllegalStateException("Maximum upload size is 100 KB")
+                throw IllegalStateException("Maximum upload size is 1 MB")
             }
             val smaller = Bitmap.createScaledBitmap(bitmap, nextWidth, nextHeight, true)
             if (smaller !== bitmap) bitmap.recycle()
@@ -1342,3 +1519,159 @@ private fun ProfileActionRow(
     }
 }
 
+
+@Composable
+private fun MomentEngagement(ownerId: String, momentId: String) {
+    val uid = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+    val db = FirebaseFirestore.getInstance()
+    val momentRef = remember(ownerId, momentId) {
+        db.collection("users").document(ownerId).collection("moments").document(momentId)
+    }
+    var liked by remember(uid, momentId) { mutableStateOf(false) }
+    var likeCount by remember(momentId) { mutableStateOf(0) }
+    var comments by remember(momentId) { mutableStateOf<List<DocumentSnapshot>>(emptyList()) }
+    var commentText by remember(momentId) { mutableStateOf("") }
+    var sending by remember(momentId) { mutableStateOf(false) }
+
+    DisposableEffect(uid, ownerId, momentId) {
+        val likesListener = momentRef.collection("likes")
+            .addSnapshotListener { snapshot, _ ->
+                likeCount = snapshot?.size() ?: 0
+                liked = uid.isNotBlank() && snapshot?.documents?.any { it.id == uid } == true
+            }
+        val commentsListener = momentRef.collection("comments")
+            .orderBy("createdAt", Query.Direction.ASCENDING)
+            .limit(100)
+            .addSnapshotListener { snapshot, _ ->
+                comments = snapshot?.documents.orEmpty()
+            }
+        onDispose {
+            likesListener.remove()
+            commentsListener.remove()
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                if (liked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                contentDescription = if (liked) "Unlike moment" else "Like moment",
+                tint = if (liked) VibePink else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(21.dp).clickable(enabled = uid.isNotBlank()) {
+                    val likeRef = momentRef.collection("likes").document(uid)
+                    if (liked) likeRef.delete()
+                    else likeRef.set(mapOf("userId" to uid, "createdAt" to FieldValue.serverTimestamp()))
+                }
+            )
+            Text(" $likeCount", style = MaterialTheme.typography.labelMedium)
+        }
+        Text("💬 ${comments.size} comments", style = MaterialTheme.typography.labelMedium)
+    }
+
+    if (comments.isNotEmpty()) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            comments.forEach { comment ->
+                MomentCommentItem(
+                    momentRef = momentRef,
+                    comment = comment,
+                    currentUserId = uid
+                )
+            }
+        }
+    }
+
+    if (uid.isNotBlank()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            OutlinedTextField(
+                value = commentText,
+                onValueChange = { if (it.length <= 500) commentText = it },
+                placeholder = { Text("Write a comment…") },
+                modifier = Modifier.weight(1f),
+                maxLines = 3,
+                singleLine = false
+            )
+            Icon(
+                Icons.Filled.Send,
+                contentDescription = "Post comment",
+                tint = VibeCyan,
+                modifier = Modifier.size(25.dp).clickable(enabled = commentText.isNotBlank() && !sending) {
+                    sending = true
+                    val value = commentText.trim()
+                    val data = mapOf(
+                        "authorId" to uid,
+                        "text" to value,
+                        "createdAt" to FieldValue.serverTimestamp()
+                    )
+                    momentRef.collection("comments").add(data)
+                        .addOnSuccessListener {
+                            commentText = ""
+                            sending = false
+                        }
+                        .addOnFailureListener { sending = false }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MomentCommentItem(
+    momentRef: com.google.firebase.firestore.DocumentReference,
+    comment: DocumentSnapshot,
+    currentUserId: String
+) {
+    val commentId = comment.id
+    val commentRef = remember(momentRef.path, commentId) {
+        momentRef.collection("comments").document(commentId)
+    }
+    var liked by remember(commentId, currentUserId) { mutableStateOf(false) }
+    var count by remember(commentId) { mutableStateOf(0) }
+    DisposableEffect(commentId, currentUserId) {
+        val listener = commentRef.collection("likes").addSnapshotListener { snapshot, _ ->
+            count = snapshot?.size() ?: 0
+            liked = currentUserId.isNotBlank() && snapshot?.documents?.any { it.id == currentUserId } == true
+        }
+        onDispose { listener.remove() }
+    }
+    Column(
+        modifier = Modifier.fillMaxWidth().background(
+            MaterialTheme.colorScheme.surface.copy(alpha = 0.65f),
+            RoundedCornerShape(10.dp)
+        ).padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Text(comment.getString("text").orEmpty(), style = MaterialTheme.typography.bodySmall)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                if (liked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                contentDescription = "Like comment",
+                tint = if (liked) VibePink else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp).clickable(enabled = currentUserId.isNotBlank()) {
+                    val likeRef = commentRef.collection("likes").document(currentUserId)
+                    if (liked) likeRef.delete()
+                    else likeRef.set(mapOf("userId" to currentUserId, "createdAt" to FieldValue.serverTimestamp()))
+                }
+            )
+            Text(" $count", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+private suspend fun <T> awaitMomentTask(task: Task<T>): T =
+    suspendCancellableCoroutine { continuation ->
+        task.addOnSuccessListener { result ->
+            if (continuation.isActive) continuation.resume(result)
+        }.addOnFailureListener { error ->
+            if (continuation.isActive) continuation.resumeWithException(error)
+        }.addOnCanceledListener {
+            continuation.cancel()
+        }
+    }

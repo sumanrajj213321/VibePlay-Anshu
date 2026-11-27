@@ -1065,17 +1065,31 @@ fun ProfileScreen(
                                             }
                                             val extension = if (isImage) "jpg" else "mp4"
                                             val mime = if (isImage) "image/jpeg" else "video/mp4"
-                                            val mediaRef = FirebaseStorage.getInstance().reference
+                                            // Pin Moments to the bucket declared in google-services.json.
+                                            // Do not rely on an implicitly selected default bucket.
+                                            val storage = FirebaseStorage.getInstance("gs://vibeplay-anshu.firebasestorage.app")
+                                            val mediaRef = storage.reference
                                                 .child("moments/$uid/${momentRef.id}_$index.$extension")
                                             val metadata = com.google.firebase.storage.StorageMetadata.Builder()
                                                 .setContentType(mime)
                                                 .build()
-                                            val uploadTask = mediaRef.putBytes(bytes, metadata)
-                                            val downloadTask = uploadTask.continueWithTask { task ->
-                                                if (!task.isSuccessful) throw (task.exception ?: Exception("Storage upload failed"))
-                                                mediaRef.downloadUrl
+                                            try {
+                                                awaitMomentTask(mediaRef.putBytes(bytes, metadata))
+                                            } catch (uploadError: Exception) {
+                                                throw IllegalStateException(
+                                                    "Firebase Storage upload failed for ${mediaRef.path}: ${uploadError.localizedMessage}",
+                                                    uploadError
+                                                )
                                             }
-                                            val downloadUri = awaitMomentTask(downloadTask)
+                                            val downloadUri = try {
+                                                // Resolve the URL only after the upload task has fully completed.
+                                                awaitMomentTask(mediaRef.downloadUrl)
+                                            } catch (urlError: Exception) {
+                                                throw IllegalStateException(
+                                                    "Upload finished, but the file URL could not be found in bucket vibeplay-anshu.firebasestorage.app at ${mediaRef.path}: ${urlError.localizedMessage}",
+                                                    urlError
+                                                )
+                                            }
                                             uploadedUrls.add(downloadUri.toString())
                                             uploadedSizes.add(sizeBytes.toInt())
                                         }

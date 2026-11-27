@@ -867,14 +867,12 @@ fun ProfileScreen(
                         Text("Moments", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
                     }
                     if (isOwnProfile) {
-                        if (moments.isEmpty()) {
-                            OutlinedButton(
-                                onClick = { photoPicker.launch(arrayOf("image/*")) },
-                                enabled = !uploadingMoment,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.testTag("add_profile_moment_photos")
-                            ) { Text("Add Photo") }
-                        }
+                        OutlinedButton(
+                            onClick = { photoPicker.launch(arrayOf("image/*")) },
+                            enabled = !uploadingMoment,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.testTag("add_profile_moment_photos")
+                        ) { Text("Add Photo") }
                     }
                 }
                 if (momentError.isNotBlank()) {
@@ -887,7 +885,7 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
                     ) {
                         Text(
-                            if (isOwnProfile && moments.isEmpty()) "Share your one lifetime photo Moment" else "No moments shared yet",
+                            if (isOwnProfile) "Share a photo Moment" else "No moments shared yet",
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 18.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1009,15 +1007,6 @@ fun ProfileScreen(
                                             ?: throw IllegalStateException("Please sign in again")
                                         val firestore = FirebaseFirestore.getInstance()
                                         val momentsRef = firestore.collection("users").document(uid).collection("moments")
-                                        val existingMoments = withContext(Dispatchers.IO) {
-                                            com.google.android.gms.tasks.Tasks.await(momentsRef.get())
-                                        }
-                                        val alreadyPosted = existingMoments.documents.any {
-                                            it.getString("mediaType") == "image"
-                                        }
-                                        if (alreadyPosted) {
-                                            throw IllegalStateException("You can upload only one photo in your account lifetime. This limit cannot be reset.")
-                                        }
                                         val bytes = withContext(Dispatchers.IO) {
                                             ensureMomentPhotoUnderLimit(context, uri)
                                             compressMomentPhoto(context, uri)
@@ -1025,7 +1014,7 @@ fun ProfileScreen(
                                         if (bytes.isEmpty() || bytes.size > 100 * 1024) {
                                             throw IllegalArgumentException("Photo size must be 100 KB or less. Please choose a smaller photo.")
                                         }
-                                        val momentRef = momentsRef.document("lifetime_photo")
+                                        val momentRef = momentsRef.document()
                                         val postData = mapOf(
                                             "ownerId" to uid,
                                             "photoBase64" to Base64.encodeToString(bytes, Base64.NO_WRAP),

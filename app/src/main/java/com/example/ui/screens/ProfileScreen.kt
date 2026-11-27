@@ -810,10 +810,10 @@ fun ProfileScreen(
             var showMomentComposer by remember { mutableStateOf(false) }
 
             val photoPicker = rememberLauncherForActivityResult(
-                PickMultipleVisualMedia(maxItems = 10)
-            ) { uris: List<Uri> ->
-                if (uris.isNotEmpty() && isOwnProfile) {
-                    pendingMomentUris = uris.take(10)
+                ActivityResultContracts.PickVisualMedia()
+             ) { uri: Uri? ->
+                if (uri != null && isOwnProfile) {
+                    pendingMomentUris = (pendingMomentUris + uri).distinct().take(2)
                     pendingIsVideo = false
                     momentQuote = ""
                     momentError = ""
@@ -865,7 +865,7 @@ fun ProfileScreen(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("Moments", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
-                        Text("Up to 10 photos or 1 MP4 video · 1 MB per file", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("1 or 2 photos, or 1 MP4 video · 1 MB per file", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (isOwnProfile) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -977,6 +977,26 @@ fun ProfileScreen(
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(if (pendingIsVideo) "1 MP4 video selected · max 1 MB" else "${pendingMomentUris.size} photo(s) selected · max 1 MB each")
+                            if (!pendingIsVideo && pendingMomentUris.size < 2) {
+                                OutlinedButton(
+                                    onClick = {
+                                        photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                    },
+                                    enabled = !uploadingMoment,
+                                    modifier = Modifier.fillMaxWidth().testTag("add_second_profile_moment_photo"),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Filled.Add, contentDescription = null)
+                                    Text(" Add another photo")
+                                }
+                            }
+                            if (!pendingIsVideo && pendingMomentUris.isNotEmpty()) {
+                                Text(
+                                    if (pendingMomentUris.size == 1) "1 photo selected · you can add one more" else "2 photos selected · maximum reached",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                             OutlinedTextField(
                                 value = momentQuote,
                                 onValueChange = { if (it.length <= 300) momentQuote = it },

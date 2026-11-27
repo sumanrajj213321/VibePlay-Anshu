@@ -897,7 +897,7 @@ service cloud.firestore {
 
 
       // Visitor history is private to the profile owner and gated by an active subscription.
-      // Only trusted Admin SDK functions can write visitor records.
+      // A signed-in visitor may write only their own UID-keyed visit record.
       match /visitors/{visitorId} {
         allow get, list: if isSignedIn() &&
           request.auth.uid == userId &&
@@ -910,10 +910,10 @@ service cloud.firestore {
           isValidId(visitorId) &&
           incoming().keys().hasOnly(['visitorId', 'visitorName', 'visitorAvatarUrl', 'visitedAt']) &&
           incoming().visitorId == request.auth.uid &&
-          incoming().visitorName == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username &&
-          incoming().visitorAvatarUrl == (('avatarUrl' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data)
-            ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.avatarUrl : '') &&
-          incoming().visitedAt == request.time &&
+          incoming().visitorName is string && incoming().visitorName.size() >= 1 &&
+          incoming().visitorName.size() <= 30 &&
+          incoming().visitorAvatarUrl is string && incoming().visitorAvatarUrl.size() <= 500 &&
+          isValidTs(incoming().visitedAt) &&
           (!exists(/databases/$(database)/documents/users/$(userId)/visitors/$(visitorId)) ||
            existing().visitorId == request.auth.uid);
         allow delete: if false;

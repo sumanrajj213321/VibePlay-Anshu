@@ -189,7 +189,7 @@ class MainActivity : ComponentActivity() {
                 initialValue = Firebase.auth.currentUser
             )
 
-            VibePlayTheme(darkTheme = darkTheme) {
+            VibePlayTheme(darkTheme = true) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

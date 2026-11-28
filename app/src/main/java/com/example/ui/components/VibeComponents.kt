@@ -1689,7 +1689,7 @@ fun VoiceRoomCard(
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Text(
-                            text = "${room.activeSpeakersCount.coerceIn(0L, 8L)}/8 Seats Filled",
+                            text = if (isLiveHot) "${room.listenerCount} viewers" else "${room.activeSpeakersCount.coerceIn(0L, 8L)}/8 Seats Filled",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White

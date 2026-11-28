@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -165,7 +167,10 @@ fun RoomsHubScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("Host Your Party Room", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                        Text("1 Host + 8 Speaker Seats  •  Gifts & Chat", color = Color(0xFFD8C9E8), style = MaterialTheme.typography.bodySmall)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text("1 Host + 8 Speakers", color = Color(0xFFD8C9E8), style = MaterialTheme.typography.bodySmall)
+                            Text("🎁 Gifts & Chat", color = Color(0xFFD8C9E8), style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                     Button(
                         onClick = { if (myCreatedLiveRoom != null) onOpenRoom(myCreatedLiveRoom) else showRoomCreateForm = true },
@@ -194,10 +199,18 @@ fun RoomsHubScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("Daily Coins Claimed!", color = Color(0xFFFFD58A), fontWeight = FontWeight.Bold)
-                        Text("Unlock your next daily reward at 12:00 AM IST", color = Color(0xFFE5D7C5), style = MaterialTheme.typography.labelSmall)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Icon(Icons.Filled.CardGiftcard, contentDescription = null, tint = Color(0xFFFFC66D), modifier = Modifier.size(26.dp))
+                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text("Daily Coins Claimed!", color = Color(0xFFFFD58A), fontWeight = FontWeight.Bold)
+                                Text("(Unlock next at 12:00 AM IST)", color = Color(0xFFE5D7C5), style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
                     }
-                    Text("✦", color = Color(0xFFFFD36E), style = MaterialTheme.typography.headlineMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("07h 42m", color = Color(0xFFFFD58A), fontWeight = FontWeight.Bold)
+                        Icon(Icons.Filled.CheckCircle, contentDescription = "Claimed", tint = Color(0xFFFFD36E), modifier = Modifier.size(24.dp))
+                    }
                 }
             }
         }
@@ -211,6 +224,7 @@ fun RoomsHubScreen(
                 shape = RoundedCornerShape(28.dp),
                 placeholder = { Text("Search room ID, user ID or room name...") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search rooms", tint = VibePink) },
+                trailingIcon = { Icon(Icons.Filled.Mic, contentDescription = "Voice search", tint = VibeCyan) },
                 colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = VibePink,
                     unfocusedBorderColor = Color(0xFF55515F)
@@ -224,7 +238,20 @@ fun RoomsHubScreen(
                     FilterChip(
                         selected = selectedListCategory == cat,
                         onClick = { selectedListCategory = cat },
-                        label = { Text(cat.label) },
+                        label = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                when (cat) {
+                                    RoomCategory.ALL -> Unit
+                                    RoomCategory.CHILL -> Text("☾")
+                                    RoomCategory.MUSIC -> Text("♫")
+                                    RoomCategory.GAMING -> Text("🎮")
+                                    RoomCategory.DATING -> Text("♥")
+                                    RoomCategory.KARAOKE -> Text("♪")
+                                    RoomCategory.CHAT -> Text("?")
+                                }
+                                Text(cat.label)
+                            }
+                        },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = VibeViolet,
                             selectedLabelColor = Color.White,

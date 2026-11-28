@@ -1471,7 +1471,7 @@ fun VoiceRoomCard(
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .testTag("room_card_${room.id}"),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
         ),
@@ -1484,7 +1484,7 @@ fun VoiceRoomCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(126.dp)
+                    .height(116.dp)
             ) {
                 RoomCoverImage(
                     roomId = room.id,

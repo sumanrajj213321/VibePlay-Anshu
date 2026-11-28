@@ -432,19 +432,10 @@ private fun AuthenticatedVibePlayApp(
                     selectedConversationId = null
                 }
                 navController.navigate(tab.route) {
-                    // Keep the active room destination on the back stack while
-                    // the user browses other tabs. Its NavBackStackEntry-scoped
-                    // RoomViewModel and realtime session therefore stay alive.
-                    val roomId = activeRoomId
-                    if (!roomId.isNullOrBlank()) {
-                        popUpTo("room/$roomId") {
-                            inclusive = false
-                            saveState = true
-                        }
-                    } else {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
+                    // Always return to the root tab graph before switching tabs.
+                    // This avoids a stale active-room route intercepting Home navigation.
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
                     }
                     launchSingleTop = true
                     restoreState = true

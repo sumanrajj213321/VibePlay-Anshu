@@ -112,6 +112,7 @@ fun RoomsHubScreen(
             (selectedListCategory == RoomCategory.ALL || room.category.equals(selectedListCategory.label, ignoreCase = true)) &&
                 (roomSearch.isBlank() || room.title.contains(roomSearch, ignoreCase = true) ||
                     room.id.contains(roomSearch, ignoreCase = true) ||
+                    room.publicRoomId.contains(roomSearch, ignoreCase = true) ||
                     room.hostName.contains(roomSearch, ignoreCase = true))
         }
     }
@@ -184,6 +185,25 @@ fun RoomsHubScreen(
                     }
                 }
             }
+        }
+
+        item {
+            OutlinedTextField(
+                value = roomSearch,
+                onValueChange = { roomSearch = it.trimStart().take(40) },
+                modifier = Modifier.fillMaxWidth().testTag("room_id_search_input"),
+                label = { Text("Search Room ID") },
+                placeholder = { Text("Enter Room ID or room name") },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                trailingIcon = {
+                    if (roomSearch.isNotBlank()) {
+                        IconButton(onClick = { roomSearch = "" }) {
+                            Icon(Icons.Filled.Close, contentDescription = "Clear room search")
+                        }
+                    }
+                }
+            )
         }
 
         item {

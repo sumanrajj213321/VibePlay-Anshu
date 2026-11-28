@@ -156,47 +156,34 @@ fun RoomsHubScreen(
         item {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                color = Color(0xFF3A3026),
-                border = BorderStroke(1.dp, Color(0xFFFFC66D).copy(alpha = 0.8f))
+                shape = RoundedCornerShape(24.dp),
+                color = Color(0xFF21152F),
+                border = BorderStroke(1.dp, VibePink.copy(alpha = 0.75f))
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Host Your Party Room", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Icon(Icons.Filled.CardGiftcard, contentDescription = null, tint = Color(0xFFFFC66D), modifier = Modifier.size(26.dp))
-                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text("Daily Coins Claimed!", color = Color(0xFFFFD58A), fontWeight = FontWeight.Bold)
-                                Text("(Unlock next at 12:00 AM IST)", color = Color(0xFFE5D7C5), style = MaterialTheme.typography.labelSmall)
-                            }
+                            Text("1 Host + 8 Speakers", color = Color(0xFFD8C9E8), style = MaterialTheme.typography.bodySmall)
+                            Text("🎁 Gifts & Chat", color = Color(0xFFD8C9E8), style = MaterialTheme.typography.bodySmall)
                         }
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Claimed", color = Color(0xFFFFD58A), fontWeight = FontWeight.Bold)
-                        Icon(Icons.Filled.CheckCircle, contentDescription = "Claimed", tint = Color(0xFFFFD36E), modifier = Modifier.size(24.dp))
+                    Button(
+                        onClick = { if (myCreatedLiveRoom != null) onOpenRoom(myCreatedLiveRoom) else showRoomCreateForm = true },
+                        enabled = true,
+                        shape = RoundedCornerShape(30.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E9B), disabledContainerColor = Color(0xFF6C4262))
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Go Live", fontWeight = FontWeight.Bold)
                     }
                 }
             }
-        }
-
-        item {
-            OutlinedTextField(
-                value = roomSearch,
-                onValueChange = { roomSearch = it },
-                modifier = Modifier.fillMaxWidth().testTag("rooms_search_input"),
-                singleLine = true,
-                shape = RoundedCornerShape(28.dp),
-                placeholder = { Text("Search room ID, user ID or room name...") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search rooms", tint = VibePink) },
-                trailingIcon = { Icon(Icons.Filled.Mic, contentDescription = "Voice search", tint = VibeCyan) },
-                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = VibePink,
-                    unfocusedBorderColor = Color(0xFF55515F)
-                )
-            )
         }
 
         item {

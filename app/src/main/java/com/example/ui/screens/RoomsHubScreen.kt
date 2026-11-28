@@ -102,9 +102,10 @@ fun RoomsHubScreen(
     var roomIdToJoin by remember { mutableStateOf("") }
     var joinRoomError by remember { mutableStateOf<String?>(null) }
     var roomSearch by remember { mutableStateOf("") }
+    var showRoomCreateForm by remember { mutableStateOf(false) }
 
     val liveRooms = (roomsState as? UiState.Success)?.data ?: emptyList()
-    val filteredLiveRooms = remember(liveRooms, selectedListCategory) {
+    val filteredLiveRooms = remember(liveRooms, selectedListCategory, roomSearch) {
         liveRooms.filter { room ->
             (selectedListCategory == RoomCategory.ALL || room.category.equals(selectedListCategory.label, ignoreCase = true)) &&
                 (roomSearch.isBlank() || room.title.contains(roomSearch, ignoreCase = true) ||
@@ -112,7 +113,7 @@ fun RoomsHubScreen(
                     room.hostName.contains(roomSearch, ignoreCase = true))
         }
     }
-    val recentlyJoinedRooms = remember(liveRooms, recentRoomIds, selectedListCategory) {
+    val recentlyJoinedRooms = remember(liveRooms, recentRoomIds, selectedListCategory, roomSearch) {
         recentRoomIds.mapNotNull { roomId -> liveRooms.firstOrNull { it.id == roomId } }
             .filter { room ->
                 selectedListCategory == RoomCategory.ALL ||
@@ -146,38 +147,10 @@ fun RoomsHubScreen(
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(roomsCanvasColor),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier.fillMaxSize().background(Color(0xFF090811)),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = if (hasCreatedRoom) "My Room" else "Rooms",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = if (hasCreatedRoom) "Your room and rooms you have joined." else "Create a room or join an existing voice room.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = VibeCyan
-                    )
-                }
-                IconButton(
-                    onClick = { showJoinRoomDialog = true; roomIdToJoin = ""; joinRoomError = null },
-                    modifier = Modifier.testTag("open_join_room_dialog")
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = "Join a room", tint = VibeCyan, modifier = Modifier.size(30.dp))
-                }
-            }
-        }
-
-
         item {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -195,8 +168,8 @@ fun RoomsHubScreen(
                         Text("1 Host + 8 Speaker Seats  •  Gifts & Chat", color = Color(0xFFD8C9E8), style = MaterialTheme.typography.bodySmall)
                     }
                     Button(
-                        onClick = { myCreatedLiveRoom?.let(onOpenRoom) },
-                        enabled = myCreatedLiveRoom != null,
+                        onClick = { if (myCreatedLiveRoom != null) onOpenRoom(myCreatedLiveRoom) else showRoomCreateForm = true },
+                        enabled = true,
                         shape = RoundedCornerShape(30.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E9B), disabledContainerColor = Color(0xFF6C4262))
                     ) {
@@ -221,8 +194,8 @@ fun RoomsHubScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("Daily Coins", color = Color(0xFFFFD58A), fontWeight = FontWeight.Bold)
-                        Text("Your daily reward is available on Home", color = Color(0xFFE5D7C5), style = MaterialTheme.typography.labelSmall)
+                        Text("Daily Coins Claimed!", color = Color(0xFFFFD58A), fontWeight = FontWeight.Bold)
+                        Text("Unlock your next daily reward at 12:00 AM IST", color = Color(0xFFE5D7C5), style = MaterialTheme.typography.labelSmall)
                     }
                     Text("✦", color = Color(0xFFFFD36E), style = MaterialTheme.typography.headlineMedium)
                 }
@@ -281,16 +254,19 @@ fun RoomsHubScreen(
                         Icon(Icons.Filled.History, contentDescription = null, tint = VibePink)
                         Text("Recently Joined (${recentlyJoinedRooms.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        items(recentlyJoinedRooms, key = { "hub_joined_" + it.id }) { room ->
-                            VoiceRoomCard(room = room, onClick = { onOpenRoom(room) })
+                    items(recentlyJoinedRooms.chunked(2), key = { row -> "hub_joined_${row.first().id}" }) { roomRow ->
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            roomRow.forEach { room ->
+                                VoiceRoomCard(room = room, onClick = { onOpenRoom(room) }, modifier = Modifier.weight(1f))
+                            }
+                            if (roomRow.size == 1) Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
             }
         }
 
-        if (!hasCreatedRoom) {
+        if (!hasCreatedRoom && showRoomCreateForm) {
         item {
             Surface(
                 shape = RoundedCornerShape(24.dp),
@@ -485,25 +461,9 @@ fun RoomsHubScreen(
         if (liveRooms.isNotEmpty()) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = VibeCyan)
-                        Text(
-                            text = "Live Hot Rooms (${filteredLiveRooms.size})",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(RoomCategory.entries) { cat ->
-                            FilterChip(
-                                selected = selectedListCategory == cat,
-                                onClick = { selectedListCategory = cat },
-                                label = { Text(cat.label) }
-                            )
-                        }
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Live Hot Rooms", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Live now", style = MaterialTheme.typography.labelMedium, color = VibeCyan)
                     }
                 }
             }

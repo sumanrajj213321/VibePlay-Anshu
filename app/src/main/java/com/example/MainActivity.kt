@@ -53,6 +53,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedTextField
@@ -521,7 +522,10 @@ private fun AuthenticatedVibePlayApp(
                     snackbarHost = { SnackbarHost(snackbarHostState) },
                     bottomBar = {
                         if (showTopLevelNav && !isVoiceRoomScreen && !useNavigationRail) {
-                            NavigationBar {
+                            NavigationBar(
+                                containerColor = Color(0xFF211F29),
+                                tonalElevation = 10.dp
+                            ) {
                                 mainTabs.forEach { tab ->
                                     val selected = currentRoute == tab.route
                                     NavigationBarItem(
@@ -537,6 +541,13 @@ private fun AuthenticatedVibePlayApp(
                                             }
                                         },
                                         label = { Text(tab.label, maxLines = 1) },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = Color(0xFF62E9F4),
+                                            selectedTextColor = Color.White,
+                                            indicatorColor = Color(0xFF073B48),
+                                            unselectedIconColor = Color(0xFFB9B0D2),
+                                            unselectedTextColor = Color(0xFFB9B0D2)
+                                        ),
                                         modifier = Modifier.testTag("nav_${tab.route}")
                                     )
                                 }

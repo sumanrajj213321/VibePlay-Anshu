@@ -619,7 +619,7 @@ test("User profile creation, private subcollection isolation, daily reward, and 
       coinBalance: 1100500,
       lastDailyClaimDay: indiaDay(),
       lastDailyClaimAt: pastDate(1000),
-      xp: 50,
+      xp: 200,
       level: 1,
       updatedAt: pastDate(),
     })

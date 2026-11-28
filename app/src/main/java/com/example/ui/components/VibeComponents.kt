@@ -1463,7 +1463,8 @@ fun RoomCoverImage(
 fun VoiceRoomCard(
     room: VoiceRoom,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLiveHot: Boolean = false
 ) {
     Card(
         modifier = modifier
@@ -1504,6 +1505,38 @@ fun VoiceRoomCard(
                             )
                         )
                 )
+
+                if (isLiveHot) {
+                    Surface(
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFFEF4444).copy(alpha = 0.94f),
+                        border = BorderStroke(1.dp, Color(0xFFFF9A82))
+                    ) {
+                        Text(
+                            text = "LIVE",
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp),
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+                if (room.listenerCount > 0L) {
+                    Surface(
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color.Black.copy(alpha = 0.68f)
+                    ) {
+                        Text(
+                            text = "${room.listenerCount + room.activeSpeakersCount} online",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
 
                 // Top Row: Category + Lock/Featured Badges
                 Row(
@@ -1638,25 +1671,35 @@ fun VoiceRoomCard(
 
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                    color = Color(0xFF242033),
+                    border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.28f))
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Headphones,
-                            contentDescription = "Listeners",
-                            tint = VibeCyan,
-                            modifier = Modifier.size(13.dp)
-                        )
                         Text(
-                            text = "${room.listenerCount + room.activeSpeakersCount}",
+                            text = "${room.activeSpeakersCount.coerceIn(0L, 8L)}/8 Seats Filled",
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
                         )
+                        Box(
+                            modifier = Modifier
+                                .width(42.dp)
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(Color(0xFF4A4655))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(room.activeSpeakersCount.coerceIn(0L, 8L).toFloat() / 8f)
+                                    .height(3.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(VibeCyan)
+                            )
+                        }
                     }
                 }
             }

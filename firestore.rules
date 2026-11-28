@@ -680,7 +680,13 @@ service cloud.firestore {
              isValidFrameEquip(incoming(), existing()))
           )
         : (
-                (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
+                (isSignedIn() && isValidId(userId) &&
+                 incoming().diff(existing()).affectedKeys().hasAny([
+                   'totalGiftsSent', 'totalGiftCoinsSent', 'totalGiftsReceived',
+                   'totalGiftCoinsReceived', 'dailyGiftCoinsSent', 'dailyGiftCoinsReceived',
+                   'weeklyGiftCoinsSent', 'weeklyGiftCoinsReceived', 'lastGiftTransactionId', 'xp', 'level'
+                 ]) &&
+                 isGiftProfileUpdate(userId)) ||
                 (isSignedIn() && isValidId(userId) &&
                         request.auth.uid == userId &&
                         (!('userId' in existing()) || incoming().userId == existing().userId) &&

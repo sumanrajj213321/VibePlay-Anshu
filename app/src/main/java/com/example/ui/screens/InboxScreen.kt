@@ -169,15 +169,21 @@ fun InboxScreen(
     DisposableEffect(currentUser.userId) {
         val db = FirebaseFirestore.getInstance()
         var lastViewedAt: Timestamp? = null
+        var visitorDocuments = emptyList<com.google.firebase.firestore.DocumentSnapshot>()
+        fun refreshUnreadCount() {
+            val cutoff = lastViewedAt?.toDate()?.time ?: 0L
+            unreadVisitorCount = visitorDocuments.count { doc ->
+                (doc.getTimestamp("visitedAt")?.toDate()?.time ?: 0L) > cutoff
+            }
+        }
         val ownerRef = db.collection("users").document(currentUser.userId)
         val profileListener = ownerRef.addSnapshotListener { snapshot, _ ->
             lastViewedAt = snapshot?.getTimestamp("visitorsLastViewedAt")
+            refreshUnreadCount()
         }
         val visitorListener = ownerRef.collection("visitors").addSnapshotListener { snapshot, _ ->
-            val cutoff = lastViewedAt?.toDate()?.time ?: 0L
-            unreadVisitorCount = snapshot?.documents.orEmpty().count { doc ->
-                (doc.getTimestamp("visitedAt")?.toDate()?.time ?: 0L) > cutoff
-            }
+            visitorDocuments = snapshot?.documents.orEmpty()
+            refreshUnreadCount()
         }
         onDispose {
             profileListener.remove()

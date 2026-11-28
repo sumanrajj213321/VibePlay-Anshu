@@ -680,6 +680,7 @@ service cloud.firestore {
              isValidFrameEquip(incoming(), existing()))
           )
         : (
+                (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
                 (isSignedIn() && isValidId(userId) &&
                         request.auth.uid == userId &&
                         (!('userId' in existing()) || incoming().userId == existing().userId) &&
@@ -787,7 +788,6 @@ service cloud.firestore {
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.userId == userId &&
                                        getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
                                        incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
-                (isSignedIn() && isValidId(userId) && isGiftProfileUpdate(userId)) ||
                 (isSignedIn() && request.auth.uid == userId &&
                                        incoming().userId == existing().userId &&
                                        incoming().createdAt == existing().createdAt &&

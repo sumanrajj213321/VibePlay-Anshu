@@ -1,5 +1,13 @@
 package com.example.ui.screens
 
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.graphics.asImageBitmap
+import coil.compose.AsyncImage
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
@@ -36,6 +44,9 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -262,6 +273,10 @@ fun HomeScreen(
                     HomeShortcutCard("Game Zone", "Fruit Treasure", VibeCyan, "PLAY", Modifier.weight(1f).height(112.dp), isGame = true, onClick = onOpenGame)
                 }
             }
+        }
+
+        item(key = "home_public_moments_feed") {
+            HomeMomentsFeed(currentUser.userId)
         }
 
         item {
@@ -504,6 +519,201 @@ fun HomeScreen(
     }
 
 }
+
+
+
+private data class HomeMomentPost(
+    val id: String,
+    val ownerId: String,
+    val photoBase64: String,
+    val quote: String,
+    val createdAtMillis: Long
+)
+
+@Composable
+private fun HomeMomentsFeed(currentUserId: String) {
+    var posts by remember { mutableStateOf<List<HomeMomentPost>>(emptyList()) }
+    var selectedFeed by remember { mutableStateOf("Recent") }
+    var loading by remember { mutableStateOf(true) }
+    val db = remember { FirebaseFirestore.getInstance() }
+
+    DisposableEffect(currentUserId) {
+        val registration = db.collectionGroup("moments")
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(40)
+            .addSnapshotListener { snapshot, error ->
+                if (error == null) {
+                    posts = snapshot?.documents.orEmpty().mapNotNull { doc ->
+                        val ownerId = doc.getString("ownerId").orEmpty()
+                        val photo = doc.getString("photoBase64").orEmpty()
+                        if (doc.getString("mediaType") != "image" ||
+                            doc.getString("contentType") != "image/jpeg" ||
+                            ownerId.isBlank() || photo.isBlank()) null
+                        else HomeMomentPost(
+                            id = doc.id,
+                            ownerId = ownerId,
+                            photoBase64 = photo,
+                            quote = doc.getString("quote").orEmpty(),
+                            createdAtMillis = doc.getTimestamp("createdAt")?.toDate()?.time ?: 0L
+                        )
+                    }
+                }
+                loading = false
+            }
+        onDispose { registration.remove() }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("Community Photos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                Text("See what everyone is sharing", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.Filled.PhotoLibrary, contentDescription = null, tint = VibeCyan)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("Most Liked", "Recent").forEach { tab ->
+                FilterChip(
+                    selected = selectedFeed == tab,
+                    onClick = { selectedFeed = tab },
+                    label = { Text(tab) },
+                    modifier = Modifier.testTag(if (tab == "Most Liked") "home_most_liked_tab" else "home_recent_tab")
+                )
+            }
+        }
+        if (loading) {
+            Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(modifier = Modifier.size(26.dp), color = VibeCyan)
+            }
+        } else if (posts.isEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+            ) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Filled.PhotoLibrary, contentDescription = null, tint = VibeCyan, modifier = Modifier.size(30.dp))
+                    Text("No photos shared yet", fontWeight = FontWeight.Bold)
+                    Text("Photos shared in user profiles will appear here for everyone.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        } else {
+            val orderedPosts = if (selectedFeed == "Recent") posts.sortedByDescending { it.createdAtMillis }
+                else posts
+            orderedPosts.forEach { post ->
+                HomeMomentCard(post = post, currentUserId = currentUserId, mostLiked = selectedFeed == "Most Liked")
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeMomentCard(post: HomeMomentPost, currentUserId: String, mostLiked: Boolean) {
+    val db = remember { FirebaseFirestore.getInstance() }
+    var username by remember(post.ownerId) { mutableStateOf("VibePlay User") }
+    var avatarUrl by remember(post.ownerId) { mutableStateOf("") }
+    var likeCount by remember(post.id) { mutableStateOf(0) }
+    var liked by remember(post.id, currentUserId) { mutableStateOf(false) }
+    var likeBusy by remember(post.id) { mutableStateOf(false) }
+    val momentRef = remember(post.ownerId, post.id) {
+        db.collection("users").document(post.ownerId).collection("moments").document(post.id)
+    }
+
+    DisposableEffect(post.ownerId) {
+        val profileListener = db.collection("users").document(post.ownerId)
+            .addSnapshotListener { snapshot, _ ->
+                username = snapshot?.getString("username")?.takeIf { it.isNotBlank() } ?: "VibePlay User"
+                avatarUrl = snapshot?.getString("avatarUrl").orEmpty()
+            }
+        onDispose { profileListener.remove() }
+    }
+    DisposableEffect(post.id, currentUserId) {
+        val likesListener = momentRef.collection("likes").addSnapshotListener { snapshot, _ ->
+            likeCount = snapshot?.size() ?: 0
+            liked = snapshot?.documents?.any { it.id == currentUserId } == true
+        }
+        onDispose { likesListener.remove() }
+    }
+
+    val photoBitmap = remember(post.photoBase64) {
+        runCatching {
+            val bytes = Base64.decode(post.photoBase64, Base64.DEFAULT)
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+        }.getOrNull()
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth().testTag("home_moment_${post.id}"),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+    ) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                if (avatarUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = "Profile photo of $username",
+                        modifier = Modifier.size(42.dp).clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(Modifier.size(42.dp).clip(CircleShape).background(VibeViolet.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
+                        Text(username.take(1).uppercase(), fontWeight = FontWeight.Bold, color = VibeCyan)
+                    }
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(username, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("VibePlay Moment", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (mostLiked) Text("♥ $likeCount", color = VibePink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+            }
+            if (photoBitmap != null) {
+                Image(
+                    bitmap = photoBitmap,
+                    contentDescription = "Photo shared by $username",
+                    modifier = Modifier.fillMaxWidth().height(280.dp).clip(RoundedCornerShape(14.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
+                    Text("Photo unavailable", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            if (post.quote.isNotBlank()) Text(post.quote, style = MaterialTheme.typography.bodyMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = {
+                        if (!likeBusy && currentUserId.isNotBlank()) {
+                            likeBusy = true
+                            val likeRef = momentRef.collection("likes").document(currentUserId)
+                            val task = if (liked) likeRef.delete()
+                                else likeRef.set(mapOf("userId" to currentUserId, "createdAt" to FieldValue.serverTimestamp()))
+                            task.addOnCompleteListener { likeBusy = false }
+                        }
+                    },
+                    enabled = !likeBusy && currentUserId.isNotBlank(),
+                    modifier = Modifier.testTag("home_moment_like_${post.id}")
+                ) {
+                    Icon(
+                        imageVector = if (liked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = if (liked) "Unlike photo" else "Like photo",
+                        tint = if (liked) VibePink else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text("$likeCount likes", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
 
 @Composable
 private fun SectionTitle(title: String, badge: String) {

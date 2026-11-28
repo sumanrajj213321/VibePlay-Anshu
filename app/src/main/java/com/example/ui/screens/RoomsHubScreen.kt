@@ -249,19 +249,21 @@ fun RoomsHubScreen(
 
         if (recentlyJoinedRooms.isNotEmpty()) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Filled.History, contentDescription = null, tint = VibePink)
-                        Text("Recently Joined (${recentlyJoinedRooms.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Recently Joined", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("${recentlyJoinedRooms.size} rooms", style = MaterialTheme.typography.labelMedium, color = VibeCyan)
+                }
+            }
+            items(recentlyJoinedRooms.chunked(2), key = { row -> "hub_joined_${row.first().id}" }) { roomRow ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    roomRow.forEach { room ->
+                        VoiceRoomCard(room = room, onClick = { onOpenRoom(room) }, modifier = Modifier.weight(1f))
                     }
-                    items(recentlyJoinedRooms.chunked(2), key = { row -> "hub_joined_${row.first().id}" }) { roomRow ->
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            roomRow.forEach { room ->
-                                VoiceRoomCard(room = room, onClick = { onOpenRoom(room) }, modifier = Modifier.weight(1f))
-                            }
-                            if (roomRow.size == 1) Spacer(modifier = Modifier.weight(1f))
-                        }
-                    }
+                    if (roomRow.size == 1) Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }

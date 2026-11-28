@@ -597,7 +597,7 @@ private fun AuthenticatedVibePlayApp(
                                         onOpenGiftRanking = { navController.navigate("gift_rankings") },
                                         onClaimDailyReward = { viewModel.claimDailyReward(currentUser) },
                                         onOpenUserProfile = { target ->
-                                            viewModel.inspectUser(target.userId, target) { inspectedUser = it }
+                                            inspectUserById(target.userId)
                                         },
                                         onVerifyPasscode = { r, pin -> viewModel.verifyRoomPasscode(r, pin) },
                                         onOpenGame = { navController.navigate("fruit_treasure") },

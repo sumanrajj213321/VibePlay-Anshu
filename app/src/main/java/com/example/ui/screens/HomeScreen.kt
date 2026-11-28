@@ -394,8 +394,8 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
                     shape = RoundedCornerShape(18.dp),
-                    color = VibeViolet.copy(alpha = 0.16f),
-                    border = BorderStroke(1.dp, VibeViolet.copy(alpha = 0.55f))
+                    color = Color(0xFF3A3026),
+                    border = BorderStroke(1.dp, Color(0xFFFFC66D).copy(alpha = 0.8f))
                 ) {
                     Row(
                         modifier = Modifier
@@ -417,12 +417,12 @@ fun HomeScreen(
                             )
                             Column {
                                 Text(
-                                    text = "Daily Login Reward Ready!",
+                                    text = "Daily Coins & XP Reward!",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Claim +100,000 Coins & +50 XP",
+                                    text = "Claim +100,000 Coins & +100 XP",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -446,8 +446,8 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
                     shape = RoundedCornerShape(18.dp),
-                    color = VibeGold.copy(alpha = 0.10f),
-                    border = BorderStroke(1.dp, VibeGold.copy(alpha = 0.45f))
+                    color = Color(0xFF3A3026),
+                    border = BorderStroke(1.dp, Color(0xFFFFC66D).copy(alpha = 0.8f))
                 ) {
                     Row(
                         modifier = Modifier
@@ -464,7 +464,7 @@ fun HomeScreen(
                         )
                         Column {
                             Text(
-                                text = "Today's Daily Coins Already Claimed!",
+                                text = "Daily Coins Claimed!",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )

@@ -658,6 +658,11 @@ service cloud.firestore {
     }
 
     // Profile tags are optional for legacy accounts; updates validate the four-tag cap when present.
+    // Authenticated collection-group access for the public Moments feed.
+    match /{path=**}/moments/{momentId} {
+      allow read: if isSignedIn();
+    }
+
     match /users/{userId} {
       allow update: if isSignedIn() && (
         incoming().diff(existing()).affectedKeys().hasAny([

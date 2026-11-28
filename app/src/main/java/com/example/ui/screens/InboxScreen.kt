@@ -164,9 +164,38 @@ fun InboxScreen(
     var showNotificationsSheet by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var showVisitorsScreen by remember { mutableStateOf(false) }
+    var unreadVisitorCount by remember { mutableStateOf(0) }
+
+    DisposableEffect(currentUser.userId) {
+        val db = FirebaseFirestore.getInstance()
+        var lastViewedAt: Timestamp? = null
+        val ownerRef = db.collection("users").document(currentUser.userId)
+        val profileListener = ownerRef.addSnapshotListener { snapshot, _ ->
+            lastViewedAt = snapshot?.getTimestamp("visitorsLastViewedAt")
+        }
+        val visitorListener = ownerRef.collection("visitors").addSnapshotListener { snapshot, _ ->
+            val cutoff = lastViewedAt?.toDate()?.time ?: 0L
+            unreadVisitorCount = snapshot?.documents.orEmpty().count { doc ->
+                (doc.getTimestamp("visitedAt")?.toDate()?.time ?: 0L) > cutoff
+            }
+        }
+        onDispose {
+            profileListener.remove()
+            visitorListener.remove()
+        }
+    }
 
     if (showVisitorsScreen) {
-        VisitorsCenterScreen(currentUser = currentUser, onBack = { showVisitorsScreen = false })
+        VisitorsCenterScreen(
+            currentUser = currentUser,
+            onBack = { showVisitorsScreen = false },
+            onOpenUserById = onOpenUserById,
+            onViewed = {
+                unreadVisitorCount = 0
+                FirebaseFirestore.getInstance().collection("users").document(currentUser.userId)
+                    .update("visitorsLastViewedAt", FieldValue.serverTimestamp())
+            }
+        )
         return
     }
 
@@ -251,7 +280,9 @@ fun InboxScreen(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = { showVisitorsScreen = true }, modifier = Modifier.testTag("inbox_visitors_button")) {
-                    Icon(Icons.Filled.Visibility, contentDescription = null, tint = VibeCyan, modifier = Modifier.size(17.dp))
+                    BadgedBox(badge = { if (unreadVisitorCount > 0) Badge { Text(unreadVisitorCount.toString()) } }) {
+                        Icon(Icons.Filled.Visibility, contentDescription = null, tint = VibeCyan, modifier = Modifier.size(17.dp))
+                    }
                     Spacer(Modifier.width(4.dp))
                     Text("Visitors", color = VibeCyan, fontWeight = FontWeight.SemiBold)
                 }
@@ -1891,7 +1922,12 @@ private data class VisitorRow(
 )
 
 @Composable
-private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
+private fun VisitorsCenterScreen(
+    currentUser: UserProfile,
+    onBack: () -> Unit,
+    onOpenUserById: (String) -> Unit,
+    onViewed: () -> Unit
+) {
     val db = remember { FirebaseFirestore.getInstance() }
     var visitors by remember { mutableStateOf<List<VisitorRow>>(emptyList()) }
     var totalVisitors by remember { mutableStateOf(0L) }
@@ -1900,6 +1936,8 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
     var purchasing by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
     var hasAccess by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) { onViewed() }
 
     val purchase: (Int) -> Unit = { days ->
         purchasing = true
@@ -1931,7 +1969,7 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
         val profileListener = db.collection("users").document(currentUser.userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    message = "Visitors information load nahi ho payi."
+                    message = "Unable to load visitor information."
                     loading = false
                     return@addSnapshotListener
                 }
@@ -1996,13 +2034,13 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
                     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Total Visitors", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text("Ab tak kitne alag users ne profile visit ki", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Unique profile visitors", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Text(totalVisitors.toString(), style = MaterialTheme.typography.headlineMedium, color = VibeCyan, fontWeight = FontWeight.Bold)
                     }
                 }
                 Text("See who visited your profile", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text("Visitors list dekhne ke liye subscription lo. Purani visit history saved rahegi.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Subscribe to see who visited your profile. Your visit history will be saved.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Surface(shape = RoundedCornerShape(18.dp), color = VibeCyan.copy(alpha = 0.08f), border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.35f))) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("3 Days", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -2042,19 +2080,11 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                    OutlinedButton(onClick = { purchase(3) }, enabled = !purchasing, modifier = Modifier.weight(1f)) {
-                        Text("3 days · 50K")
-                    }
-                    OutlinedButton(onClick = { purchase(30) }, enabled = !purchasing, modifier = Modifier.weight(1f)) {
-                        Text("30 days · 5L")
-                    }
-                }
                 if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall)
             }
             if (visitors.isEmpty()) {
                 Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                    Text("Abhi tak kisi ne profile visit nahi ki.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("No profile visits yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 LazyColumn(
@@ -2064,7 +2094,10 @@ private fun VisitorsCenterScreen(currentUser: UserProfile, onBack: () -> Unit) {
                 ) {
                     items(visitors, key = { it.id }) { visitor ->
                         Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)) {
-                            Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                Modifier.fillMaxWidth().clickable { onOpenUserById(visitor.id) }.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 VibeAvatar(visitor.avatarUrl, visitor.name, size = 46.dp)
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {

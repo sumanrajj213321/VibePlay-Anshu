@@ -685,6 +685,13 @@ service cloud.firestore {
              isValidFrameEquip(incoming(), existing()))
           )
         : (
+                (isSignedIn() && request.auth.uid == userId &&
+                        incoming().role == existing().role &&
+                        incoming().accountStatus == existing().accountStatus &&
+                        incoming().vipLevel == existing().vipLevel &&
+                        incoming().coinBalance == existing().coinBalance + 100000 &&
+                        incoming().lastDailyClaimDay is string &&
+                        (!('lastDailyClaimDay' in existing()) |
                 (isSignedIn() && isValidId(userId) &&
                                        request.auth.uid == userId &&
                                        (!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false) &&
@@ -734,13 +741,7 @@ service cloud.firestore {
                             false
                           )
                         )) ||
-                (isSignedIn() && request.auth.uid == userId &&
-                        incoming().role == existing().role &&
-                        incoming().accountStatus == existing().accountStatus &&
-                        incoming().vipLevel == existing().vipLevel &&
-                        incoming().coinBalance == existing().coinBalance + 100000 &&
-                        incoming().lastDailyClaimDay is string &&
-                        (!('lastDailyClaimDay' in existing()) || incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&
+                | incoming().lastDailyClaimDay != existing().lastDailyClaimDay) &&
                         incoming().lastDailyClaimAt is timestamp &&
                         incoming().lastDailyClaimAt > request.time - duration.value(1, 'm') &&
                         incoming().lastDailyClaimAt <= request.time &&

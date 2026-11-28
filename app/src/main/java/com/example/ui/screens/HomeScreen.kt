@@ -68,6 +68,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -533,7 +534,7 @@ private data class HomeMomentPost(
 @Composable
 private fun HomeMomentsFeed(currentUserId: String) {
     var posts by remember { mutableStateOf<List<HomeMomentPost>>(emptyList()) }
-    var likeCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    val likeCounts = remember { mutableStateMapOf<String, Int>() }
     var selectedFeed by remember { mutableStateOf("Recent") }
     var loading by remember { mutableStateOf(true) }
     val db = remember { FirebaseFirestore.getInstance() }
@@ -570,7 +571,7 @@ private fun HomeMomentsFeed(currentUserId: String) {
             db.collection("users").document(post.ownerId).collection("moments")
                 .document(post.id).collection("likes")
                 .addSnapshotListener { snapshot, _ ->
-                    likeCounts = likeCounts + (post.id to (snapshot?.size() ?: 0))
+                    likeCounts[post.id] = snapshot?.size() ?: 0
                 }
         }
         onDispose { listeners.forEach { it.remove() } }

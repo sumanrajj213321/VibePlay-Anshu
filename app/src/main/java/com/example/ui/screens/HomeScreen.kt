@@ -533,6 +533,7 @@ private data class HomeMomentPost(
 @Composable
 private fun HomeMomentsFeed(currentUserId: String) {
     var posts by remember { mutableStateOf<List<HomeMomentPost>>(emptyList()) }
+    var likeCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var selectedFeed by remember { mutableStateOf("Recent") }
     var loading by remember { mutableStateOf(true) }
     val db = remember { FirebaseFirestore.getInstance() }
@@ -561,6 +562,18 @@ private fun HomeMomentsFeed(currentUserId: String) {
                 loading = false
             }
         onDispose { registration.remove() }
+    }
+
+    val postIds = posts.map { it.id }
+    DisposableEffect(postIds) {
+        val listeners = posts.map { post ->
+            db.collection("users").document(post.ownerId).collection("moments")
+                .document(post.id).collection("likes")
+                .addSnapshotListener { snapshot, _ ->
+                    likeCounts = likeCounts + (post.id to (snapshot?.size() ?: 0))
+                }
+        }
+        onDispose { listeners.forEach { it.remove() } }
     }
 
     Column(
@@ -606,7 +619,8 @@ private fun HomeMomentsFeed(currentUserId: String) {
             }
         } else {
             val orderedPosts = if (selectedFeed == "Recent") posts.sortedByDescending { it.createdAtMillis }
-                else posts
+                else posts.sortedWith(compareByDescending<HomeMomentPost> { likeCounts[it.id] ?: 0 }
+                    .thenByDescending { it.createdAtMillis })
             orderedPosts.forEach { post ->
                 HomeMomentCard(post = post, currentUserId = currentUserId, mostLiked = selectedFeed == "Most Liked")
             }

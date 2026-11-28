@@ -494,7 +494,10 @@ private fun AuthenticatedVibePlayApp(
                                     tx.update(visitorRef, "visitedAt", com.google.firebase.firestore.FieldValue.serverTimestamp())
                                 } else {
                                     tx.set(visitorRef, visitData)
-                                    tx.update(ownerRef, "totalVisitors", (owner.getLong("totalVisitors") ?: 0L) + 1L)
+                                    tx.update(ownerRef, mapOf(
+                                        "totalVisitors" to (owner.getLong("totalVisitors") ?: 0L) + 1L,
+                                        "totalVisitorsUpdatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                                    ))
                                 }
                             }.addOnFailureListener { error ->
                                 android.util.Log.w("VibePlay", "Unable to record profile visit", error)

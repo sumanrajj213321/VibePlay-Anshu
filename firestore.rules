@@ -743,7 +743,7 @@ service cloud.firestore {
                           (existing().lastDailyClaimAt + duration.value(330, 'm')).date() !=
                           (request.time + duration.value(330, 'm')).date()) &&
                         incoming().xp is int &&
-                        incoming().xp == (('xp' in existing()) ? existing().xp : 0) + 50 &&
+                        incoming().xp == (('xp' in existing()) ? existing().xp : 0) + 100 &&
                         incoming().level is int && incoming().level >= 1 && incoming().level <= 999 &&
                         incoming().diff(existing()).affectedKeys().hasOnly([
                           'coinBalance', 'lastDailyClaimDay', 'lastDailyClaimAt', 'xp', 'level', 'updatedAt'

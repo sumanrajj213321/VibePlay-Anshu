@@ -74,6 +74,7 @@ fun ExploreScreen(
     var query by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(RoomCategory.ALL) }
 
+    val searchText = query.trim()
     val followingIds = remember(followingList) { followingList.map { it.peerId }.toSet() }
     val exploreCanvasColor = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
         Color(0xFF08080A)
@@ -81,25 +82,44 @@ fun ExploreScreen(
         MaterialTheme.colorScheme.background
     }
 
-    val filteredUsers = remember(activeUsers, query, currentUser.userId, blockedUserIds) {
-        activeUsers.filter { user ->
-            user.userId != currentUser.userId &&
-                user.userId !in blockedUserIds &&
-                (query.isBlank() ||
-                    user.username.contains(query, ignoreCase = true) ||
-                    user.vibeId.contains(query, ignoreCase = true) ||
-                    user.bio.contains(query, ignoreCase = true))
-        }
+    val filteredUsers = remember(activeUsers, searchText, currentUser.userId, blockedUserIds) {
+        activeUsers
+            .filter { user ->
+                val matchesId = user.userId.equals(searchText, ignoreCase = true) ||
+                    user.userId.contains(searchText, ignoreCase = true) ||
+                    user.vibeId.contains(searchText, ignoreCase = true)
+                val isCurrentUserDirectMatch = user.userId == currentUser.userId && matchesId
+                (user.userId != currentUser.userId || isCurrentUserDirectMatch) &&
+                    user.userId !in blockedUserIds &&
+                    (searchText.isBlank() ||
+                        matchesId ||
+                        user.username.contains(searchText, ignoreCase = true) ||
+                        user.bio.contains(searchText, ignoreCase = true))
+            }
+            .sortedByDescending { user ->
+                if (searchText.isNotBlank() &&
+                    (user.userId.equals(searchText, ignoreCase = true) ||
+                        user.vibeId.equals(searchText, ignoreCase = true))
+                ) 1 else 0
+            }
     }
 
-    val rooms = remember(roomsState, query, selectedCategory, blockedUserIds) {
+    val rooms = remember(roomsState, searchText, selectedCategory, blockedUserIds) {
         val list = (roomsState as? UiState.Success)?.data ?: emptyList()
         list.filter { room ->
+            val matchesRoomId = room.id.equals(searchText, ignoreCase = true) ||
+                room.id.contains(searchText, ignoreCase = true)
+            val matchesRoomText = room.title.contains(searchText, ignoreCase = true) ||
+                room.hostName.contains(searchText, ignoreCase = true)
+            val categoryMatches = selectedCategory == RoomCategory.ALL ||
+                room.category.equals(selectedCategory.label, ignoreCase = true)
             room.hostId !in blockedUserIds &&
-                (selectedCategory == RoomCategory.ALL || room.category.equals(selectedCategory.label, ignoreCase = true)) &&
-                (query.isBlank() ||
-                    room.title.contains(query, ignoreCase = true) ||
-                    room.hostName.contains(query, ignoreCase = true))
+                (searchText.isBlank() ||
+                    matchesRoomId ||
+                    (categoryMatches && matchesRoomText)) &&
+                (searchText.isNotBlank() || categoryMatches)
+        }.sortedByDescending { room ->
+            if (searchText.isNotBlank() && room.id.equals(searchText, ignoreCase = true)) 1 else 0
         }
     }
 
@@ -180,7 +200,7 @@ fun ExploreScreen(
                 )
             }
         } else {
-            items(filteredUsers.take(12), key = { it.userId }) { user ->
+            items(if (searchText.isBlank()) filteredUsers.take(12) else filteredUsers, key = { it.userId }) { user ->
                 val isFollowing = user.userId in followingIds
                 Surface(
                     shape = RoundedCornerShape(18.dp),

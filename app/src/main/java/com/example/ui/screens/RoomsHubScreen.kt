@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Password
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.IconButton
@@ -100,11 +101,16 @@ fun RoomsHubScreen(
     var showJoinRoomDialog by remember { mutableStateOf(false) }
     var roomIdToJoin by remember { mutableStateOf("") }
     var joinRoomError by remember { mutableStateOf<String?>(null) }
+    var roomSearch by remember { mutableStateOf("") }
 
     val liveRooms = (roomsState as? UiState.Success)?.data ?: emptyList()
     val filteredLiveRooms = remember(liveRooms, selectedListCategory) {
-        if (selectedListCategory == RoomCategory.ALL) liveRooms
-        else liveRooms.filter { it.category.equals(selectedListCategory.label, ignoreCase = true) }
+        liveRooms.filter { room ->
+            (selectedListCategory == RoomCategory.ALL || room.category.equals(selectedListCategory.label, ignoreCase = true)) &&
+                (roomSearch.isBlank() || room.title.contains(roomSearch, ignoreCase = true) ||
+                    room.id.contains(roomSearch, ignoreCase = true) ||
+                    room.hostName.contains(roomSearch, ignoreCase = true))
+        }
     }
     val recentlyJoinedRooms = remember(liveRooms, recentRoomIds, selectedListCategory) {
         recentRoomIds.mapNotNull { roomId -> liveRooms.firstOrNull { it.id == roomId } }
@@ -171,6 +177,92 @@ fun RoomsHubScreen(
             }
         }
 
+
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                color = Color(0xFF21152F),
+                border = BorderStroke(1.dp, VibePink.copy(alpha = 0.75f))
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Host Your Party Room", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("1 Host + 8 Speaker Seats  •  Gifts & Chat", color = Color(0xFFD8C9E8), style = MaterialTheme.typography.bodySmall)
+                    }
+                    Button(
+                        onClick = { myCreatedLiveRoom?.let(onOpenRoom) },
+                        enabled = myCreatedLiveRoom != null,
+                        shape = RoundedCornerShape(30.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E9B), disabledContainerColor = Color(0xFF6C4262))
+                    ) {
+                        Icon(Icons.Filled.Mic, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Go Live", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                color = Color(0xFF3A3026),
+                border = BorderStroke(1.dp, Color(0xFFFFC66D).copy(alpha = 0.8f))
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("Daily Coins", color = Color(0xFFFFD58A), fontWeight = FontWeight.Bold)
+                        Text("Your daily reward is available on Home", color = Color(0xFFE5D7C5), style = MaterialTheme.typography.labelSmall)
+                    }
+                    Text("✦", color = Color(0xFFFFD36E), style = MaterialTheme.typography.headlineMedium)
+                }
+            }
+        }
+
+        item {
+            OutlinedTextField(
+                value = roomSearch,
+                onValueChange = { roomSearch = it },
+                modifier = Modifier.fillMaxWidth().testTag("rooms_search_input"),
+                singleLine = true,
+                shape = RoundedCornerShape(28.dp),
+                placeholder = { Text("Search room ID, user ID or room name...") },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search rooms", tint = VibePink) },
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = VibePink,
+                    unfocusedBorderColor = Color(0xFF55515F)
+                )
+            )
+        }
+
+        item {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(RoomCategory.entries) { cat ->
+                    FilterChip(
+                        selected = selectedListCategory == cat,
+                        onClick = { selectedListCategory = cat },
+                        label = { Text(cat.label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = VibeViolet,
+                            selectedLabelColor = Color.White,
+                            containerColor = Color(0xFF211D30),
+                            labelColor = Color(0xFFD8C9E8)
+                        )
+                    )
+                }
+            }
+        }
+
         if (hasCreatedRoom && myCreatedLiveRoom != null) {
             item {
                 OutlinedButton(
@@ -187,7 +279,7 @@ fun RoomsHubScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(Icons.Filled.History, contentDescription = null, tint = VibePink)
-                        Text("Joined Rooms (${recentlyJoinedRooms.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Recently Joined (${recentlyJoinedRooms.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(recentlyJoinedRooms, key = { "hub_joined_" + it.id }) { room ->
@@ -399,7 +491,7 @@ fun RoomsHubScreen(
                     ) {
                         Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = VibeCyan)
                         Text(
-                            text = "Active Voice Rooms (${filteredLiveRooms.size})",
+                            text = "Live Hot Rooms (${filteredLiveRooms.size})",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )

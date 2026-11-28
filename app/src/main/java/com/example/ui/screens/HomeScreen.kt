@@ -290,102 +290,6 @@ fun HomeScreen(
             }
         }
 
-        // Hero Party Banner + Daily Login Reward
-        item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .height(152.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .clickable(onClick = onCreateRoomClick)
-                    .testTag("home_hero_create_room")
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.img_hero_party_stage),
-                    contentDescription = "Host a 9-seat voice room",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    Color.Black.copy(alpha = 0.82f),
-                                    Color.Black.copy(alpha = 0.28f)
-                                )
-                            )
-                        )
-                )
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = VibeCyan.copy(alpha = 0.22f),
-                        border = BorderStroke(1.dp, VibeCyan.copy(alpha = 0.7f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.GraphicEq,
-                                contentDescription = null,
-                                tint = VibeCyan,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text(
-                                text = "9-SEAT VOICE STAGE",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = VibeCyan,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Host Your Party Room",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "1 Host + 8 Speaker Seats · Gifts & Chat",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.85f)
-                            )
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = VibePink
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(Icons.Filled.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                                Text("Go Live", style = MaterialTheme.typography.labelMedium, color = Color.White, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         // Daily Login Reward Card
         if (canClaimDaily) {
             item {
@@ -479,49 +383,30 @@ fun HomeScreen(
             }
         }
 
-        // Search & Category Filters
+        // User ID search stays on Home; room search lives only in Rooms.
         item {
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search room ID, user ID or room name...") },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (searchQuery.isNotBlank()) {
-                            IconButton(
-                                onClick = { searchQuery = "" },
-                                modifier = Modifier.testTag("home_clear_search_button")
-                            ) {
-                                Icon(Icons.Filled.Close, contentDescription = "Clear search")
-                            }
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Search user ID...") },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(
+                            onClick = { searchQuery = "" },
+                            modifier = Modifier.testTag("home_clear_search_button")
+                        ) {
+                            Icon(Icons.Filled.Close, contentDescription = "Clear search")
                         }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("home_search_input")
-                )
-
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(RoomCategory.entries) { cat ->
-                        FilterChip(
-                            selected = selectedCategory == cat,
-                            onClick = { selectedCategory = cat },
-                            label = { Text(cat.label) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = VibeViolet,
-                                selectedLabelColor = Color.White
-                            ),
-                            modifier = Modifier.testTag("home_cat_${cat.name.lowercase()}")
-                        )
                     }
-                }
-            }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .testTag("home_search_input")
+            )
         }
 
         // Exact user-ID results from the shared search box.
@@ -616,164 +501,8 @@ fun HomeScreen(
             }
         }
 
-        // Rooms Content
-        when (roomsState) {
-            is UiState.Loading -> {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-            }
-
-            is UiState.Error -> {
-                item {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f)
-                    ) {
-                        Text(
-                            text = roomsState.message,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
-                }
-            }
-
-            is UiState.Success -> {
-                val filteredRooms = roomsState.data.filter { room ->
-                    room.hostId !in blockedUserIds &&
-                        (selectedCategory == RoomCategory.ALL || room.category.equals(selectedCategory.label, ignoreCase = true)) &&
-                        (searchQuery.isBlank() ||
-                            room.title.contains(searchQuery, ignoreCase = true) ||
-                            room.hostName.contains(searchQuery, ignoreCase = true) ||
-                            room.category.contains(searchQuery, ignoreCase = true) ||
-                            room.id.equals(searchQuery.trim(), ignoreCase = true) ||
-                            room.publicRoomId.equals(searchQuery.trim(), ignoreCase = true))
-                }
-
-                val recentlyJoined = filteredRooms.filter { it.id in recentRoomIds }
-                val popularRooms = filteredRooms.sortedByDescending { it.listenerCount + it.activeSpeakersCount }
-                val trendingRooms = filteredRooms.sortedByDescending { (if (it.featured) 50 else 0) + it.activeSpeakersCount }
-                val recommendedRooms = filteredRooms.filter { it.hostId != currentUser.userId }.ifEmpty { filteredRooms }
-
-                if (filteredRooms.isEmpty() && matchingUsers.isEmpty()) {
-                    item {
-                        EmptyRoomsPrompt(onCreateRoomClick = onCreateRoomClick)
-                    }
-                } else if (filteredRooms.isEmpty()) {
-                    item {
-                        Text(
-                            "No live rooms match this search.",
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                } else {
-                    if (recentlyJoined.isNotEmpty()) {
-                        item {
-                            SectionTitle("Recently Joined", "${recentlyJoined.size} rooms")
-                        }
-                        item {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(recentlyJoined, key = { "recent_${it.id}" }) { room ->
-                                    VoiceRoomCard(
-                                        room = room,
-                                        onClick = { handleRoomTap(room) },
-                                        modifier = Modifier.width(248.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    item {
-                        SectionTitle("Popular Voice Rooms", "Live now")
-                    }
-                    item {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(popularRooms, key = { "pop_${it.id}" }) { room ->
-                                VoiceRoomCard(
-                                    room = room,
-                                    onClick = { handleRoomTap(room) },
-                                    modifier = Modifier.width(260.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    item {
-                        SectionTitle("Recommended & Trending", "${recommendedRooms.size} stages")
-                    }
-                    items(trendingRooms, key = { "trend_${it.id}" }) { room ->
-                        VoiceRoomCard(
-                            room = room,
-                            onClick = { handleRoomTap(room) },
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
-                }
-            }
-        }
     }
 
-    passwordPromptRoom?.let { targetRoom ->
-        AlertDialog(
-            onDismissRequest = { passwordPromptRoom = null },
-            title = { Text("Enter Room Passcode") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "\"${targetRoom.title}\" is password-protected by ${targetRoom.hostName}.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    OutlinedTextField(
-                        value = enteredPin,
-                        onValueChange = { enteredPin = it; pinError = null },
-                        label = { Text("Room Passcode") },
-                        singleLine = true,
-                        isError = pinError != null,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    pinError?.let {
-                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-            },
-            confirmButton = {
-                Button(onClick = {
-                    if (onVerifyPasscode(targetRoom, enteredPin)) {
-                        passwordPromptRoom = null
-                        onOpenRoom(targetRoom)
-                    } else {
-                        pinError = "Incorrect passcode. Try again."
-                    }
-                }) {
-                    Text("Join Room")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { passwordPromptRoom = null }) { Text("Cancel") }
-            }
-        )
-    }
 }
 
 @Composable

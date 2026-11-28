@@ -737,6 +737,12 @@ service cloud.firestore {
                 (isSignedIn() && request.auth.uid == userId &&
                         incoming().role == existing().role &&
                         incoming().accountStatus == existing().accountStatus &&
+                        incoming().visitorsLastViewedTotal is int &&
+                        incoming().visitorsLastViewedTotal == (('totalVisitors' in existing()) ? existing().totalVisitors : 0) &&
+                        incoming().diff(existing()).affectedKeys().hasOnly(['visitorsLastViewedTotal'])) ||
+                (isSignedIn() && request.auth.uid == userId &&
+                        incoming().role == existing().role &&
+                        incoming().accountStatus == existing().accountStatus &&
                         incoming().vipLevel is int && incoming().vipLevel >= 1 && incoming().vipLevel <= 8 &&
                         existing().coinBalance is int && incoming().coinBalance == existing().coinBalance - vipTierPrice(incoming().vipLevel) &&
                         (incoming().vipLevel > existing().vipLevel ||

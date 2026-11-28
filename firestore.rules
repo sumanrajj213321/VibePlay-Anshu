@@ -681,6 +681,18 @@ service cloud.firestore {
           )
         : (
                 (isSignedIn() && isValidId(userId) &&
+                                       request.auth.uid == userId &&
+                                       (!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false) &&
+                                       incoming().hasCreatedRoom == true &&
+                                       isValidId(incoming().createdRoomId) &&
+                                       (!('coinBalance' in existing()) || (('coinBalance' in incoming()) && incoming().coinBalance == existing().coinBalance)) &&
+                                       (!('vipLevel' in existing()) || (('vipLevel' in incoming()) && incoming().vipLevel == existing().vipLevel)) &&
+                                       isValidTs(incoming().updatedAt) &&
+                                       existsAfter(/databases/$(database)/documents/room_creation_locks/$(userId)) &&
+                                       getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.userId == userId &&
+                                       getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
+                                       incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
+                                (isSignedIn() && isValidId(userId) &&
                  incoming().diff(existing()).affectedKeys().hasAny([
                    'totalGiftsSent', 'totalGiftCoinsSent', 'totalGiftsReceived',
                    'totalGiftCoinsReceived', 'dailyGiftCoinsSent', 'dailyGiftCoinsReceived',
@@ -782,18 +794,7 @@ service cloud.firestore {
                                        incoming().followersCount >= 0 &&
                                        incoming().diff(existing()).affectedKeys().hasOnly(['followersCount', 'updatedAt']) &&
                                        isValidTs(incoming().updatedAt)) ||
-                (isSignedIn() && isValidId(userId) &&
-                                       request.auth.uid == userId &&
-                                       (!('hasCreatedRoom' in existing()) || existing().hasCreatedRoom == false) &&
-                                       incoming().hasCreatedRoom == true &&
-                                       isValidId(incoming().createdRoomId) &&
-                                       (!('coinBalance' in existing()) || (('coinBalance' in incoming()) && incoming().coinBalance == existing().coinBalance)) &&
-                                       (!('vipLevel' in existing()) || (('vipLevel' in incoming()) && incoming().vipLevel == existing().vipLevel)) &&
-                                       isValidTs(incoming().updatedAt) &&
-                                       existsAfter(/databases/$(database)/documents/room_creation_locks/$(userId)) &&
-                                       getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.userId == userId &&
-                                       getAfter(/databases/$(database)/documents/room_creation_locks/$(userId)).data.roomId == incoming().createdRoomId &&
-                                       incoming().diff(existing()).affectedKeys().hasOnly(['hasCreatedRoom', 'createdRoomId', 'updatedAt'])) ||
+
                 (isSignedIn() && request.auth.uid == userId &&
                                        incoming().userId == existing().userId &&
                                        incoming().createdAt == existing().createdAt &&

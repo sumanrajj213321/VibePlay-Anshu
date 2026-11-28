@@ -150,7 +150,7 @@ fun RoomsHubScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Color(0xFF090811)),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+        contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
@@ -161,7 +161,7 @@ fun RoomsHubScreen(
                 border = BorderStroke(1.dp, VibePink.copy(alpha = 0.75f))
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -178,7 +178,7 @@ fun RoomsHubScreen(
                         shape = RoundedCornerShape(30.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E9B), disabledContainerColor = Color(0xFF6C4262))
                     ) {
-                        Icon(Icons.Filled.Mic, contentDescription = null)
+                        Icon(Icons.Filled.Add, contentDescription = null)
                         Spacer(Modifier.width(4.dp))
                         Text("Go Live", fontWeight = FontWeight.Bold)
                     }
@@ -208,7 +208,7 @@ fun RoomsHubScreen(
                         }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("07h 42m", color = Color(0xFFFFD58A), fontWeight = FontWeight.Bold)
+                        Text("Claimed", color = Color(0xFFFFD58A), fontWeight = FontWeight.Bold)
                         Icon(Icons.Filled.CheckCircle, contentDescription = "Claimed", tint = Color(0xFFFFD36E), modifier = Modifier.size(24.dp))
                     }
                 }

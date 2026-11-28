@@ -444,7 +444,7 @@ class UserRepository(
                 }
                 val currentCoins = snap.getLong("coinBalance") ?: profile.coinBalance
                 val currentXp = snap.getLong("xp") ?: profile.xp
-                val newXp = currentXp + 50L
+                val newXp = currentXp + 100L
                 val newLevel = com.example.data.model.LevelProgression.levelForXp(newXp)
                 tx.update(
                     userRef,

@@ -637,6 +637,8 @@ private fun HomeMomentCard(post: HomeMomentPost, currentUserId: String, mostLike
     var likeCount by remember(post.id) { mutableStateOf(0) }
     var liked by remember(post.id, currentUserId) { mutableStateOf(false) }
     var likeBusy by remember(post.id) { mutableStateOf(false) }
+    var isFollowing by remember(post.ownerId, currentUserId) { mutableStateOf(false) }
+    var followBusy by remember(post.ownerId, currentUserId) { mutableStateOf(false) }
     val momentRef = remember(post.ownerId, post.id) {
         db.collection("users").document(post.ownerId).collection("moments").document(post.id)
     }
@@ -655,6 +657,14 @@ private fun HomeMomentCard(post: HomeMomentPost, currentUserId: String, mostLike
             liked = snapshot?.documents?.any { it.id == currentUserId } == true
         }
         onDispose { likesListener.remove() }
+    }
+    DisposableEffect(post.ownerId, currentUserId) {
+        val followingRef = db.collection("users").document(currentUserId)
+            .collection("following").document(post.ownerId)
+        val followListener = followingRef.addSnapshotListener { snapshot, _ ->
+            isFollowing = snapshot?.exists() == true
+        }
+        onDispose { followListener.remove() }
     }
 
     val photoBitmap = remember(post.photoBase64) {
@@ -687,6 +697,76 @@ private fun HomeMomentCard(post: HomeMomentPost, currentUserId: String, mostLike
                 Column(Modifier.weight(1f)) {
                     Text(username, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text("VibePlay Moment", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (post.ownerId != currentUserId) {
+                    Surface(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable(enabled = !followBusy) {
+                                followBusy = true
+                                val myUserRef = db.collection("users").document(currentUserId)
+                                val targetUserRef = db.collection("users").document(post.ownerId)
+                                val followingRef = myUserRef.collection("following").document(post.ownerId)
+                                val followerRef = targetUserRef.collection("followers").document(currentUserId)
+                                db.runTransaction { tx ->
+                                    val mySnap = tx.get(myUserRef)
+                                    val targetSnap = tx.get(targetUserRef)
+                                    val followingSnap = tx.get(followingRef)
+                                    val followerSnap = tx.get(followerRef)
+                                    val myCount = mySnap.getLong("followingCount") ?: 0L
+                                    val targetCount = targetSnap.getLong("followersCount") ?: 0L
+                                    if (followingSnap.exists()) {
+                                        tx.delete(followingRef)
+                                        if (followerSnap.exists()) tx.delete(followerRef)
+                                        tx.update(myUserRef, mapOf(
+                                            "followingCount" to (myCount - 1L).coerceAtLeast(0L),
+                                            "updatedAt" to FieldValue.serverTimestamp()
+                                        ))
+                                        if (followerSnap.exists()) tx.update(targetUserRef, mapOf(
+                                            "followersCount" to (targetCount - 1L).coerceAtLeast(0L),
+                                            "updatedAt" to FieldValue.serverTimestamp()
+                                        ))
+                                    } else {
+                                        val myName = mySnap.getString("username")?.takeIf { it.isNotBlank() } ?: "VibePlay User"
+                                        val myAvatar = mySnap.getString("avatarUrl").orEmpty()
+                                        val edgeTime = FieldValue.serverTimestamp()
+                                        tx.set(followingRef, mapOf(
+                                            "peerId" to post.ownerId,
+                                            "peerName" to username,
+                                            "peerAvatarUrl" to avatarUrl,
+                                            "peerGender" to "UNSPECIFIED",
+                                            "createdAt" to edgeTime
+                                        ))
+                                        tx.set(followerRef, mapOf(
+                                            "peerId" to currentUserId,
+                                            "peerName" to myName,
+                                            "peerAvatarUrl" to myAvatar,
+                                            "peerGender" to "UNSPECIFIED",
+                                            "createdAt" to edgeTime
+                                        ))
+                                        tx.update(myUserRef, mapOf(
+                                            "followingCount" to myCount + 1L,
+                                            "updatedAt" to FieldValue.serverTimestamp()
+                                        ))
+                                        if (!followerSnap.exists()) tx.update(targetUserRef, mapOf(
+                                            "followersCount" to targetCount + 1L,
+                                            "updatedAt" to FieldValue.serverTimestamp()
+                                        ))
+                                    }
+                                }.addOnCompleteListener { followBusy = false }
+                            },
+                        color = if (isFollowing) MaterialTheme.colorScheme.surfaceVariant else VibeCyan.copy(alpha = 0.14f),
+                        shape = RoundedCornerShape(20.dp),
+                        border = BorderStroke(1.dp, if (isFollowing) MaterialTheme.colorScheme.outline else VibeCyan)
+                    ) {
+                        Text(
+                            if (followBusy) "..." else if (isFollowing) "Following" else "Follow",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                            color = if (isFollowing) MaterialTheme.colorScheme.onSurfaceVariant else VibeCyan,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                 }
                 if (mostLiked) Text("♥ $likeCount", color = VibePink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
             }

@@ -181,6 +181,8 @@ fun VibeCoinIcon(modifier: Modifier = Modifier, pile: Boolean = false) {
 @DrawableRes
 fun coverDrawableRes(coverKey: String): Int = when (coverKey) {
     "reference_music" -> R.drawable.img_reference_music_room
+    "reference_lofi" -> R.drawable.img_reference_lofi_room
+    "reference_city" -> R.drawable.img_reference_city_room
     "reference_gaming" -> R.drawable.img_reference_gaming_room
     "chill_lounge" -> R.drawable.img_cover_chill_lounge
     "music_arena" -> R.drawable.img_cover_music_arena
@@ -1495,8 +1497,8 @@ fun VoiceRoomCard(
                         room.coverUrl.isNotBlank() -> room.coverKey
                         room.category.equals("Music", true) -> "reference_music"
                         room.category.equals("Gaming", true) -> "reference_gaming"
-                        room.category.equals("Chill", true) -> "chill_lounge"
-                        room.category.equals("Chat", true) -> "party_stage"
+                        room.category.equals("Chill", true) -> "reference_lofi"
+                        room.category.equals("Chat", true) -> "reference_city"
                         else -> room.coverKey
                     },
                     modifier = Modifier.fillMaxSize(),

@@ -236,17 +236,6 @@ fun RoomsHubScreen(
             }
         }
 
-        if (hasCreatedRoom && myCreatedLiveRoom != null) {
-            item {
-                OutlinedButton(
-                    onClick = { onOpenRoom(myCreatedLiveRoom) },
-                    modifier = Modifier.fillMaxWidth().testTag("open_my_created_room_button")
-                ) {
-                    Text("My Room (${myCreatedLiveRoom.title})", fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-
         if (recentlyJoinedRooms.isNotEmpty()) {
             item {
                 Row(
@@ -478,7 +467,8 @@ fun RoomsHubScreen(
                         VoiceRoomCard(
                             room = room,
                             onClick = { onOpenRoom(room) },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            isLiveHot = true
                         )
                     }
                     if (roomRow.size == 1) Spacer(modifier = Modifier.weight(1f))

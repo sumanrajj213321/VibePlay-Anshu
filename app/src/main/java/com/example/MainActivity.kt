@@ -477,6 +477,29 @@ private fun AuthenticatedVibePlayApp(
                                     gender = it.peerGender
                                 )
                             }
+                        if (targetId != currentUser.userId) {
+                            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                            val ownerRef = db.collection("users").document(targetId)
+                            val visitorRef = ownerRef.collection("visitors").document(currentUser.userId)
+                            db.runTransaction { tx ->
+                                val owner = tx.get(ownerRef)
+                                val prior = tx.get(visitorRef)
+                                val visitData = mapOf(
+                                    "visitorId" to currentUser.userId,
+                                    "visitorName" to currentUser.username,
+                                    "visitorAvatarUrl" to currentUser.avatarUrl,
+                                    "visitedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                                )
+                                if (prior.exists()) {
+                                    tx.update(visitorRef, "visitedAt", com.google.firebase.firestore.FieldValue.serverTimestamp())
+                                } else {
+                                    tx.set(visitorRef, visitData)
+                                    tx.update(ownerRef, "totalVisitors", (owner.getLong("totalVisitors") ?: 0L) + 1L)
+                                }
+                            }.addOnFailureListener { error ->
+                                android.util.Log.w("VibePlay", "Unable to record profile visit", error)
+                            }
+                        }
                         viewModel.inspectUser(targetId, fallback) { loaded ->
                             inspectedUser = loaded
                         }

@@ -156,39 +156,6 @@ fun RoomsHubScreen(
         item {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                color = Color(0xFF21152F),
-                border = BorderStroke(1.dp, VibePink.copy(alpha = 0.75f))
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Host Your Party Room", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text("1 Host + 8 Speakers", color = Color(0xFFD8C9E8), style = MaterialTheme.typography.bodySmall)
-                            Text("🎁 Gifts & Chat", color = Color(0xFFD8C9E8), style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                    Button(
-                        onClick = { if (myCreatedLiveRoom != null) onOpenRoom(myCreatedLiveRoom) else showRoomCreateForm = true },
-                        enabled = true,
-                        shape = RoundedCornerShape(30.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E9B), disabledContainerColor = Color(0xFF6C4262))
-                    ) {
-                        Icon(Icons.Filled.Add, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text("Go Live", fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-
-        item {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
                 color = Color(0xFF3A3026),
                 border = BorderStroke(1.dp, Color(0xFFFFC66D).copy(alpha = 0.8f))

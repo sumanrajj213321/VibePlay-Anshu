@@ -168,27 +168,13 @@ fun InboxScreen(
 
     DisposableEffect(currentUser.userId) {
         val db = FirebaseFirestore.getInstance()
-        var lastViewedAt: Timestamp? = null
-        var visitorDocuments = emptyList<com.google.firebase.firestore.DocumentSnapshot>()
-        fun refreshUnreadCount() {
-            val cutoff = lastViewedAt?.toDate()?.time ?: 0L
-            unreadVisitorCount = visitorDocuments.count { doc ->
-                (doc.getTimestamp("visitedAt")?.toDate()?.time ?: 0L) > cutoff
-            }
-        }
         val ownerRef = db.collection("users").document(currentUser.userId)
         val profileListener = ownerRef.addSnapshotListener { snapshot, _ ->
-            lastViewedAt = snapshot?.getTimestamp("visitorsLastViewedAt")
-            refreshUnreadCount()
+            val total = snapshot?.getLong("totalVisitors") ?: 0L
+            val viewed = snapshot?.getLong("visitorsLastViewedTotal") ?: 0L
+            unreadVisitorCount = (total - viewed).coerceAtLeast(0L).toInt()
         }
-        val visitorListener = ownerRef.collection("visitors").addSnapshotListener { snapshot, _ ->
-            visitorDocuments = snapshot?.documents.orEmpty()
-            refreshUnreadCount()
-        }
-        onDispose {
-            profileListener.remove()
-            visitorListener.remove()
-        }
+        onDispose { profileListener.remove() }
     }
 
     if (showVisitorsScreen) {
@@ -198,8 +184,13 @@ fun InboxScreen(
             onOpenUserById = onOpenUserById,
             onViewed = {
                 unreadVisitorCount = 0
-                FirebaseFirestore.getInstance().collection("users").document(currentUser.userId)
-                    .update("visitorsLastViewedAt", FieldValue.serverTimestamp())
+                val ownerRef = FirebaseFirestore.getInstance().collection("users").document(currentUser.userId)
+                FirebaseFirestore.getInstance().runTransaction { tx ->
+                    val snapshot = tx.get(ownerRef)
+                    tx.update(ownerRef, "visitorsLastViewedTotal", snapshot.getLong("totalVisitors") ?: 0L)
+                }.addOnFailureListener { error ->
+                    android.util.Log.w("VibePlay", "Unable to clear visitor badge", error)
+                }
             }
         )
         return
